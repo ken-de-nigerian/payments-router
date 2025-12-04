@@ -46,9 +46,14 @@ jobs:
           composer update --${{ matrix.stability }} --prefer-dist --no-interaction
 
       - name: Execute tests
-        run: vendor/bin/pest --coverage
+        run: vendor/bin/pest
+
+      - name: Execute tests with coverage
+        if: matrix.php == '8.3' && matrix.laravel == '11.*'
+        run: vendor/bin/pest --coverage --coverage-clover coverage.xml
 
       - name: Upload coverage
+        if: matrix.php == '8.3' && matrix.laravel == '11.*'
         uses: codecov/codecov-action@v3
         with:
           files: ./coverage.xml

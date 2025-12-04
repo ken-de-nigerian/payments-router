@@ -1,9 +1,9 @@
 <?php
 
-namespace KenDeNigerian\PaymentsRouter\Tests;
+namespace KenDeNigerian\PayZephyr\Tests;
 
 use Orchestra\Testbench\TestCase as Orchestra;
-use KenDeNigerian\PaymentsRouter\PaymentServiceProvider;
+use KenDeNigerian\PayZephyr\PaymentServiceProvider;
 
 abstract class TestCase extends Orchestra
 {

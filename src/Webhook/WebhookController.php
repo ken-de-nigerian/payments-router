@@ -1,9 +1,9 @@
 <?php
-namespace Nwaneri\PaymentsRouter\Webhook;
+namespace KenDeNigerian\PayZephyr\Webhook;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
-use Nwaneri\PaymentsRouter\Manager;
+use KenDeNigerian\PayZephyr\Manager;
 
 class WebhookController extends Controller
 {
@@ -18,7 +18,7 @@ class WebhookController extends Controller
         }
 
         $payload = $request->all();
-        event("payments.{$provider}.webhook", [$payload]);
+        event("payments.$provider.webhook", [$payload]);
 
         return response('OK', 200);
     }

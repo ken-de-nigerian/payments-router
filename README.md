@@ -100,7 +100,7 @@ PAYPAL_ENABLED=false
 ### Basic Payment Flow
 
 ```php
-use KenDeNigerian\PaymentsRouter\Facades\Payment;
+use KenDeNigerian\PayZephyr\Facades\Payment;
 
 // Using the default provider
 return Payment::amount(10000)
@@ -172,7 +172,7 @@ return response()->json([
 ### Verify Payment
 
 ```php
-use KenDeNigerian\PaymentsRouter\Facades\Payment;
+use KenDeNigerian\PayZephyr\Facades\Payment;
 
 // In your callback controller
 public function callback(Request $request)
@@ -262,7 +262,7 @@ Signatures are automatically verified. Disable if needed in config:
 The package automatically checks provider health before attempting charges:
 
 ```php
-use KenDeNigerian\PaymentsRouter\PaymentManager;
+use KenDeNigerian\PayZephyr\PaymentManager;
 
 $manager = app(PaymentManager::class);
 $driver = $manager->driver('paystack');
@@ -317,7 +317,7 @@ Transactions are logged with:
 The package throws specific exceptions for different error types:
 
 ```php
-use KenDeNigerian\PaymentsRouter\Exceptions\{
+use KenDeNigerian\PayZephyr\Exceptions\{
     PaymentException,
     ChargeException,
     VerificationException,
@@ -362,7 +362,7 @@ The package includes comprehensive tests for:
 ### Mocking in Tests
 
 ```php
-use KenDeNigerian\PaymentsRouter\Facades\Payment;
+use KenDeNigerian\PayZephyr\Facades\Payment;
 
 // Mock a successful payment
 Payment::shouldReceive('charge')
@@ -380,7 +380,7 @@ Payment::shouldReceive('charge')
 ### Direct Driver Access
 
 ```php
-use KenDeNigerian\PaymentsRouter\PaymentManager;
+use KenDeNigerian\PayZephyr\PaymentManager;
 
 $manager = app(PaymentManager::class);
 $driver = $manager->driver('paystack');
@@ -394,8 +394,8 @@ $response = $driver->charge($chargeRequest);
 Implement `DriverInterface` to add custom providers:
 
 ```php
-use KenDeNigerian\PaymentsRouter\Contracts\DriverInterface;
-use KenDeNigerian\PaymentsRouter\Drivers\AbstractDriver;
+use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
+use KenDeNigerian\PayZephyr\Drivers\AbstractDriver;
 
 class CustomDriver extends AbstractDriver implements DriverInterface
 {

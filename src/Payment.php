@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter;
+namespace KenDeNigerian\PayZephyr;
 
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
+use Illuminate\Http\RedirectResponse;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
 /**
  * Class Payment
@@ -114,6 +116,7 @@ class Payment
 
     /**
      * Create charge and get response
+     * @throws ProviderException
      */
     public function charge(): ChargeResponse
     {
@@ -126,8 +129,9 @@ class Payment
 
     /**
      * Create charge and redirect
+     * @throws ProviderException
      */
-    public function redirect()
+    public function redirect(): RedirectResponse
     {
         $response = $this->charge();
         return redirect()->away($response->authorizationUrl);
@@ -135,8 +139,9 @@ class Payment
 
     /**
      * Verify a payment
+     * @throws ProviderException
      */
-    public function verify(string $reference, ?string $provider = null)
+    public function verify(string $reference, ?string $provider = null): DataObjects\VerificationResponse
     {
         return $this->manager->verify($reference, $provider);
     }

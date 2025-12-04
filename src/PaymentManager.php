@@ -2,15 +2,21 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter;
+namespace KenDeNigerian\PayZephyr;
 
 use Illuminate\Support\Facades\Config;
-use KenDeNigerian\PaymentsRouter\Contracts\DriverInterface;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
-use KenDeNigerian\PaymentsRouter\Exceptions\DriverNotFoundException;
-use KenDeNigerian\PaymentsRouter\Exceptions\ProviderException;
+use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver;
+use KenDeNigerian\PayZephyr\Drivers\MonnifyDriver;
+use KenDeNigerian\PayZephyr\Drivers\PayPalDriver;
+use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
+use KenDeNigerian\PayZephyr\Drivers\StripeDriver;
+use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
+use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
+use Throwable;
 
 /**
  * Class PaymentManager
@@ -20,6 +26,7 @@ use KenDeNigerian\PaymentsRouter\Exceptions\ProviderException;
 class PaymentManager
 {
     protected array $drivers = [];
+
     protected array $config;
 
     public function __construct()
@@ -30,8 +37,6 @@ class PaymentManager
     /**
      * Get driver instance
      *
-     * @param string|null $name
-     * @return DriverInterface
      * @throws DriverNotFoundException
      */
     public function driver(?string $name = null): DriverInterface
@@ -44,14 +49,14 @@ class PaymentManager
 
         $config = $this->config['providers'][$name] ?? null;
 
-        if (!$config || !($config['enabled'] ?? true)) {
-            throw new DriverNotFoundException("Payment driver [{$name}] not found or disabled");
+        if (! $config || ! ($config['enabled'] ?? true)) {
+            throw new DriverNotFoundException("Payment driver [$name] not found or disabled");
         }
 
         $driverClass = $this->resolveDriverClass($config['driver']);
 
-        if (!class_exists($driverClass)) {
-            throw new DriverNotFoundException("Driver class [{$driverClass}] not found");
+        if (! class_exists($driverClass)) {
+            throw new DriverNotFoundException("Driver class [$driverClass] not found");
         }
 
         $this->drivers[$name] = new $driverClass($config);
@@ -62,9 +67,6 @@ class PaymentManager
     /**
      * Attempt charge across multiple providers with fallback
      *
-     * @param ChargeRequest $request
-     * @param array|null $providers
-     * @return ChargeResponse
      * @throws ProviderException
      */
     public function chargeWithFallback(ChargeRequest $request, ?array $providers = null): ChargeResponse
@@ -78,28 +80,30 @@ class PaymentManager
 
                 // Health check if enabled
                 if ($this->config['health_check']['enabled'] ?? true) {
-                    if (!$driver->getCachedHealthCheck()) {
-                        logger()->warning("Provider [{$providerName}] failed health check, skipping");
+                    if (! $driver->getCachedHealthCheck()) {
+                        logger()->warning("Provider [$providerName] failed health check, skipping");
+
                         continue;
                     }
                 }
 
                 // Check currency support
-                if (!$driver->isCurrencySupported($request->currency)) {
-                    logger()->info("Provider [{$providerName}] does not support currency {$request->currency}");
+                if (! $driver->isCurrencySupported($request->currency)) {
+                    logger()->info("Provider [$providerName] does not support currency $request->currency");
+
                     continue;
                 }
 
                 $response = $driver->charge($request);
 
-                logger()->info("Payment charged successfully via [{$providerName}]", [
+                logger()->info("Payment charged successfully via [$providerName]", [
                     'reference' => $response->reference,
                 ]);
 
                 return $response;
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $exceptions[$providerName] = $e;
-                logger()->error("Provider [{$providerName}] failed", [
+                logger()->error("Provider [$providerName] failed", [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
@@ -108,16 +112,13 @@ class PaymentManager
 
         throw ProviderException::withContext(
             'All payment providers failed',
-            ['exceptions' => array_map(fn($e) => $e->getMessage(), $exceptions)]
+            ['exceptions' => array_map(fn ($e) => $e->getMessage(), $exceptions)]
         );
     }
 
     /**
      * Verify payment across all providers
      *
-     * @param string $reference
-     * @param string|null $provider
-     * @return VerificationResponse
      * @throws ProviderException
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponse
@@ -128,22 +129,21 @@ class PaymentManager
         foreach ($providers as $providerName) {
             try {
                 $driver = $this->driver($providerName);
+
                 return $driver->verify($reference);
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $exceptions[$providerName] = $e;
             }
         }
 
         throw ProviderException::withContext(
-            "Unable to verify payment reference: {$reference}",
-            ['exceptions' => array_map(fn($e) => $e->getMessage(), $exceptions)]
+            "Unable to verify payment reference: $reference",
+            ['exceptions' => array_map(fn ($e) => $e->getMessage(), $exceptions)]
         );
     }
 
     /**
      * Get default driver name
-     *
-     * @return string
      */
     public function getDefaultDriver(): string
     {
@@ -152,8 +152,6 @@ class PaymentManager
 
     /**
      * Get fallback provider chain
-     *
-     * @return array
      */
     public function getFallbackChain(): array
     {
@@ -168,18 +166,15 @@ class PaymentManager
 
     /**
      * Resolve driver class from config
-     *
-     * @param string $driver
-     * @return string
      */
     protected function resolveDriverClass(string $driver): string
     {
         $map = [
-            'paystack' => \KenDeNigerian\PaymentsRouter\Drivers\PaystackDriver::class,
-            'flutterwave' => \KenDeNigerian\PaymentsRouter\Drivers\FlutterwaveDriver::class,
-            'monnify' => \KenDeNigerian\PaymentsRouter\Drivers\MonnifyDriver::class,
-            'stripe' => \KenDeNigerian\PaymentsRouter\Drivers\StripeDriver::class,
-            'paypal' => \KenDeNigerian\PaymentsRouter\Drivers\PayPalDriver::class,
+            'paystack' => PaystackDriver::class,
+            'flutterwave' => FlutterwaveDriver::class,
+            'monnify' => MonnifyDriver::class,
+            'stripe' => StripeDriver::class,
+            'paypal' => PayPalDriver::class,
         ];
 
         return $map[$driver] ?? $driver;
@@ -187,14 +182,12 @@ class PaymentManager
 
     /**
      * Get all enabled providers
-     *
-     * @return array
      */
     public function getEnabledProviders(): array
     {
         return array_filter(
             $this->config['providers'] ?? [],
-            fn($config) => $config['enabled'] ?? true
+            fn ($config) => $config['enabled'] ?? true
         );
     }
 }

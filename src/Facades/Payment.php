@@ -2,31 +2,33 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Facades;
+namespace KenDeNigerian\PayZephyr\Facades;
 
 use Illuminate\Support\Facades\Facade;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
 
 /**
- * @method static \KenDeNigerian\PaymentsRouter\Payment amount(float $amount)
- * @method static \KenDeNigerian\PaymentsRouter\Payment currency(string $currency)
- * @method static \KenDeNigerian\PaymentsRouter\Payment email(string $email)
- * @method static \KenDeNigerian\PaymentsRouter\Payment reference(string $reference)
- * @method static \KenDeNigerian\PaymentsRouter\Payment callback(string $url)
- * @method static \KenDeNigerian\PaymentsRouter\Payment metadata(array $metadata)
- * @method static \KenDeNigerian\PaymentsRouter\Payment description(string $description)
- * @method static \KenDeNigerian\PaymentsRouter\Payment customer(array $customer)
- * @method static \KenDeNigerian\PaymentsRouter\Payment with(string|array $providers)
- * @method static \KenDeNigerian\PaymentsRouter\Payment using(string|array $providers)
- * @method static \KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse charge()
+ * @method static \KenDeNigerian\PayZephyr\Payment amount(float $amount)
+ * @method static \KenDeNigerian\PayZephyr\Payment currency(string $currency)
+ * @method static \KenDeNigerian\PayZephyr\Payment email(string $email)
+ * @method static \KenDeNigerian\PayZephyr\Payment reference(string $reference)
+ * @method static \KenDeNigerian\PayZephyr\Payment callback(string $url)
+ * @method static \KenDeNigerian\PayZephyr\Payment metadata(array $metadata)
+ * @method static \KenDeNigerian\PayZephyr\Payment description(string $description)
+ * @method static \KenDeNigerian\PayZephyr\Payment customer(array $customer)
+ * @method static \KenDeNigerian\PayZephyr\Payment with(string|array $providers)
+ * @method static \KenDeNigerian\PayZephyr\Payment using(string|array $providers)
+ * @method static ChargeResponse charge()
  * @method static mixed redirect()
- * @method static \KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse verify(string $reference, ?string $provider = null)
+ * @method static VerificationResponse verify(string $reference, ?string $provider = null)
  *
- * @see \KenDeNigerian\PaymentsRouter\Payment
+ * @see \KenDeNigerian\PayZephyr\Payment
  */
 class Payment extends Facade
 {
     protected static function getFacadeAccessor(): string
     {
-        return \KenDeNigerian\PaymentsRouter\Payment::class;
+        return \KenDeNigerian\PayZephyr\Payment::class;
     }
 }

@@ -1,5 +1,5 @@
 {
-    "name": "kendenigerian/payments-router",
+    "name": "kendenigerian/payzephyr",
     "description": "A unified payment abstraction layer for Laravel supporting multiple providers (Paystack, Flutterwave, Monnify, Stripe, PayPal) with automatic fallback, webhooks, and currency conversion",
     "keywords": [
         "laravel",
@@ -17,15 +17,15 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Nwaneri Kenneth",
-            "email": "you@example.com",
+            "name": "Nwaneri Chukwunyere Kenneth",
+            "email": "ken.de.nigerian@gmail.com",
             "role": "Developer"
         }
     ],
-    "homepage": "https://github.com/kendenigerian/payments-router",
+    "homepage": "https://github.com/ken-de-nigerian/payzephyr",
     "support": {
-        "issues": "https://github.com/kendenigerian/payments-router/issues",
-        "source": "https://github.com/kendenigerian/payments-router"
+        "issues": "https://github.com/ken-de-nigerian/payzephyr/issues",
+        "source": "https://github.com/ken-de-nigerian/payzephyr"
     },
     "require": {
         "php": "^8.2",
@@ -38,6 +38,7 @@
     },
     "require-dev": {
         "pestphp/pest": "^2.34",
+        "pestphp/pest-plugin-laravel": "^2.3",
         "orchestra/testbench": "^8.0|^9.0",
         "mockery/mockery": "^1.6",
         "phpstan/phpstan": "^1.10",
@@ -45,7 +46,7 @@
     },
     "autoload": {
         "psr-4": {
-            "KenDeNigerian\\PaymentsRouter\\": "src/"
+            "KenDeNigerian\\PayZephyr\\": "src/"
         },
         "files": [
             "src/helpers.php"
@@ -53,22 +54,22 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "KenDeNigerian\\PaymentsRouter\\Tests\\": "tests/"
+            "KenDeNigerian\\PayZephyr\\Tests\\": "tests/"
         }
     },
     "scripts": {
         "test": "vendor/bin/pest",
-        "test-coverage": "vendor/bin/pest --coverage",
+        "test-coverage": "vendor/bin/pest --coverage --coverage-clover coverage.xml",
         "analyse": "vendor/bin/phpstan analyse",
         "format": "vendor/bin/pint"
     },
     "extra": {
         "laravel": {
             "providers": [
-                "KenDeNigerian\\PaymentsRouter\\PaymentServiceProvider"
+                "KenDeNigerian\\PayZephyr\\PaymentServiceProvider"
             ],
             "aliases": {
-                "Payment": "KenDeNigerian\\PaymentsRouter\\Facades\\Payment"
+                "Payment": "KenDeNigerian\\PayZephyr\\Facades\\Payment"
             }
         }
     },

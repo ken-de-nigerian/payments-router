@@ -1,10 +1,10 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use KenDeNigerian\PaymentsRouter\Http\Controllers\WebhookController;
+use KenDeNigerian\PayZephyr\Http\Controllers\WebhookController;
 
 Route::post(
-    config('payments.webhook.path', '/payments/webhook') . '/{provider}',
+    config('payments.webhook.path', '/payments/webhook').'/{provider}',
     [WebhookController::class, 'handle']
 )->middleware(config('payments.webhook.middleware', ['api']))
-  ->name('payments.webhook');
+    ->name('payments.webhook');

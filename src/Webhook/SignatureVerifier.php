@@ -1,7 +1,7 @@
 <?php
-namespace Nwaneri\PaymentsRouter\Webhook;
+namespace KenDeNigerian\PayZephyr\Webhook;
 
-use Nwaneri\PaymentsRouter\Manager;
+use KenDeNigerian\PayZephyr\Manager;
 
 class SignatureVerifier
 {

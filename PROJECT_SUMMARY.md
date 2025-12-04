@@ -179,7 +179,7 @@ PAYSTACK_PUBLIC_KEY=pk_live_xxx
 ### Basic Usage
 
 ```php
-use KenDeNigerian\PaymentsRouter\Facades\Payment;
+use KenDeNigerian\PayZephyr\Facades\Payment;
 
 return Payment::amount(10000)
     ->email('customer@example.com')

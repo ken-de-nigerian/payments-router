@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter;
+namespace KenDeNigerian\PayZephyr;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -13,7 +13,7 @@ class PaymentServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/payments.php', 'payments');
 
         $this->app->singleton(PaymentManager::class);
-        
+
         $this->app->bind(Payment::class, function ($app) {
             return new Payment($app->make(PaymentManager::class));
         });

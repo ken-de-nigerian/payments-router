@@ -2,30 +2,26 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\DataObjects;
+namespace KenDeNigerian\PayZephyr\DataObjects;
 
 /**
  * Class ChargeResponse
  *
  * Data transfer object for payment charge responses
  */
-class ChargeResponse
+readonly class ChargeResponse
 {
     public function __construct(
-        public readonly string $reference,
-        public readonly string $authorizationUrl,
-        public readonly string $accessCode,
-        public readonly string $status,
-        public readonly array $metadata = [],
-        public readonly ?string $provider = null,
-    ) {
-    }
+        public string $reference,
+        public string $authorizationUrl,
+        public string $accessCode,
+        public string $status,
+        public array $metadata = [],
+        public ?string $provider = null,
+    ) {}
 
     /**
      * Create from array
-     *
-     * @param array $data
-     * @return static
      */
     public static function fromArray(array $data): static
     {
@@ -41,8 +37,6 @@ class ChargeResponse
 
     /**
      * Convert to array
-     *
-     * @return array
      */
     public function toArray(): array
     {
@@ -58,8 +52,6 @@ class ChargeResponse
 
     /**
      * Check if charge was successful
-     *
-     * @return bool
      */
     public function isSuccessful(): bool
     {
@@ -68,8 +60,6 @@ class ChargeResponse
 
     /**
      * Check if charge is pending
-     *
-     * @return bool
      */
     public function isPending(): bool
     {

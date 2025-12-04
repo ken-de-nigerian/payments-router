@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Contracts;
+namespace KenDeNigerian\PayZephyr\Contracts;
 
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\Exceptions\PaymentException;
 
 /**
  * Interface DriverInterface
@@ -18,48 +19,39 @@ interface DriverInterface
     /**
      * Initialize a charge/payment
      *
-     * @param ChargeRequest $request
-     * @return ChargeResponse
-     * @throws \KenDeNigerian\PaymentsRouter\Exceptions\PaymentException
+     * @throws PaymentException
      */
     public function charge(ChargeRequest $request): ChargeResponse;
 
     /**
      * Verify a payment transaction
      *
-     * @param string $reference Transaction reference
-     * @return VerificationResponse
-     * @throws \KenDeNigerian\PaymentsRouter\Exceptions\PaymentException
+     * @param  string  $reference  Transaction reference
+     *
+     * @throws PaymentException
      */
     public function verify(string $reference): VerificationResponse;
 
     /**
      * Validate webhook signature
      *
-     * @param array $headers Request headers
-     * @param string $body Raw request body
-     * @return bool
+     * @param  array  $headers  Request headers
+     * @param  string  $body  Raw request body
      */
     public function validateWebhook(array $headers, string $body): bool;
 
     /**
      * Check if the provider is available and healthy
-     *
-     * @return bool
      */
     public function healthCheck(): bool;
 
     /**
      * Get the provider name
-     *
-     * @return string
      */
     public function getName(): string;
 
     /**
      * Get supported currencies
-     *
-     * @return array
      */
     public function getSupportedCurrencies(): array;
 }

@@ -13,7 +13,7 @@ return new class extends Migration
             $table->string('reference')->unique()->index();
             $table->string('provider')->index();
             $table->string('status')->index();
-            $table->decimal('amount', 15, 2);
+            $table->decimal('amount', 15);
             $table->string('currency', 3);
             $table->string('email');
             $table->string('channel')->nullable();

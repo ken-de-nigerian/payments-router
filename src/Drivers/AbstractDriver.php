@@ -2,14 +2,15 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Drivers;
+namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Cache;
-use KenDeNigerian\PaymentsRouter\Contracts\DriverInterface;
-use KenDeNigerian\PaymentsRouter\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
+use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use Psr\Http\Message\ResponseInterface;
+use Random\RandomException;
 
 /**
  * Abstract Class AbstractDriver
@@ -19,13 +20,14 @@ use Psr\Http\Message\ResponseInterface;
 abstract class AbstractDriver implements DriverInterface
 {
     protected Client $client;
+
     protected array $config;
+
     protected string $name;
 
     /**
      * AbstractDriver constructor.
      *
-     * @param array $config
      * @throws InvalidConfigurationException
      */
     public function __construct(array $config)
@@ -50,25 +52,19 @@ abstract class AbstractDriver implements DriverInterface
         $this->client = new Client([
             'base_uri' => $this->config['base_url'] ?? '',
             'timeout' => $this->config['timeout'] ?? 30,
-            'verify' => !($this->config['testing_mode'] ?? false),
+            'verify' => ! ($this->config['testing_mode'] ?? false),
             'headers' => $this->getDefaultHeaders(),
         ]);
     }
 
     /**
      * Get default HTTP headers
-     *
-     * @return array
      */
     abstract protected function getDefaultHeaders(): array;
 
     /**
      * Make HTTP request
      *
-     * @param string $method
-     * @param string $uri
-     * @param array $options
-     * @return ResponseInterface
      * @throws GuzzleException
      */
     protected function makeRequest(string $method, string $uri, array $options = []): ResponseInterface
@@ -78,20 +74,16 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Parse JSON response
-     *
-     * @param ResponseInterface $response
-     * @return array
      */
     protected function parseResponse(ResponseInterface $response): array
     {
         $body = (string) $response->getBody();
+
         return json_decode($body, true) ?? [];
     }
 
     /**
      * Get provider name
-     *
-     * @return string
      */
     public function getName(): string
     {
@@ -100,8 +92,6 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Get supported currencies
-     *
-     * @return array
      */
     public function getSupportedCurrencies(): array
     {
@@ -110,21 +100,17 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Generate unique reference
-     *
-     * @param string|null $prefix
-     * @return string
+     * @throws RandomException
      */
     protected function generateReference(?string $prefix = null): string
     {
         $prefix = $prefix ?? strtoupper($this->getName());
-        return $prefix . '_' . time() . '_' . bin2hex(random_bytes(8));
+
+        return $prefix.'_'.time().'_'.bin2hex(random_bytes(8));
     }
 
     /**
      * Check if currency is supported
-     *
-     * @param string $currency
-     * @return bool
      */
     public function isCurrencySupported(string $currency): bool
     {
@@ -133,12 +119,10 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Get cached health check result
-     *
-     * @return bool
      */
     public function getCachedHealthCheck(): bool
     {
-        $cacheKey = 'payments.health.' . $this->getName();
+        $cacheKey = 'payments.health.'.$this->getName();
         $cacheTtl = config('payments.health_check.cache_ttl', 300);
 
         return Cache::remember($cacheKey, $cacheTtl, function () {
@@ -148,15 +132,11 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Log activity
-     *
-     * @param string $level
-     * @param string $message
-     * @param array $context
      */
     protected function log(string $level, string $message, array $context = []): void
     {
         if (config('payments.logging.enabled', true)) {
-            logger()->{$level}("[{$this->getName()}] {$message}", $context);
+            logger()->{$level}("[{$this->getName()}] $message", $context);
         }
     }
 }

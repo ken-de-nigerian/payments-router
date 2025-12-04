@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Drivers;
+namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\GuzzleException;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
-use KenDeNigerian\PaymentsRouter\Exceptions\ChargeException;
-use KenDeNigerian\PaymentsRouter\Exceptions\InvalidConfigurationException;
-use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
+use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+use Random\RandomException;
 
 /**
  * Class PaystackDriver
@@ -35,13 +36,11 @@ class PaystackDriver extends AbstractDriver
 
     /**
      * Get default headers
-     *
-     * @return array
      */
     protected function getDefaultHeaders(): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->config['secret_key'],
+            'Authorization' => 'Bearer '.$this->config['secret_key'],
             'Content-Type' => 'application/json',
             'Accept' => 'application/json',
         ];
@@ -50,9 +49,8 @@ class PaystackDriver extends AbstractDriver
     /**
      * Initialize a charge
      *
-     * @param ChargeRequest $request
-     * @return ChargeResponse
      * @throws ChargeException
+     * @throws RandomException
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
@@ -76,7 +74,7 @@ class PaystackDriver extends AbstractDriver
 
             $data = $this->parseResponse($response);
 
-            if (!($data['status'] ?? false)) {
+            if (! ($data['status'] ?? false)) {
                 throw new ChargeException(
                     $data['message'] ?? 'Failed to initialize Paystack transaction'
                 );
@@ -98,24 +96,22 @@ class PaystackDriver extends AbstractDriver
             );
         } catch (GuzzleException $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('Paystack charge failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('Paystack charge failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Verify a payment
      *
-     * @param string $reference
-     * @return VerificationResponse
      * @throws VerificationException
      */
     public function verify(string $reference): VerificationResponse
     {
         try {
-            $response = $this->makeRequest('GET', "/transaction/verify/{$reference}");
+            $response = $this->makeRequest('GET', "/transaction/verify/$reference");
             $data = $this->parseResponse($response);
 
-            if (!($data['status'] ?? false)) {
+            if (! ($data['status'] ?? false)) {
                 throw new VerificationException(
                     $data['message'] ?? 'Failed to verify Paystack transaction'
                 );
@@ -149,16 +145,12 @@ class PaystackDriver extends AbstractDriver
                 'reference' => $reference,
                 'error' => $e->getMessage(),
             ]);
-            throw new VerificationException('Paystack verification failed: ' . $e->getMessage(), 0, $e);
+            throw new VerificationException('Paystack verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Validate webhook signature
-     *
-     * @param array $headers
-     * @param string $body
-     * @return bool
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -166,8 +158,9 @@ class PaystackDriver extends AbstractDriver
             ?? $headers['X-Paystack-Signature'][0]
             ?? null;
 
-        if (!$signature) {
+        if (! $signature) {
             $this->log('warning', 'Webhook signature missing');
+
             return false;
         }
 
@@ -184,19 +177,18 @@ class PaystackDriver extends AbstractDriver
 
     /**
      * Health check
-     *
-     * @return bool
      */
     public function healthCheck(): bool
     {
         try {
             // Try to fetch transaction with invalid reference to test API availability
             $response = $this->makeRequest('GET', '/transaction/verify/invalid_ref_test');
-            
+
             // Any response (including 404) means the API is responding
             return $response->getStatusCode() < 500;
         } catch (GuzzleException $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
+
             return false;
         }
     }

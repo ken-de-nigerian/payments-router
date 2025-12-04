@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Drivers;
+namespace KenDeNigerian\PayZephyr\Drivers;
 
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
-use KenDeNigerian\PaymentsRouter\Exceptions\ChargeException;
-use KenDeNigerian\PaymentsRouter\Exceptions\InvalidConfigurationException;
-use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
+use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+use Random\RandomException;
 
 /**
  * Class PayPalDriver
@@ -20,7 +22,9 @@ use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
 class PayPalDriver extends AbstractDriver
 {
     protected string $name = 'paypal';
+
     private ?string $accessToken = null;
+
     private ?int $tokenExpiry = null;
 
     /**
@@ -37,8 +41,6 @@ class PayPalDriver extends AbstractDriver
 
     /**
      * Get default headers
-     *
-     * @return array
      */
     protected function getDefaultHeaders(): array
     {
@@ -51,7 +53,6 @@ class PayPalDriver extends AbstractDriver
     /**
      * Get or refresh access token
      *
-     * @return string
      * @throws ChargeException
      */
     private function getAccessToken(): string
@@ -61,11 +62,11 @@ class PayPalDriver extends AbstractDriver
         }
 
         try {
-            $credentials = base64_encode($this->config['client_id'] . ':' . $this->config['client_secret']);
+            $credentials = base64_encode($this->config['client_id'].':'.$this->config['client_secret']);
 
             $response = $this->makeRequest('POST', '/v1/oauth2/token', [
                 'headers' => [
-                    'Authorization' => 'Basic ' . $credentials,
+                    'Authorization' => 'Basic '.$credentials,
                     'Content-Type' => 'application/x-www-form-urlencoded',
                 ],
                 'form_params' => [
@@ -75,7 +76,7 @@ class PayPalDriver extends AbstractDriver
 
             $data = $this->parseResponse($response);
 
-            if (!isset($data['access_token'])) {
+            if (! isset($data['access_token'])) {
                 throw new ChargeException('Failed to authenticate with PayPal');
             }
 
@@ -84,16 +85,15 @@ class PayPalDriver extends AbstractDriver
 
             return $this->accessToken;
         } catch (GuzzleException $e) {
-            throw new ChargeException('PayPal authentication failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('PayPal authentication failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Initialize a charge
      *
-     * @param ChargeRequest $request
-     * @return ChargeResponse
      * @throws ChargeException
+     * @throws RandomException
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
@@ -131,14 +131,14 @@ class PayPalDriver extends AbstractDriver
 
             $response = $this->makeRequest('POST', '/v2/checkout/orders', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                    'Authorization' => 'Bearer '.$this->getAccessToken(),
                 ],
                 'json' => $payload,
             ]);
 
             $data = $this->parseResponse($response);
 
-            if (!isset($data['id'])) {
+            if (! isset($data['id'])) {
                 throw new ChargeException('Failed to create PayPal order');
             }
 
@@ -162,30 +162,29 @@ class PayPalDriver extends AbstractDriver
             );
         } catch (GuzzleException $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('PayPal charge failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('PayPal charge failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Verify a payment
      *
-     * @param string $reference
-     * @return VerificationResponse
      * @throws VerificationException
+     * @throws ChargeException
      */
     public function verify(string $reference): VerificationResponse
     {
         try {
             // Reference could be order_id or our custom reference
-            $response = $this->makeRequest('GET', "/v2/checkout/orders/{$reference}", [
+            $response = $this->makeRequest('GET', "/v2/checkout/orders/$reference", [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                    'Authorization' => 'Bearer '.$this->getAccessToken(),
                 ],
             ]);
 
             $data = $this->parseResponse($response);
 
-            if (!isset($data['id'])) {
+            if (! isset($data['id'])) {
                 throw new VerificationException('PayPal order not found');
             }
 
@@ -219,16 +218,12 @@ class PayPalDriver extends AbstractDriver
                 'reference' => $reference,
                 'error' => $e->getMessage(),
             ]);
-            throw new VerificationException('PayPal verification failed: ' . $e->getMessage(), 0, $e);
+            throw new VerificationException('PayPal verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Validate webhook signature
-     *
-     * @param array $headers
-     * @param string $body
-     * @return bool
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -239,8 +234,9 @@ class PayPalDriver extends AbstractDriver
         $certUrl = $headers['paypal-cert-url'][0] ?? null;
         $authAlgo = $headers['paypal-auth-algo'][0] ?? null;
 
-        if (!$transmissionId || !$transmissionSig) {
+        if (! $transmissionId || ! $transmissionSig) {
             $this->log('warning', 'Webhook headers missing');
+
             return false;
         }
 
@@ -255,25 +251,22 @@ class PayPalDriver extends AbstractDriver
 
     /**
      * Health check
-     *
-     * @return bool
      */
     public function healthCheck(): bool
     {
         try {
             $this->getAccessToken();
+
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
+
             return false;
         }
     }
 
     /**
      * Normalize status from PayPal to standard format
-     *
-     * @param string $status
-     * @return string
      */
     private function normalizeStatus(string $status): string
     {

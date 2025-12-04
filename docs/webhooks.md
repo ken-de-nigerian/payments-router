@@ -129,7 +129,7 @@ class HandlePaystackWebhook
 
 namespace App\Listeners;
 
-use KenDeNigerian\PaymentsRouter\Facades\Payment;
+use KenDeNigerian\PayZephyr\Facades\Payment;
 
 class HandleAnyWebhook
 {

@@ -1,5 +1,5 @@
 <?php
-namespace Nwaneri\PaymentsRouter\Helpers;
+namespace KenDeNigerian\PayZephyr\Helpers;
 
 class CurrencyConverter
 {

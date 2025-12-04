@@ -1,6 +1,6 @@
 <?php
 
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
 
 test('verification response checks success status', function () {
     $response = VerificationResponse::fromArray([
@@ -9,7 +9,7 @@ test('verification response checks success status', function () {
         'amount' => 1000,
         'currency' => 'NGN',
     ]);
-    
+
     expect($response->isSuccessful())->toBeTrue()
         ->and($response->isFailed())->toBeFalse()
         ->and($response->isPending())->toBeFalse();
@@ -22,7 +22,7 @@ test('verification response checks failed status', function () {
         'amount' => 1000,
         'currency' => 'NGN',
     ]);
-    
+
     expect($response->isSuccessful())->toBeFalse()
         ->and($response->isFailed())->toBeTrue();
 });
@@ -34,7 +34,7 @@ test('verification response checks pending status', function () {
         'amount' => 1000,
         'currency' => 'NGN',
     ]);
-    
+
     expect($response->isPending())->toBeTrue()
         ->and($response->isSuccessful())->toBeFalse();
 });

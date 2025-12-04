@@ -2,15 +2,17 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Drivers;
+namespace KenDeNigerian\PayZephyr\Drivers;
 
+use Exception;
 use GuzzleHttp\Exception\GuzzleException;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
-use KenDeNigerian\PaymentsRouter\Exceptions\ChargeException;
-use KenDeNigerian\PaymentsRouter\Exceptions\InvalidConfigurationException;
-use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
+use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+use Random\RandomException;
 
 /**
  * Class MonnifyDriver
@@ -20,7 +22,9 @@ use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
 class MonnifyDriver extends AbstractDriver
 {
     protected string $name = 'monnify';
+
     private ?string $accessToken = null;
+
     private ?int $tokenExpiry = null;
 
     /**
@@ -41,8 +45,6 @@ class MonnifyDriver extends AbstractDriver
 
     /**
      * Get default headers
-     *
-     * @return array
      */
     protected function getDefaultHeaders(): array
     {
@@ -54,7 +56,6 @@ class MonnifyDriver extends AbstractDriver
     /**
      * Get or refresh access token
      *
-     * @return string
      * @throws ChargeException
      */
     private function getAccessToken(): string
@@ -64,17 +65,17 @@ class MonnifyDriver extends AbstractDriver
         }
 
         try {
-            $credentials = base64_encode($this->config['api_key'] . ':' . $this->config['secret_key']);
+            $credentials = base64_encode($this->config['api_key'].':'.$this->config['secret_key']);
 
             $response = $this->makeRequest('POST', '/api/v1/auth/login', [
                 'headers' => [
-                    'Authorization' => 'Basic ' . $credentials,
+                    'Authorization' => 'Basic '.$credentials,
                 ],
             ]);
 
             $data = $this->parseResponse($response);
 
-            if (!($data['requestSuccessful'] ?? false)) {
+            if (! ($data['requestSuccessful'] ?? false)) {
                 throw new ChargeException('Failed to authenticate with Monnify');
             }
 
@@ -83,16 +84,15 @@ class MonnifyDriver extends AbstractDriver
 
             return $this->accessToken;
         } catch (GuzzleException $e) {
-            throw new ChargeException('Monnify authentication failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('Monnify authentication failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Initialize a charge
      *
-     * @param ChargeRequest $request
-     * @return ChargeResponse
      * @throws ChargeException
+     * @throws RandomException
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
@@ -114,14 +114,14 @@ class MonnifyDriver extends AbstractDriver
 
             $response = $this->makeRequest('POST', '/api/v1/merchant/transactions/init-transaction', [
                 'headers' => [
-                    'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                    'Authorization' => 'Bearer '.$this->getAccessToken(),
                 ],
                 'json' => $payload,
             ]);
 
             $data = $this->parseResponse($response);
 
-            if (!($data['requestSuccessful'] ?? false)) {
+            if (! ($data['requestSuccessful'] ?? false)) {
                 throw new ChargeException(
                     $data['responseMessage'] ?? 'Failed to initialize Monnify transaction'
                 );
@@ -143,33 +143,32 @@ class MonnifyDriver extends AbstractDriver
             );
         } catch (GuzzleException $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('Monnify charge failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('Monnify charge failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Verify a payment
      *
-     * @param string $reference
-     * @return VerificationResponse
      * @throws VerificationException
+     * @throws ChargeException
      */
     public function verify(string $reference): VerificationResponse
     {
         try {
             $response = $this->makeRequest(
                 'GET',
-                "/api/v2/transactions/{$reference}",
+                "/api/v2/transactions/$reference",
                 [
                     'headers' => [
-                        'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                        'Authorization' => 'Bearer '.$this->getAccessToken(),
                     ],
                 ]
             );
 
             $data = $this->parseResponse($response);
 
-            if (!($data['requestSuccessful'] ?? false)) {
+            if (! ($data['requestSuccessful'] ?? false)) {
                 throw new VerificationException(
                     $data['responseMessage'] ?? 'Failed to verify Monnify transaction'
                 );
@@ -201,16 +200,12 @@ class MonnifyDriver extends AbstractDriver
                 'reference' => $reference,
                 'error' => $e->getMessage(),
             ]);
-            throw new VerificationException('Monnify verification failed: ' . $e->getMessage(), 0, $e);
+            throw new VerificationException('Monnify verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Validate webhook signature
-     *
-     * @param array $headers
-     * @param string $body
-     * @return bool
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -218,8 +213,9 @@ class MonnifyDriver extends AbstractDriver
             ?? $headers['Monnify-Signature'][0]
             ?? null;
 
-        if (!$signature) {
+        if (! $signature) {
             $this->log('warning', 'Webhook signature missing');
+
             return false;
         }
 
@@ -236,25 +232,22 @@ class MonnifyDriver extends AbstractDriver
 
     /**
      * Health check
-     *
-     * @return bool
      */
     public function healthCheck(): bool
     {
         try {
             $this->getAccessToken();
+
             return true;
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
+
             return false;
         }
     }
 
     /**
      * Normalize status from Monnify to standard format
-     *
-     * @param string $status
-     * @return string
      */
     private function normalizeStatus(string $status): string
     {

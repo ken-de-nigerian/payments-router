@@ -2,35 +2,31 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\DataObjects;
+namespace KenDeNigerian\PayZephyr\DataObjects;
 
 /**
  * Class VerificationResponse
  *
  * Data transfer object for payment verification responses
  */
-class VerificationResponse
+readonly class VerificationResponse
 {
     public function __construct(
-        public readonly string $reference,
-        public readonly string $status,
-        public readonly float $amount,
-        public readonly string $currency,
-        public readonly ?string $paidAt = null,
-        public readonly array $metadata = [],
-        public readonly ?string $provider = null,
-        public readonly ?string $channel = null,
-        public readonly ?string $cardType = null,
-        public readonly ?string $bank = null,
-        public readonly ?array $customer = null,
-    ) {
-    }
+        public string $reference,
+        public string $status,
+        public float $amount,
+        public string $currency,
+        public ?string $paidAt = null,
+        public array $metadata = [],
+        public ?string $provider = null,
+        public ?string $channel = null,
+        public ?string $cardType = null,
+        public ?string $bank = null,
+        public ?array $customer = null,
+    ) {}
 
     /**
      * Create from array
-     *
-     * @param array $data
-     * @return static
      */
     public static function fromArray(array $data): static
     {
@@ -51,8 +47,6 @@ class VerificationResponse
 
     /**
      * Convert to array
-     *
-     * @return array
      */
     public function toArray(): array
     {
@@ -73,8 +67,6 @@ class VerificationResponse
 
     /**
      * Check if payment was successful
-     *
-     * @return bool
      */
     public function isSuccessful(): bool
     {
@@ -83,8 +75,6 @@ class VerificationResponse
 
     /**
      * Check if payment failed
-     *
-     * @return bool
      */
     public function isFailed(): bool
     {
@@ -93,8 +83,6 @@ class VerificationResponse
 
     /**
      * Check if payment is pending
-     *
-     * @return bool
      */
     public function isPending(): bool
     {

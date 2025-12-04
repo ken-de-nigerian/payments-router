@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\DataObjects;
+namespace KenDeNigerian\PayZephyr\DataObjects;
 
 use InvalidArgumentException;
 
@@ -11,19 +11,19 @@ use InvalidArgumentException;
  *
  * Data transfer object for payment charge requests
  */
-class ChargeRequest
+readonly class ChargeRequest
 {
     public function __construct(
-        public readonly float $amount,
-        public readonly string $currency,
-        public readonly string $email,
-        public readonly ?string $reference = null,
-        public readonly ?string $callbackUrl = null,
-        public readonly array $metadata = [],
-        public readonly ?string $description = null,
-        public readonly ?array $customer = null,
-        public readonly ?array $customFields = null,
-        public readonly ?array $split = null,
+        public float $amount,
+        public string $currency,
+        public string $email,
+        public ?string $reference = null,
+        public ?string $callbackUrl = null,
+        public array $metadata = [],
+        public ?string $description = null,
+        public ?array $customer = null,
+        public ?array $customFields = null,
+        public ?array $split = null,
     ) {
         $this->validate();
     }
@@ -43,7 +43,7 @@ class ChargeRequest
             throw new InvalidArgumentException('Currency is required');
         }
 
-        if (!filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException('Invalid email address');
         }
 
@@ -54,8 +54,6 @@ class ChargeRequest
 
     /**
      * Convert amount to minor units (cents, kobo, etc.)
-     *
-     * @return int
      */
     public function getAmountInMinorUnits(): int
     {
@@ -64,9 +62,6 @@ class ChargeRequest
 
     /**
      * Create from array
-     *
-     * @param array $data
-     * @return static
      */
     public static function fromArray(array $data): static
     {
@@ -86,8 +81,6 @@ class ChargeRequest
 
     /**
      * Convert to array
-     *
-     * @return array
      */
     public function toArray(): array
     {

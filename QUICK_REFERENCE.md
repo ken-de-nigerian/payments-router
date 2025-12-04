@@ -143,7 +143,7 @@ payment()->amount(10000)->email('user@example.com')->redirect();
 
 ## Error Handling
 ```php
-use KenDeNigerian\PaymentsRouter\Exceptions\PaymentException;
+use KenDeNigerian\PayZephyr\Exceptions\PaymentException;
 
 try {
     $response = Payment::amount(10000)->charge();

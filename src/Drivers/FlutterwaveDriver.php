@@ -2,15 +2,16 @@
 
 declare(strict_types=1);
 
-namespace KenDeNigerian\PaymentsRouter\Drivers;
+namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\GuzzleException;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeRequest;
-use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
-use KenDeNigerian\PaymentsRouter\DataObjects\VerificationResponse;
-use KenDeNigerian\PaymentsRouter\Exceptions\ChargeException;
-use KenDeNigerian\PaymentsRouter\Exceptions\InvalidConfigurationException;
-use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeRequest;
+use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
+use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
+use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+use Random\RandomException;
 
 /**
  * Class FlutterwaveDriver
@@ -35,13 +36,11 @@ class FlutterwaveDriver extends AbstractDriver
 
     /**
      * Get default headers
-     *
-     * @return array
      */
     protected function getDefaultHeaders(): array
     {
         return [
-            'Authorization' => 'Bearer ' . $this->config['secret_key'],
+            'Authorization' => 'Bearer '.$this->config['secret_key'],
             'Content-Type' => 'application/json',
         ];
     }
@@ -49,9 +48,8 @@ class FlutterwaveDriver extends AbstractDriver
     /**
      * Initialize a charge
      *
-     * @param ChargeRequest $request
-     * @return ChargeResponse
      * @throws ChargeException
+     * @throws RandomException
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
@@ -102,15 +100,13 @@ class FlutterwaveDriver extends AbstractDriver
             );
         } catch (GuzzleException $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('Flutterwave charge failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('Flutterwave charge failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Verify a payment
      *
-     * @param string $reference
-     * @return VerificationResponse
      * @throws VerificationException
      */
     public function verify(string $reference): VerificationResponse
@@ -118,7 +114,7 @@ class FlutterwaveDriver extends AbstractDriver
         try {
             // For Flutterwave, we need the transaction ID, not just the reference
             // First, try to verify using the reference as tx_ref
-            $response = $this->makeRequest('GET', "/transactions/verify_by_reference", [
+            $response = $this->makeRequest('GET', '/transactions/verify_by_reference', [
                 'query' => ['tx_ref' => $reference],
             ]);
 
@@ -158,16 +154,12 @@ class FlutterwaveDriver extends AbstractDriver
                 'reference' => $reference,
                 'error' => $e->getMessage(),
             ]);
-            throw new VerificationException('Flutterwave verification failed: ' . $e->getMessage(), 0, $e);
+            throw new VerificationException('Flutterwave verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Validate webhook signature
-     *
-     * @param array $headers
-     * @param string $body
-     * @return bool
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -175,8 +167,9 @@ class FlutterwaveDriver extends AbstractDriver
             ?? $headers['Verif-Hash'][0]
             ?? null;
 
-        if (!$signature) {
+        if (! $signature) {
             $this->log('warning', 'Webhook signature missing');
+
             return false;
         }
 
@@ -193,26 +186,23 @@ class FlutterwaveDriver extends AbstractDriver
 
     /**
      * Health check
-     *
-     * @return bool
      */
     public function healthCheck(): bool
     {
         try {
             // Simple ping to banks endpoint
             $response = $this->makeRequest('GET', '/banks/NG');
+
             return $response->getStatusCode() === 200;
         } catch (GuzzleException $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
+
             return false;
         }
     }
 
     /**
      * Normalize status from Flutterwave to standard format
-     *
-     * @param string $status
-     * @return string
      */
     private function normalizeStatus(string $status): string
     {
