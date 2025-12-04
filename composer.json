@@ -29,16 +29,16 @@
     },
     "require": {
         "php": "^8.2",
-        "illuminate/support": "^10.0|^11.0",
-        "illuminate/database": "^10.0|^11.0",
-        "illuminate/http": "^10.0|^11.0",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "illuminate/database": "^10.0|^11.0|^12.0",
+        "illuminate/http": "^10.0|^11.0|^12.0",
         "guzzlehttp/guzzle": "^7.8",
         "stripe/stripe-php": "^13.0",
         "moneyphp/money": "^4.5"
     },
     "require-dev": {
-        "pestphp/pest": "^3.0",
-        "pestphp/pest-plugin-laravel": "^3.0",
+        "pestphp/pest": "^2.34|^3.0",
+        "pestphp/pest-plugin-laravel": "^2.3|^3.0",
         "orchestra/testbench": "^8.0|^9.0|^10.0",
         "mockery/mockery": "^1.6",
         "phpstan/phpstan": "^1.10",
