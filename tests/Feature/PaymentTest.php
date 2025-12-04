@@ -1,0 +1,20 @@
+<?php
+
+use KenDeNigerian\PaymentsRouter\Facades\Payment;
+use KenDeNigerian\PaymentsRouter\DataObjects\ChargeResponse;
+
+test('can create payment with fluent api', function () {
+    config(['payments.providers.paystack.enabled' => true]);
+    
+    $payment = Payment::amount(10000)
+        ->email('test@example.com')
+        ->currency('NGN')
+        ->with('paystack');
+    
+    expect($payment)->toBeInstanceOf(\KenDeNigerian\PaymentsRouter\Payment::class);
+});
+
+test('payment helper function works', function () {
+    $payment = payment()->amount(5000)->email('test@example.com');
+    expect($payment)->toBeInstanceOf(\KenDeNigerian\PaymentsRouter\Payment::class);
+});

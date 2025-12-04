@@ -13,13 +13,13 @@ use KenDeNigerian\PaymentsRouter\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PaymentsRouter\Exceptions\VerificationException;
 
 /**
- * Class PaystackDriver
+ * Class FlutterwaveDriver
  *
- * Paystack payment gateway driver
+ * Flutterwave payment gateway driver
  */
-class PaystackDriver extends AbstractDriver
+class FlutterwaveDriver extends AbstractDriver
 {
-    protected string $name = 'paystack';
+    protected string $name = 'flutterwave';
 
     /**
      * Validate configuration
@@ -29,7 +29,7 @@ class PaystackDriver extends AbstractDriver
     protected function validateConfig(): void
     {
         if (empty($this->config['secret_key'])) {
-            throw new InvalidConfigurationException('Paystack secret key is required');
+            throw new InvalidConfigurationException('Flutterwave secret key is required');
         }
     }
 
@@ -43,7 +43,6 @@ class PaystackDriver extends AbstractDriver
         return [
             'Authorization' => 'Bearer ' . $this->config['secret_key'],
             'Content-Type' => 'application/json',
-            'Accept' => 'application/json',
         ];
     }
 
@@ -57,48 +56,53 @@ class PaystackDriver extends AbstractDriver
     public function charge(ChargeRequest $request): ChargeResponse
     {
         try {
+            $reference = $request->reference ?? $this->generateReference('FLW');
+
             $payload = [
-                'email' => $request->email,
-                'amount' => $request->getAmountInMinorUnits(),
+                'tx_ref' => $reference,
+                'amount' => $request->amount,
                 'currency' => $request->currency,
-                'reference' => $request->reference ?? $this->generateReference(),
-                'callback_url' => $request->callbackUrl ?? $this->config['callback_url'] ?? null,
-                'metadata' => $request->metadata,
+                'redirect_url' => $request->callbackUrl ?? $this->config['callback_url'],
+                'customer' => [
+                    'email' => $request->email,
+                    'name' => $request->customer['name'] ?? 'Customer',
+                ],
+                'customizations' => [
+                    'title' => $request->description ?? 'Payment',
+                    'description' => $request->description ?? 'Payment for services',
+                ],
+                'meta' => $request->metadata,
             ];
 
-            if ($request->channels) {
-                $payload['channels'] = $request->channels;
-            }
-
-            $response = $this->makeRequest('POST', '/transaction/initialize', [
-                'json' => array_filter($payload),
+            $response = $this->makeRequest('POST', '/payments', [
+                'json' => $payload,
             ]);
 
             $data = $this->parseResponse($response);
 
-            if (!($data['status'] ?? false)) {
+            if (($data['status'] ?? '') !== 'success') {
                 throw new ChargeException(
-                    $data['message'] ?? 'Failed to initialize Paystack transaction'
+                    $data['message'] ?? 'Failed to initialize Flutterwave transaction'
                 );
             }
 
             $result = $data['data'];
 
             $this->log('info', 'Charge initialized successfully', [
-                'reference' => $result['reference'],
+                'reference' => $reference,
             ]);
 
             return new ChargeResponse(
-                reference: $result['reference'],
-                authorizationUrl: $result['authorization_url'],
-                accessCode: $result['access_code'],
+                reference: $reference,
+                authorizationUrl: $result['link'],
+                accessCode: $reference,
                 status: 'pending',
                 metadata: $request->metadata,
                 provider: $this->getName(),
             );
         } catch (GuzzleException $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('Paystack charge failed: ' . $e->getMessage(), 0, $e);
+            throw new ChargeException('Flutterwave charge failed: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -112,12 +116,17 @@ class PaystackDriver extends AbstractDriver
     public function verify(string $reference): VerificationResponse
     {
         try {
-            $response = $this->makeRequest('GET', "/transaction/verify/{$reference}");
+            // For Flutterwave, we need the transaction ID, not just the reference
+            // First, try to verify using the reference as tx_ref
+            $response = $this->makeRequest('GET', "/transactions/verify_by_reference", [
+                'query' => ['tx_ref' => $reference],
+            ]);
+
             $data = $this->parseResponse($response);
 
-            if (!($data['status'] ?? false)) {
+            if (($data['status'] ?? '') !== 'success') {
                 throw new VerificationException(
-                    $data['message'] ?? 'Failed to verify Paystack transaction'
+                    $data['message'] ?? 'Failed to verify Flutterwave transaction'
                 );
             }
 
@@ -129,19 +138,19 @@ class PaystackDriver extends AbstractDriver
             ]);
 
             return new VerificationResponse(
-                reference: $result['reference'],
-                status: $result['status'],
-                amount: ($result['amount'] ?? 0) / 100,
+                reference: $result['tx_ref'],
+                status: $this->normalizeStatus($result['status']),
+                amount: (float) $result['amount'],
                 currency: $result['currency'],
-                paidAt: $result['paid_at'] ?? null,
-                metadata: $result['metadata'] ?? [],
+                paidAt: $result['created_at'] ?? null,
+                metadata: $result['meta'] ?? [],
                 provider: $this->getName(),
-                channel: $result['channel'] ?? null,
-                cardType: $result['authorization']['card_type'] ?? null,
-                bank: $result['authorization']['bank'] ?? null,
+                channel: $result['payment_type'] ?? null,
+                cardType: $result['card']['type'] ?? null,
+                bank: $result['card']['issuer'] ?? null,
                 customer: [
                     'email' => $result['customer']['email'] ?? null,
-                    'code' => $result['customer']['customer_code'] ?? null,
+                    'name' => $result['customer']['name'] ?? null,
                 ],
             );
         } catch (GuzzleException $e) {
@@ -149,7 +158,7 @@ class PaystackDriver extends AbstractDriver
                 'reference' => $reference,
                 'error' => $e->getMessage(),
             ]);
-            throw new VerificationException('Paystack verification failed: ' . $e->getMessage(), 0, $e);
+            throw new VerificationException('Flutterwave verification failed: ' . $e->getMessage(), 0, $e);
         }
     }
 
@@ -162,8 +171,8 @@ class PaystackDriver extends AbstractDriver
      */
     public function validateWebhook(array $headers, string $body): bool
     {
-        $signature = $headers['x-paystack-signature'][0]
-            ?? $headers['X-Paystack-Signature'][0]
+        $signature = $headers['verif-hash'][0]
+            ?? $headers['Verif-Hash'][0]
             ?? null;
 
         if (!$signature) {
@@ -171,9 +180,9 @@ class PaystackDriver extends AbstractDriver
             return false;
         }
 
-        $hash = hash_hmac('sha512', $body, $this->config['secret_key']);
+        $secretHash = $this->config['webhook_secret'] ?? $this->config['secret_key'];
 
-        $isValid = hash_equals($signature, $hash);
+        $isValid = hash_equals($signature, $secretHash);
 
         $this->log($isValid ? 'info' : 'warning', 'Webhook validation', [
             'valid' => $isValid,
@@ -190,14 +199,28 @@ class PaystackDriver extends AbstractDriver
     public function healthCheck(): bool
     {
         try {
-            // Try to fetch transaction with invalid reference to test API availability
-            $response = $this->makeRequest('GET', '/transaction/verify/invalid_ref_test');
-            
-            // Any response (including 404) means the API is responding
-            return $response->getStatusCode() < 500;
+            // Simple ping to banks endpoint
+            $response = $this->makeRequest('GET', '/banks/NG');
+            return $response->getStatusCode() === 200;
         } catch (GuzzleException $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
             return false;
         }
+    }
+
+    /**
+     * Normalize status from Flutterwave to standard format
+     *
+     * @param string $status
+     * @return string
+     */
+    private function normalizeStatus(string $status): string
+    {
+        return match (strtolower($status)) {
+            'successful' => 'success',
+            'failed' => 'failed',
+            'pending' => 'pending',
+            default => $status,
+        };
     }
 }

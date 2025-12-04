@@ -1,0 +1,38 @@
+# IDE and Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# PHP
+vendor/
+composer.lock
+composer.phar
+phpunit.xml
+.phpunit.result.cache
+.phpunit.cache
+
+# Laravel specific
+.env
+.env.backup
+.env.production
+storage/
+bootstrap/cache/
+
+# Testing
+coverage/
+.coverage/
+.phpunit.cache/
+.pest/
+
+# Build artifacts
+build/
+dist/
+*.log
+
+# Node (if used for docs)
+node_modules/
+package-lock.json
+yarn.lock

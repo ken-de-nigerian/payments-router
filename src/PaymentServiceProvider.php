@@ -1,31 +1,36 @@
 <?php
-namespace Nwaneri\PaymentsRouter;
+
+declare(strict_types=1);
+
+namespace KenDeNigerian\PaymentsRouter;
 
 use Illuminate\Support\ServiceProvider;
 
 class PaymentServiceProvider extends ServiceProvider
 {
-    public function register()
+    public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/payments.php', 'payments');
 
-        $this->app->singleton(Manager::class, function ($app) {
-            return new Manager($app, $app['config']['payments']);
-        });
-
-        $this->app->alias(Manager::class, 'payment.manager');
-        $this->app->bind(PaymentRouter::class, function($app){
-            return new PaymentRouter($app->make(Manager::class));
+        $this->app->singleton(PaymentManager::class);
+        
+        $this->app->bind(Payment::class, function ($app) {
+            return new Payment($app->make(PaymentManager::class));
         });
     }
 
-    public function boot()
+    public function boot(): void
     {
-        $this->publishes([__DIR__.'/../config/payments.php' => config_path('payments.php')], 'config');
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/payments.php' => config_path('payments.php'),
+            ], 'payments-config');
 
-        // Optional route file - package consumer can publish.
-        if (file_exists(__DIR__.'/Routes/webhook.php')) {
-            $this->loadRoutesFrom(__DIR__.'/Routes/webhook.php');
+            $this->publishes([
+                __DIR__.'/../database/migrations' => database_path('migrations'),
+            ], 'payments-migrations');
         }
+
+        $this->loadRoutesFrom(__DIR__.'/../routes/webhooks.php');
     }
 }
