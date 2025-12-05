@@ -25,6 +25,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon|null $updated_at
  * @method static create(array $array)
  * @method static where(string $string, string $reference)
+ * @method static successful()
+ * @method static failed()
+ * @method static pending()
  */
 class PaymentTransaction extends Model
 {
@@ -65,7 +68,7 @@ class PaymentTransaction extends Model
      */
     public function getTable(): string
     {
-        return config('payments.logging.table', 'payment_transactions');
+        return config('payments.logging.table') ?? 'payment_transactions';
     }
 
     /**
