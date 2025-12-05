@@ -12,13 +12,7 @@ use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
-use Random\RandomException;
 
-/**
- * Class MonnifyDriver
- *
- * Monnify payment gateway driver
- */
 class MonnifyDriver extends AbstractDriver
 {
     protected string $name = 'monnify';
@@ -27,37 +21,21 @@ class MonnifyDriver extends AbstractDriver
 
     private ?int $tokenExpiry = null;
 
-    /**
-     * Validate configuration
-     *
-     * @throws InvalidConfigurationException
-     */
     protected function validateConfig(): void
     {
         if (empty($this->config['api_key']) || empty($this->config['secret_key'])) {
             throw new InvalidConfigurationException('Monnify API key and secret key are required');
         }
-
         if (empty($this->config['contract_code'])) {
             throw new InvalidConfigurationException('Monnify contract code is required');
         }
     }
 
-    /**
-     * Get default headers
-     */
     protected function getDefaultHeaders(): array
     {
-        return [
-            'Content-Type' => 'application/json',
-        ];
+        return ['Content-Type' => 'application/json'];
     }
 
-    /**
-     * Get or refresh access token
-     *
-     * @throws ChargeException
-     */
     private function getAccessToken(): string
     {
         if ($this->accessToken && $this->tokenExpiry && time() < $this->tokenExpiry) {
@@ -66,13 +44,9 @@ class MonnifyDriver extends AbstractDriver
 
         try {
             $credentials = base64_encode($this->config['api_key'].':'.$this->config['secret_key']);
-
             $response = $this->makeRequest('POST', '/api/v1/auth/login', [
-                'headers' => [
-                    'Authorization' => 'Basic '.$credentials,
-                ],
+                'headers' => ['Authorization' => 'Basic '.$credentials],
             ]);
-
             $data = $this->parseResponse($response);
 
             if (! ($data['requestSuccessful'] ?? false)) {
@@ -88,12 +62,6 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
-    /**
-     * Initialize a charge
-     *
-     * @throws ChargeException
-     * @throws RandomException
-     */
     public function charge(ChargeRequest $request): ChargeResponse
     {
         try {
@@ -107,31 +75,24 @@ class MonnifyDriver extends AbstractDriver
                 'paymentDescription' => $request->description ?? 'Payment',
                 'currencyCode' => $request->currency,
                 'contractCode' => $this->config['contract_code'],
-                'redirectUrl' => $request->callbackUrl ?? $this->config['callback_url'],
+                'redirectUrl' => $request->callbackUrl ?? $this->config['callback_url'] ?? null,
                 'paymentMethods' => ['CARD', 'ACCOUNT_TRANSFER'],
                 'metadata' => $request->metadata,
             ];
 
             $response = $this->makeRequest('POST', '/api/v1/merchant/transactions/init-transaction', [
-                'headers' => [
-                    'Authorization' => 'Bearer '.$this->getAccessToken(),
-                ],
+                'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
                 'json' => $payload,
             ]);
 
             $data = $this->parseResponse($response);
 
             if (! ($data['requestSuccessful'] ?? false)) {
-                throw new ChargeException(
-                    $data['responseMessage'] ?? 'Failed to initialize Monnify transaction'
-                );
+                throw new ChargeException($data['responseMessage'] ?? 'Failed to initialize Monnify transaction');
             }
 
             $result = $data['responseBody'];
-
-            $this->log('info', 'Charge initialized successfully', [
-                'reference' => $reference,
-            ]);
+            $this->log('info', 'Charge initialized successfully', ['reference' => $reference]);
 
             return new ChargeResponse(
                 reference: $reference,
@@ -147,42 +108,23 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
-    /**
-     * Verify a payment
-     *
-     * @throws VerificationException
-     * @throws ChargeException
-     */
     public function verify(string $reference): VerificationResponse
     {
         try {
-            $response = $this->makeRequest(
-                'GET',
-                "/api/v2/transactions/$reference",
-                [
-                    'headers' => [
-                        'Authorization' => 'Bearer '.$this->getAccessToken(),
-                    ],
-                ]
-            );
+            $response = $this->makeRequest('GET', "/api/v2/transactions/$reference", [
+                'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
+            ]);
 
             $data = $this->parseResponse($response);
 
             if (! ($data['requestSuccessful'] ?? false)) {
-                throw new VerificationException(
-                    $data['responseMessage'] ?? 'Failed to verify Monnify transaction'
-                );
+                throw new VerificationException($data['responseMessage'] ?? 'Failed to verify Monnify transaction');
             }
 
             $result = $data['responseBody'];
 
-            $this->log('info', 'Payment verified', [
-                'reference' => $reference,
-                'status' => $result['paymentStatus'],
-            ]);
-
             return new VerificationResponse(
-                reference: $result['paymentReference'],
+                reference: $result['paymentReference'] ?? $reference,
                 status: $this->normalizeStatus($result['paymentStatus']),
                 amount: (float) $result['amountPaid'],
                 currency: $result['currencyCode'],
@@ -196,66 +138,38 @@ class MonnifyDriver extends AbstractDriver
                 ],
             );
         } catch (GuzzleException $e) {
-            $this->log('error', 'Verification failed', [
-                'reference' => $reference,
-                'error' => $e->getMessage(),
-            ]);
+            $this->log('error', 'Verification failed', ['reference' => $reference, 'error' => $e->getMessage()]);
             throw new VerificationException('Monnify verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
-    /**
-     * Validate webhook signature
-     */
     public function validateWebhook(array $headers, string $body): bool
     {
-        $signature = $headers['monnify-signature'][0]
-            ?? $headers['Monnify-Signature'][0]
-            ?? null;
-
+        $signature = $headers['monnify-signature'][0] ?? $headers['Monnify-Signature'][0] ?? null;
         if (! $signature) {
-            $this->log('warning', 'Webhook signature missing');
-
             return false;
         }
-
         $hash = hash_hmac('sha512', $body, $this->config['secret_key']);
 
-        $isValid = hash_equals($signature, $hash);
-
-        $this->log($isValid ? 'info' : 'warning', 'Webhook validation', [
-            'valid' => $isValid,
-        ]);
-
-        return $isValid;
+        return hash_equals($signature, $hash);
     }
 
-    /**
-     * Health check
-     */
     public function healthCheck(): bool
     {
         try {
             $this->getAccessToken();
 
             return true;
-        } catch (Exception $e) {
-            $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
-
+        } catch (Exception) {
             return false;
         }
     }
 
-    /**
-     * Normalize status from Monnify to standard format
-     */
     private function normalizeStatus(string $status): string
     {
         return match (strtoupper($status)) {
-            'PAID' => 'success',
-            'PENDING' => 'pending',
-            'OVERPAID' => 'success',
-            'PARTIALLY_PAID' => 'pending',
+            'PAID', 'OVERPAID' => 'success',
+            'PENDING', 'PARTIALLY_PAID' => 'pending',
             'FAILED', 'CANCELLED', 'EXPIRED' => 'failed',
             default => strtolower($status),
         };

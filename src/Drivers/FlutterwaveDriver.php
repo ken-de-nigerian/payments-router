@@ -60,7 +60,7 @@ class FlutterwaveDriver extends AbstractDriver
                 'tx_ref' => $reference,
                 'amount' => $request->amount,
                 'currency' => $request->currency,
-                'redirect_url' => $request->callbackUrl ?? $this->config['callback_url'],
+                'redirect_url' => $request->callbackUrl ?? $this->config['callback_url'] ?? null,
                 'customer' => [
                     'email' => $request->email,
                     'name' => $request->customer['name'] ?? 'Customer',
@@ -112,8 +112,6 @@ class FlutterwaveDriver extends AbstractDriver
     public function verify(string $reference): VerificationResponse
     {
         try {
-            // For Flutterwave, we need the transaction ID, not just the reference
-            // First, try to verify using the reference as tx_ref
             $response = $this->makeRequest('GET', '/transactions/verify_by_reference', [
                 'query' => ['tx_ref' => $reference],
             ]);
@@ -158,52 +156,28 @@ class FlutterwaveDriver extends AbstractDriver
         }
     }
 
-    /**
-     * Validate webhook signature
-     */
     public function validateWebhook(array $headers, string $body): bool
     {
-        $signature = $headers['verif-hash'][0]
-            ?? $headers['Verif-Hash'][0]
-            ?? null;
-
+        $signature = $headers['verif-hash'][0] ?? $headers['Verif-Hash'][0] ?? null;
         if (! $signature) {
-            $this->log('warning', 'Webhook signature missing');
-
             return false;
         }
-
         $secretHash = $this->config['webhook_secret'] ?? $this->config['secret_key'];
 
-        $isValid = hash_equals($signature, $secretHash);
-
-        $this->log($isValid ? 'info' : 'warning', 'Webhook validation', [
-            'valid' => $isValid,
-        ]);
-
-        return $isValid;
+        return hash_equals($signature, $secretHash);
     }
 
-    /**
-     * Health check
-     */
     public function healthCheck(): bool
     {
         try {
-            // Simple ping to banks endpoint
             $response = $this->makeRequest('GET', '/banks/NG');
 
             return $response->getStatusCode() === 200;
-        } catch (GuzzleException $e) {
-            $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
-
+        } catch (GuzzleException) {
             return false;
         }
     }
 
-    /**
-     * Normalize status from Flutterwave to standard format
-     */
     private function normalizeStatus(string $status): string
     {
         return match (strtolower($status)) {

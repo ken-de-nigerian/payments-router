@@ -25,7 +25,10 @@ class StripeDriver extends AbstractDriver
 {
     protected string $name = 'stripe';
 
-    protected StripeClient $stripe;
+    /**
+     * @var StripeClient|object
+     */
+    protected $stripe;
 
     /**
      * Validate configuration
@@ -46,6 +49,14 @@ class StripeDriver extends AbstractDriver
     {
         parent::initializeClient();
         $this->stripe = new StripeClient($this->config['secret_key']);
+    }
+
+    /**
+     * Setter for mocking in tests
+     */
+    public function setStripeClient(object $stripe): void
+    {
+        $this->stripe = $stripe;
     }
 
     /**
@@ -85,6 +96,7 @@ class StripeDriver extends AbstractDriver
                 $params['customer'] = $request->customer['id'] ?? null;
             }
 
+            // We treat $this->stripe as dynamic here to allow both StripeClient and Mock calls
             $intent = $this->stripe->paymentIntents->create($params);
 
             $this->log('info', 'Charge initialized successfully', [

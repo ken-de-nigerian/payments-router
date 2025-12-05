@@ -24,6 +24,7 @@ readonly class ChargeRequest
         public ?array $customer = null,
         public ?array $customFields = null,
         public ?array $split = null,
+        public ?array $channels = null,
     ) {
         $this->validate();
     }
@@ -76,6 +77,7 @@ readonly class ChargeRequest
             customer: $data['customer'] ?? null,
             customFields: $data['custom_fields'] ?? null,
             split: $data['split'] ?? null,
+            channels: $data['channels'] ?? null,
         );
     }
 
@@ -95,6 +97,7 @@ readonly class ChargeRequest
             'customer' => $this->customer,
             'custom_fields' => $this->customFields,
             'split' => $this->split,
+            'channels' => $this->channels,
         ];
     }
 }

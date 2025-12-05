@@ -62,7 +62,7 @@ test('skips providers that do not support currency', function () {
         'email' => 'test@example.com',
     ]);
 
-    // This will fail because we're not actually calling APIs
+    // This will fail because we're not actually calling APIs,
     // But it tests that Paystack is skipped for EUR
     try {
         $manager->chargeWithFallback($request, ['paystack', 'stripe']);
