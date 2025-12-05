@@ -1,7 +1,7 @@
 # PayZephyr
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/ken-de-nigerian/payzephyr.svg?style=flat-square)](https://packagist.org/packages/kendenigerian/payzephyr)
-[![Total Downloads](https://img.shields.io/packagist/dt/ken-de-nigerian/payzephyr.svg?style=flat-square)](https://packagist.org/packages/kendenigerian/payzephyr)
+[![Latest Version on Packagist](https://img.shields.io/packagist/v/kendenigerian/payzephyr.svg?style=flat-square)](https://packagist.org/packages/kendenigerian/payzephyr)
+[![Total Downloads](https://img.shields.io/packagist/dt/kendenigerian/payzephyr.svg?style=flat-square)](https://packagist.org/packages/kendenigerian/payzephyr)
 [![Tests](https://github.com/ken-de-nigerian/payzephyr/actions/workflows/tests.yml/badge.svg)](https://github.com/ken-de-nigerian/payzephyr/actions/workflows/tests.yml)
 
 A unified payment abstraction layer for Laravel that supports multiple payment providers with automatic fallback, webhooks, and currency conversion. Built for production use with clean architecture and comprehensive testing.
@@ -34,7 +34,7 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 You can install the package via Composer:
 
 ```bash
-composer require ken-de-nigerian/payzephyr
+composer require kendenigerian/payzephyr
 ```
 
 ### Publish Configuration
