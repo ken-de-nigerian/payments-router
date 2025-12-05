@@ -20,14 +20,22 @@ use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use Throwable;
 
 /**
- * Class PaymentManager
+ * The core orchestrator for the PayZephyr package.
  *
- * Manages payment drivers and handles fallback logic
+ * This class is responsible for resolving driver instances, managing the
+ * "smart routing" (fallback) logic during charges, and logging transaction
+ * lifecycles to the database.
  */
 class PaymentManager
 {
+    /**
+     * Cache for instantiated driver objects.
+     */
     protected array $drivers = [];
 
+    /**
+     * The raw configuration array.
+     */
     protected array $config;
 
     public function __construct()
@@ -36,9 +44,13 @@ class PaymentManager
     }
 
     /**
-     * Get driver instance
+     * Resolve and return a driver instance.
      *
-     * @throws DriverNotFoundException
+     * If a name is not provided, the default driver from config is used.
+     * Instances are cached in memory to prevent multiple instantiation
+     * during the same request lifecycle.
+     *
+     * @throws DriverNotFoundException If the driver is disabled or the class doesn't exist.
      */
     public function driver(?string $name = null): DriverInterface
     {
@@ -66,9 +78,16 @@ class PaymentManager
     }
 
     /**
-     * Attempt charge across multiple providers with fallback
+     * Execute a charge attempt, iterating through a list of providers if necessary.
      *
-     * @throws ProviderException
+     * This method implements the Failover/Redundancy pattern:
+     * 1. Checks if the provider is "healthy" (API is reachable).
+     * 2. Checks if the provider supports the requested currency.
+     * 3. Attempts the charge.
+     * 4. If successful, logs to DB and returns.
+     * 5. If failed, catches the exception and moves to the next provider in the chain.
+     *
+     * @throws ProviderException If all providers in the chain fail.
      */
     public function chargeWithFallback(ChargeRequest $request, ?array $providers = null): ChargeResponse
     {
@@ -97,20 +116,8 @@ class PaymentManager
 
                 $response = $driver->charge($request);
 
-                // Log to Database
-                if (config('payments.logging.enabled', true)) {
-                    PaymentTransaction::create([
-                        'reference' => $response->reference,
-                        'provider' => $providerName,
-                        'status' => $response->status,
-                        'amount' => $request->amount,
-                        'currency' => $request->currency,
-                        'email' => $request->email,
-                        'metadata' => json_encode($request->metadata), // Ensure array is JSON
-                        'description' => $request->description,
-                        'paid_at' => null, // Not paid yet
-                    ]);
-                }
+                // Log transaction to database
+                $this->logTransaction($request, $response, $providerName);
 
                 logger()->info("Payment charged successfully via [$providerName]", [
                     'reference' => $response->reference,
@@ -133,9 +140,48 @@ class PaymentManager
     }
 
     /**
-     * Verify payment across all providers
+     * Persist the initial transaction details to the database.
      *
-     * @throws ProviderException
+     * Wrapped in a try-catch block to ensure that a logging failure
+     * (e.g., DB connection issue) does not cause the actual payment
+     * flow to throw an error to the user.
+     */
+    protected function logTransaction(ChargeRequest $request, ChargeResponse $response, string $provider): void
+    {
+        if (! config('payments.logging.enabled', true)) {
+            return;
+        }
+
+        try {
+            PaymentTransaction::create([
+                'reference' => $response->reference,
+                'provider' => $provider,
+                'status' => $response->status,
+                'amount' => $request->amount,
+                'currency' => $request->currency,
+                'email' => $request->email,
+                'channel' => null, // Will be updated by webhook
+                'metadata' => $request->metadata,
+                'customer' => $request->customer,
+                'paid_at' => null, // Will be updated on verification/webhook
+            ]);
+        } catch (Throwable $e) {
+            // Don't fail the payment if logging fails
+            logger()->error('Failed to log transaction', [
+                'error' => $e->getMessage(),
+                'reference' => $response->reference,
+            ]);
+        }
+    }
+
+    /**
+     * Verify a transaction reference.
+     *
+     * If a specific provider is not given, this method attempts to find the
+     * transaction across ALL configured providers.
+     * This is useful when the frontend doesn't know which provider successfully processed the fallback charge.
+     *
+     * @throws ProviderException If the reference cannot be found on any provider.
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponse
     {
@@ -145,8 +191,12 @@ class PaymentManager
         foreach ($providers as $providerName) {
             try {
                 $driver = $this->driver($providerName);
+                $response = $driver->verify($reference);
 
-                return $driver->verify($reference);
+                // Update transaction in database
+                $this->updateTransactionFromVerification($reference, $response);
+
+                return $response;
             } catch (Throwable $e) {
                 $exceptions[$providerName] = $e;
             }
@@ -159,7 +209,32 @@ class PaymentManager
     }
 
     /**
-     * Get default driver name
+     * Update the local database record based on the verification response.
+     *
+     * This syncs the status, channel, and payment timestamp.
+     */
+    protected function updateTransactionFromVerification(string $reference, VerificationResponse $response): void
+    {
+        if (! config('payments.logging.enabled', true)) {
+            return;
+        }
+
+        try {
+            PaymentTransaction::where('reference', $reference)->update([
+                'status' => $response->status,
+                'channel' => $response->channel,
+                'paid_at' => $response->isSuccessful() ? ($response->paidAt ?? now()) : null,
+            ]);
+        } catch (Throwable $e) {
+            logger()->error('Failed to update transaction from verification', [
+                'error' => $e->getMessage(),
+                'reference' => $reference,
+            ]);
+        }
+    }
+
+    /**
+     * Retrieve the default driver name from configuration.
      */
     public function getDefaultDriver(): string
     {
@@ -167,7 +242,10 @@ class PaymentManager
     }
 
     /**
-     * Get fallback provider chain
+     * Construct the priority list of providers.
+     *
+     * Returns an array starting with the default driver, followed by
+     * any fallback drivers defined in the config.
      */
     public function getFallbackChain(): array
     {
@@ -181,7 +259,10 @@ class PaymentManager
     }
 
     /**
-     * Resolve driver class from config
+     * Map a driver alias (e.g., 'paystack') to its fully qualified class name.
+     *
+     * This allows the config file to be cleaner, using short names instead of
+     * full namespaces.
      */
     protected function resolveDriverClass(string $driver): string
     {
@@ -197,7 +278,7 @@ class PaymentManager
     }
 
     /**
-     * Get all enabled providers
+     * Return a list of all providers that are enabled in the config.
      */
     public function getEnabledProviders(): array
     {

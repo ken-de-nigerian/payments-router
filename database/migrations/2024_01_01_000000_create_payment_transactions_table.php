@@ -6,8 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    /**
+     * Run the migrations.
+     */
     public function up(): void
     {
+        // Create the table using the name defined in config, defaulting to 'payment_transactions'
         Schema::create(config('payments.logging.table', 'payment_transactions'), function (Blueprint $table) {
             $table->id();
             $table->string('reference')->unique()->index();
@@ -19,13 +23,18 @@ return new class extends Migration
             $table->string('channel')->nullable();
             $table->json('metadata')->nullable();
             $table->json('customer')->nullable();
+
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
     }
 
+    /**
+     * Reverse the migrations.
+     */
     public function down(): void
     {
+        // Drop the table if it exists
         Schema::dropIfExists(config('payments.logging.table', 'payment_transactions'));
     }
 };

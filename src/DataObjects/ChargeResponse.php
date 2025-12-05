@@ -55,7 +55,7 @@ readonly class ChargeResponse
      */
     public function isSuccessful(): bool
     {
-        return in_array(strtolower($this->status), ['success', 'succeeded', 'completed']);
+        return in_array(strtolower($this->status), ['success', 'succeeded', 'completed', 'successful']);
     }
 
     /**

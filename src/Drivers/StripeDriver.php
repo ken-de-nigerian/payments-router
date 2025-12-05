@@ -17,23 +17,25 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 
 /**
- * Class StripeDriver
+ * Driver implementation for the Stripe payment gateway.
  *
- * Stripe payment gateway driver
+ * This driver utilizes the official stripe/stripe-php SDK.
+ * It implements the "Stripe Checkout" flow, where the user is redirected to a Stripe-hosted
+ * page to complete the transaction securely.
  */
 class StripeDriver extends AbstractDriver
 {
     protected string $name = 'stripe';
 
     /**
+     * The native Stripe SDK client wrapper.
+     *
      * @var StripeClient|object
      */
     protected $stripe;
 
     /**
-     * Validate configuration
-     *
-     * @throws InvalidConfigurationException
+     * Ensure the configuration contains the Secret Key.
      */
     protected function validateConfig(): void
     {
@@ -43,7 +45,7 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Initialize client
+     * Initialize the native Stripe SDK client using the config secret.
      */
     protected function initializeClient(): void
     {
@@ -52,7 +54,7 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Setter for mocking in tests
+     * Inject a mock object for testing purposes.
      */
     public function setStripeClient(object $stripe): void
     {
@@ -60,7 +62,10 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Get default headers
+     * Get default headers.
+     *
+     * Note: The Stripe SDK handles headers internally, but this is kept
+     * for consistency with the AbstractDriver interface or manual fallback requests.
      */
     protected function getDefaultHeaders(): array
     {
@@ -71,7 +76,12 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Initialize a charge
+     * Initialize a Stripe Checkout Session.
+     *
+     * This creates a session on Stripe servers and returns the URL the user
+     * must visit.
+     * It maps the internal ChargeRequest to Stripe's line-item format,
+     * converting the amount to minor units (cents) automatically.
      *
      * @throws ChargeException
      * @throws RandomException
@@ -81,7 +91,6 @@ class StripeDriver extends AbstractDriver
         try {
             $reference = $request->reference ?? $this->generateReference('STRIPE');
 
-            // Use Checkout Session instead of PaymentIntent
             $session = $this->stripe->checkout->sessions->create([
                 'payment_method_types' => ['card'],
                 'line_items' => [[
@@ -111,7 +120,7 @@ class StripeDriver extends AbstractDriver
 
             return new ChargeResponse(
                 reference: $reference,
-                authorizationUrl: $session->url, // Now we have a real URL!
+                authorizationUrl: $session->url,
                 accessCode: $session->id,
                 status: 'pending',
                 metadata: [
@@ -126,19 +135,21 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Verify a payment
+     * Verify a payment by retrieving the PaymentIntent.
+     *
+     * This method attempts to find the transaction in two ways:
+     * 1. Direct retrieval assuming $reference is a Stripe PaymentIntent ID.
+     * 2. Fallback search (metadata lookup) if the ID retrieval fails.
      *
      * @throws VerificationException
      */
     public function verify(string $reference): VerificationResponse
     {
         try {
-            // Reference could be payment_intent_id or our custom reference
-            // Try to retrieve as payment intent first
             try {
                 $intent = $this->stripe->paymentIntents->retrieve($reference);
             } catch (ApiErrorException) {
-                // If not found, search by metadata
+                // Fallback: search the latest transactions for a matching metadata reference
                 $intents = $this->stripe->paymentIntents->all([
                     'limit' => 1,
                 ])->data;
@@ -184,7 +195,10 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Validate webhook signature
+     * Validate the webhook signature using Stripe's utility class.
+     *
+     * Validates the timestamp and signature against the endpoint's
+     * signing secret (whsec_...) to prevent replay attacks and forgery.
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -218,12 +232,11 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Health check
+     * Check API connectivity by retrieving the account balance.
      */
     public function healthCheck(): bool
     {
         try {
-            // Simple API call to check connectivity
             $this->stripe->balance->retrieve();
 
             return true;
@@ -235,7 +248,7 @@ class StripeDriver extends AbstractDriver
     }
 
     /**
-     * Normalize status from Stripe to standard format
+     * Normalize Stripe-specific statuses to internal standard statuses.
      */
     private function normalizeStatus(string $status): string
     {

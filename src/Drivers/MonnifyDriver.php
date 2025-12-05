@@ -13,14 +13,29 @@ use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 
+/**
+ * Driver implementation for the Monnify payment gateway.
+ *
+ * This driver handles the specific OAuth2-style authentication flow required
+ * by Monnify, where an API Key and Secret are exchanged for a Bearer token.
+ */
 class MonnifyDriver extends AbstractDriver
 {
     protected string $name = 'monnify';
 
+    /**
+     * Cached bearer token for API requests.
+     */
     private ?string $accessToken = null;
 
+    /**
+     * Unix timestamp when the current access token expires.
+     */
     private ?int $tokenExpiry = null;
 
+    /**
+     * Ensure the configuration contains the specific keys required for Monnify.
+     */
     protected function validateConfig(): void
     {
         if (empty($this->config['api_key']) || empty($this->config['secret_key'])) {
@@ -36,6 +51,13 @@ class MonnifyDriver extends AbstractDriver
         return ['Content-Type' => 'application/json'];
     }
 
+    /**
+     * Retrieve a valid access token, generating a new one if necessary.
+     *
+     * Monnify requires Basic Auth (base64 encoded API Key + Secret) to obtain
+     * a Bearer token.
+     * This method caches the token until it expires (minus a 60s buffer).
+     */
     private function getAccessToken(): string
     {
         if ($this->accessToken && $this->tokenExpiry && time() < $this->tokenExpiry) {
@@ -62,6 +84,12 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Initialize a transaction on Monnify.
+     *
+     * Maps the standardized ChargeRequest to the Monnify 'init-transaction' payload.
+     * Requires a 'contract_code' from configuration.
+     */
     public function charge(ChargeRequest $request): ChargeResponse
     {
         try {
@@ -108,6 +136,9 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Verify a transaction status using the Monnify V2 API.
+     */
     public function verify(string $reference): VerificationResponse
     {
         try {
@@ -143,6 +174,12 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Validate the webhook signature.
+     *
+     * Monnify uses an HMAC SHA512 hash of the request body, signed with the Secret Key.
+     * This hash must match the 'monnify-signature' header.
+     */
     public function validateWebhook(array $headers, string $body): bool
     {
         $signature = $headers['monnify-signature'][0] ?? $headers['Monnify-Signature'][0] ?? null;
@@ -154,6 +191,9 @@ class MonnifyDriver extends AbstractDriver
         return hash_equals($signature, $hash);
     }
 
+    /**
+     * Check if the driver can successfully authenticate with the API.
+     */
     public function healthCheck(): bool
     {
         try {
@@ -165,6 +205,9 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Normalize Monnify-specific statuses to internal standard statuses.
+     */
     private function normalizeStatus(string $status): string
     {
         return match (strtoupper($status)) {

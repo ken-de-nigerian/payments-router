@@ -78,7 +78,7 @@ readonly class VerificationResponse
      */
     public function isFailed(): bool
     {
-        return in_array(strtolower($this->status), ['failed', 'cancelled', 'declined']);
+        return in_array(strtolower($this->status), ['failed', 'rejected', 'cancelled', 'declined', 'denied']);
     }
 
     /**

@@ -10,6 +10,9 @@ use InvalidArgumentException;
  * Class ChargeRequest
  *
  * Data transfer object for payment charge requests
+ *
+ * Note: Amount is stored as float for API compatibility but should be treated as a monetary value.
+ * Always use getAmountInMinorUnits() for precise calculations and API calls.
  */
 readonly class ChargeRequest
 {
@@ -36,8 +39,14 @@ readonly class ChargeRequest
      */
     private function validate(): void
     {
+        // Validate amount with precision check
         if ($this->amount <= 0) {
             throw new InvalidArgumentException('Amount must be greater than zero');
+        }
+
+        // Prevent unreasonably large amounts (potential overflow)
+        if ($this->amount > 999999999.99) {
+            throw new InvalidArgumentException('Amount exceeds maximum allowed value');
         }
 
         if (empty($this->currency)) {
@@ -49,12 +58,17 @@ readonly class ChargeRequest
         }
 
         if (strlen($this->currency) !== 3) {
-            throw new InvalidArgumentException('Currency must be a 3-letter code');
+            throw new InvalidArgumentException('Currency must be a 3-letter ISO code');
         }
     }
 
     /**
      * Convert amount to minor units (cents, kobo, etc.)
+     *
+     * This method ensures precision by rounding to the nearest integer
+     * to avoid floating-point arithmetic issues.
+     *
+     * @return int Amount in minor units (e.g., cents for USD, kobo for NGN)
      */
     public function getAmountInMinorUnits(): int
     {
@@ -66,8 +80,11 @@ readonly class ChargeRequest
      */
     public static function fromArray(array $data): static
     {
+        // We round here before passing to constructor to ensure data integrity
+        $amount = isset($data['amount']) ? round((float) $data['amount'], 2) : 0.0;
+
         return new static(
-            amount: (float) ($data['amount'] ?? 0),
+            amount: $amount,
             currency: strtoupper($data['currency'] ?? ''),
             email: $data['email'] ?? '',
             reference: $data['reference'] ?? null,

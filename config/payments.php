@@ -97,7 +97,10 @@ return [
     | Currency Configuration
     |--------------------------------------------------------------------------
     |
-    | Configure currency conversion settings.
+    | Global currency settings for the payment system.
+    |
+    | - default: The default currency code (ISO 4217) used when not specified
+    | - cache_ttl: How long to cache currency conversion rates (in seconds)
     |
     */
     'currency' => [

@@ -13,14 +13,29 @@ use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 
+/**
+ * Driver implementation for the PayPal REST API (V2).
+ *
+ * This driver utilizes the 'Checkout Orders' API to create and capture payments.
+ * It handles the OAuth2 Client Credentials flow for authentication.
+ */
 class PayPalDriver extends AbstractDriver
 {
     protected string $name = 'paypal';
 
+    /**
+     * Cached OAuth2 access token.
+     */
     private ?string $accessToken = null;
 
+    /**
+     * Timestamp when the current access token expires.
+     */
     private ?int $tokenExpiry = null;
 
+    /**
+     * Ensure the configuration contains the Client ID and Secret.
+     */
     protected function validateConfig(): void
     {
         if (empty($this->config['client_id']) || empty($this->config['client_secret'])) {
@@ -33,26 +48,66 @@ class PayPalDriver extends AbstractDriver
         return ['Content-Type' => 'application/json', 'Accept' => 'application/json'];
     }
 
+    /**
+     * Get the required decimal precision for a specific currency.
+     *
+     * PayPal is strict about amount formatting.
+     * Zero-decimal currencies (like JPY) must be sent as integers, while others (like USD) usually require 2 decimal places.
+     *
+     * @param  string  $currency  ISO currency code
+     * @return int Number of decimal places (0 or 2)
+     */
     private function getCurrencyDecimals(string $currency): int
     {
-        return in_array(strtoupper($currency), ['JPY', 'KRW', 'VND']) ? 0 : 2;
+        $zeroDecimalCurrencies = [
+            'BIF', // Burundian Franc
+            'CLP', // Chilean Peso
+            'DJF', // Djiboutian Franc
+            'GNF', // Guinean Franc
+            'JPY', // Japanese Yen
+            'KMF', // Comorian Franc
+            'KRW', // South Korean Won
+            'MGA', // Malagasy Ariary
+            'PYG', // Paraguayan Guaraní
+            'RWF', // Rwandan Franc
+            'UGX', // Ugandan Shilling
+            'VND', // Vietnamese Dong
+            'VUV', // Vanuatu Vatu
+            'XAF', // Central African CFA Franc
+            'XOF', // West African CFA Franc
+            'XPF', // CFP Franc
+        ];
+
+        return in_array(strtoupper($currency), $zeroDecimalCurrencies) ? 0 : 2;
     }
 
+    /**
+     * Retrieve a valid Bearer token using Client Credentials flow.
+     *
+     * The token is cached in memory until it expires to reduce API overhead.
+     */
     private function getAccessToken(): string
     {
         if ($this->accessToken && $this->tokenExpiry && time() < $this->tokenExpiry) {
             return $this->accessToken;
         }
+
         try {
             $credentials = base64_encode($this->config['client_id'].':'.$this->config['client_secret']);
             $response = $this->makeRequest('POST', '/v1/oauth2/token', [
-                'headers' => ['Authorization' => 'Basic '.$credentials, 'Content-Type' => 'application/x-www-form-urlencoded'],
+                'headers' => [
+                    'Authorization' => 'Basic '.$credentials,
+                    'Content-Type' => 'application/x-www-form-urlencoded',
+                ],
                 'form_params' => ['grant_type' => 'client_credentials'],
             ]);
+
             $data = $this->parseResponse($response);
+
             if (! isset($data['access_token'])) {
                 throw new ChargeException('Failed to authenticate with PayPal');
             }
+
             $this->accessToken = $data['access_token'];
             $this->tokenExpiry = time() + ($data['expires_in'] ?? 3600) - 60;
 
@@ -62,11 +117,19 @@ class PayPalDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Create a generic Order in PayPal (V2 Checkout).
+     *
+     * Formats the amount based on currency precision and sets up the
+     * application context (return/cancel URLs).
+     */
     public function charge(ChargeRequest $request): ChargeResponse
     {
         try {
             $reference = $request->reference ?? $this->generateReference('PAYPAL');
             $callback = $request->callbackUrl ?? $this->config['callback_url'] ?? null;
+
+            $decimals = $this->getCurrencyDecimals($request->currency);
 
             $payload = [
                 'intent' => 'CAPTURE',
@@ -75,13 +138,7 @@ class PayPalDriver extends AbstractDriver
                     'description' => $request->description ?? 'Payment',
                     'amount' => [
                         'currency_code' => $request->currency,
-                        // Dynamic decimals
-                        'value' => number_format(
-                            $request->amount,
-                            $this->getCurrencyDecimals($request->currency),
-                            '.',
-                            ''
-                        ),
+                        'value' => number_format($request->amount, $decimals, '.', ''),
                     ],
                     'custom_id' => $reference,
                 ]],
@@ -113,14 +170,21 @@ class PayPalDriver extends AbstractDriver
             }
 
             $approveLink = collect($data['links'] ?? [])->firstWhere('rel', 'approve');
-            $this->log('info', 'Charge initialized successfully', ['reference' => $reference, 'order_id' => $data['id']]);
+
+            $this->log('info', 'Charge initialized successfully', [
+                'reference' => $reference,
+                'order_id' => $data['id'],
+            ]);
 
             return new ChargeResponse(
                 reference: $reference,
                 authorizationUrl: $approveLink['href'] ?? '',
                 accessCode: $data['id'],
                 status: $this->normalizeStatus($data['status']),
-                metadata: ['order_id' => $data['id'], 'links' => $data['links'] ?? []],
+                metadata: [
+                    'order_id' => $data['id'],
+                    'links' => $data['links'] ?? [],
+                ],
                 provider: $this->getName(),
             );
         } catch (GuzzleException $e) {
@@ -129,14 +193,27 @@ class PayPalDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Verify the status of a specific Order ID.
+     *
+     * Note: PayPal 'verification' usually involves checking the Order details
+     * to see if the funds have been CAPTURED or COMPLETED.
+     */
     public function verify(string $reference): VerificationResponse
     {
         try {
-            $response = $this->makeRequest('GET', "/v2/checkout/orders/$reference", ['headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()]]);
+            // Note: $reference here is expected to be the PayPal Order ID (accessCode),
+            // not necessarily the merchant's local reference.
+            $response = $this->makeRequest('GET', "/v2/checkout/orders/$reference", [
+                'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
+            ]);
+
             $data = $this->parseResponse($response);
+
             if (! isset($data['id'])) {
                 throw new VerificationException('PayPal order not found');
             }
+
             $purchaseUnit = $data['purchase_units'][0] ?? [];
             $amount = $purchaseUnit['amount'] ?? [];
             $payments = $purchaseUnit['payments']['captures'][0] ?? null;
@@ -147,20 +224,36 @@ class PayPalDriver extends AbstractDriver
                 amount: (float) ($amount['value'] ?? 0),
                 currency: $amount['currency_code'] ?? 'USD',
                 paidAt: $payments['create_time'] ?? null,
-                metadata: ['order_id' => $data['id'], 'capture_id' => $payments['id'] ?? null],
+                metadata: [
+                    'order_id' => $data['id'],
+                    'capture_id' => $payments['id'] ?? null,
+                ],
                 provider: $this->getName(),
-                customer: ['email' => $data['payer']['email_address'] ?? null, 'name' => $data['payer']['name']['given_name'] ?? null],
+                customer: [
+                    'email' => $data['payer']['email_address'] ?? null,
+                    'name' => $data['payer']['name']['given_name'] ?? null,
+                ],
             );
         } catch (GuzzleException $e) {
             throw new VerificationException('PayPal verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
+    /**
+     * Placeholder for Webhook Signature Validation.
+     *
+     * @todo Implement full Cert/Signature validation logic.
+     * PayPal webhook validation is complex; it requires downloading a certificate
+     * from a URL provided in the headers, validating the chain, and hashing the body.
+     */
     public function validateWebhook(array $headers, string $body): bool
     {
         return true;
     }
 
+    /**
+     * Check API connectivity by attempting to generate an access token.
+     */
     public function healthCheck(): bool
     {
         try {
@@ -172,6 +265,9 @@ class PayPalDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Normalize PayPal V2 statuses to internal standard statuses.
+     */
     private function normalizeStatus(string $status): string
     {
         return match (strtoupper($status)) {

@@ -14,18 +14,17 @@ use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use Random\RandomException;
 
 /**
- * Class PaystackDriver
+ * Driver implementation for the Paystack payment gateway.
  *
- * Paystack payment gateway driver
+ * This driver handles the Standard Initialization flow, where the user is
+ * redirected to Paystack's hosted checkout page.
  */
 class PaystackDriver extends AbstractDriver
 {
     protected string $name = 'paystack';
 
     /**
-     * Validate configuration
-     *
-     * @throws InvalidConfigurationException
+     * Ensure the configuration contains the Secret Key.
      */
     protected function validateConfig(): void
     {
@@ -35,7 +34,9 @@ class PaystackDriver extends AbstractDriver
     }
 
     /**
-     * Get default headers
+     * Get the default headers for API requests.
+     *
+     * Paystack uses Bearer Token authentication with the Secret Key.
      */
     protected function getDefaultHeaders(): array
     {
@@ -47,7 +48,11 @@ class PaystackDriver extends AbstractDriver
     }
 
     /**
-     * Initialize a charge
+     * Initialize a transaction on Paystack.
+     *
+     * Note: Paystack requires amounts in minor units (e.g., Kobo for NGN).
+     * This method utilizes `getAmountInMinorUnits()` to ensure the API
+     * receives the correct integer value.
      *
      * @throws ChargeException
      * @throws RandomException
@@ -101,7 +106,9 @@ class PaystackDriver extends AbstractDriver
     }
 
     /**
-     * Verify a payment
+     * Verify a payment using the Transaction Reference.
+     *
+     * Returns the amount converted back from minor units (kobo) to main units.
      *
      * @throws VerificationException
      */
@@ -150,7 +157,10 @@ class PaystackDriver extends AbstractDriver
     }
 
     /**
-     * Validate webhook signature
+     * Validate the webhook signature.
+     *
+     * Paystack signs webhooks using HMAC SHA512 with the Secret Key.
+     * The signature is sent in the 'x-paystack-signature' header.
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -176,15 +186,17 @@ class PaystackDriver extends AbstractDriver
     }
 
     /**
-     * Health check
+     * Check API connectivity.
+     *
+     * Intentionally queries an invalid reference to check if the API is reachable.
+     * A 404 response is considered "Healthy" (API is up), whereas a 500 or
+     * connection error is considered "Unhealthy".
      */
     public function healthCheck(): bool
     {
         try {
-            // Try to fetch transaction with invalid reference to test API availability
             $response = $this->makeRequest('GET', '/transaction/verify/invalid_ref_test');
 
-            // Any response (including 404) means the API is responding
             return $response->getStatusCode() < 500;
         } catch (GuzzleException $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);

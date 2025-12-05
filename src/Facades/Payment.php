@@ -9,6 +9,12 @@ use KenDeNigerian\PayZephyr\DataObjects\ChargeResponse;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
 
 /**
+ * Main Facade for the PayZephyr payment processing system.
+ *
+ * This class provides a static interface to the fluid Payment builder,
+ * allowing for easy transaction initialization, charging, and verification
+ * across multiple configured providers.
+ *
  * @method static \KenDeNigerian\PayZephyr\Payment amount(float $amount)
  * @method static \KenDeNigerian\PayZephyr\Payment currency(string $currency)
  * @method static \KenDeNigerian\PayZephyr\Payment email(string $email)
@@ -27,6 +33,9 @@ use KenDeNigerian\PayZephyr\DataObjects\VerificationResponse;
  */
 class Payment extends Facade
 {
+    /**
+     * Get the registered name of the component.
+     */
     protected static function getFacadeAccessor(): string
     {
         return \KenDeNigerian\PayZephyr\Payment::class;

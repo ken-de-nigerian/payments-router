@@ -14,18 +14,17 @@ use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use Random\RandomException;
 
 /**
- * Class FlutterwaveDriver
+ * Driver implementation for the Flutterwave payment gateway.
  *
- * Flutterwave payment gateway driver
+ * This driver handles standard payments via the Standard Payment Link (v3) API
+ * and verifies transactions using the unique transaction reference (tx_ref).
  */
 class FlutterwaveDriver extends AbstractDriver
 {
     protected string $name = 'flutterwave';
 
     /**
-     * Validate configuration
-     *
-     * @throws InvalidConfigurationException
+     * Ensure the configuration contains the Secret Key.
      */
     protected function validateConfig(): void
     {
@@ -35,7 +34,9 @@ class FlutterwaveDriver extends AbstractDriver
     }
 
     /**
-     * Get default headers
+     * Get the default headers for API requests.
+     *
+     * Flutterwave uses Bearer Token authentication with the Secret Key.
      */
     protected function getDefaultHeaders(): array
     {
@@ -46,10 +47,13 @@ class FlutterwaveDriver extends AbstractDriver
     }
 
     /**
-     * Initialize a charge
+     * Initialize a charge using the Flutterwave Standard Payment Link.
      *
-     * @throws ChargeException
-     * @throws RandomException
+     * Maps the internal ChargeRequest to Flutterwave's payload structure,
+     * specifically mapping 'reference' to 'tx_ref' and 'metadata' to 'meta'.
+     *
+     * @throws ChargeException If the API request fails or returns an error status.
+     * @throws RandomException If reference generation fails.
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
@@ -105,7 +109,10 @@ class FlutterwaveDriver extends AbstractDriver
     }
 
     /**
-     * Verify a payment
+     * Verify a payment using the Transaction Reference (tx_ref).
+     *
+     * Note: This uses the '/transactions/verify_by_reference' endpoint rather
+     * than the standard ID-based verification.
      *
      * @throws VerificationException
      */
@@ -156,6 +163,13 @@ class FlutterwaveDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Validate the webhook signature.
+     *
+     * Flutterwave uses a "Secret Hash" mechanism. The value sent in the
+     * 'verif-hash' header must exactly match the Secret Hash configured in the
+     * Flutterwave dashboard (and stored in our config).
+     */
     public function validateWebhook(array $headers, string $body): bool
     {
         $signature = $headers['verif-hash'][0] ?? $headers['Verif-Hash'][0] ?? null;
@@ -167,6 +181,9 @@ class FlutterwaveDriver extends AbstractDriver
         return hash_equals($signature, $secretHash);
     }
 
+    /**
+     * Check API connectivity by querying the Banks endpoint.
+     */
     public function healthCheck(): bool
     {
         try {
@@ -178,6 +195,9 @@ class FlutterwaveDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Normalize Flutterwave-specific statuses to internal standard statuses.
+     */
     private function normalizeStatus(string $status): string
     {
         return match (strtolower($status)) {
