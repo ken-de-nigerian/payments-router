@@ -351,6 +351,7 @@ Payment::amount(50000)
     ->description('Premium subscription')
     ->metadata(['order_id' => 123])
     ->customer(['name' => 'John Doe'])
+    ->channels(['card']) // Specific channels (Paystack/Monnify)
     ->callback(route('payment.callback'))
     ->with('paystack')
     ->redirect();

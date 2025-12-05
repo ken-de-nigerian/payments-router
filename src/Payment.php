@@ -98,6 +98,16 @@ class Payment
     }
 
     /**
+     * Set payment channels (e.g., ['card', 'bank_transfer'])
+     * Specific to providers like Paystack
+     */
+    public function channels(array $channels): static
+    {
+        $this->data['channels'] = $channels;
+        return $this;
+    }
+
+    /**
      * Specify provider(s) to use
      */
     public function with(string|array $providers): static
@@ -122,6 +132,7 @@ class Payment
     {
         $request = ChargeRequest::fromArray(array_merge([
             'currency' => config('payments.currency.default', 'NGN'),
+            'channels' => $this->data['channels'] ?? null,
         ], $this->data));
 
         return $this->manager->chargeWithFallback($request, $this->providers ?: null);

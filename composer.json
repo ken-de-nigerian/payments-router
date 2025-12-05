@@ -11,7 +11,9 @@
         "monnify",
         "payment-gateway",
         "payments",
-        "webhook"
+        "webhook",
+        "fintech",
+        "laravel-package"
     ],
     "type": "library",
     "license": "MIT",

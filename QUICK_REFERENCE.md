@@ -38,6 +38,7 @@ Payment::amount(50000)
     ->email('customer@example.com')
     ->reference('ORDER_123')
     ->description('Premium subscription')
+    ->channels(['card', 'bank_transfer']) // Optional: Restrict payment channels
     ->metadata(['order_id' => 123])
     ->callback(route('payment.callback'))
     ->with('paystack')
@@ -48,9 +49,19 @@ Payment::amount(50000)
 ```php
 $result = Payment::verify($reference);
 
-if ($result->isSuccessful()) {
-    // Process order
-}
+// Check status
+$result->isSuccessful()  // true if status is 'success', 'succeeded', 'completed'
+$result->isFailed()      // true if status is 'failed', 'cancelled', 'declined'
+$result->isPending()     // true if status is 'pending', 'created', 'approved' (PayPal)
+
+// Get data
+$result->reference       // Transaction reference
+$result->amount          // Amount paid
+$result->currency        // Currency code
+$result->status          // Status string (normalized to success, pending, failed)
+$result->paidAt          // Payment timestamp
+$result->provider        // Provider used
+$result->channel         // Payment channel
 ```
 
 ## Webhook Setup
