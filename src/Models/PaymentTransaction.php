@@ -72,6 +72,15 @@ class PaymentTransaction extends Model
     }
 
     /**
+     * Get the database connection for the model.
+     */
+    public function getConnectionName(): ?string
+    {
+        // Use the default connection if set, otherwise use testing in test environment
+        return parent::getConnectionName() ?? (app()->environment('testing') ? 'testing' : null);
+    }
+
+    /**
      * Scope a query to only include successful payments.
      */
     public function scopeSuccessful($query)

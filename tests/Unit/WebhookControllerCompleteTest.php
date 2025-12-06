@@ -353,23 +353,30 @@ test('webhook controller returns original status for unknown status', function (
 });
 
 test('webhook controller updates transaction from webhook with success status', function () {
-    // Create table if it doesn't exist
-    if (!Schema::hasTable('payment_transactions')) {
-        Schema::create('payment_transactions', function ($table) {
-            $table->id();
-            $table->string('reference')->unique();
-            $table->string('provider');
-            $table->string('status');
-            $table->decimal('amount', 10, 2);
-            $table->string('currency', 3);
-            $table->string('email');
-            $table->string('channel')->nullable();
-            $table->json('metadata')->nullable();
-            $table->json('customer')->nullable();
-            $table->timestamp('paid_at')->nullable();
-            $table->timestamps();
-        });
+    // Ensure we're using the testing connection
+    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
+    
+    // Create table (drop first to ensure clean state)
+    try {
+        Schema::connection('testing')->dropIfExists('payment_transactions');
+    } catch (\Exception $e) {
+        // Ignore if table doesn't exist
     }
+    
+    Schema::connection('testing')->create('payment_transactions', function ($table) {
+        $table->id();
+        $table->string('reference')->unique();
+        $table->string('provider');
+        $table->string('status');
+        $table->decimal('amount', 10, 2);
+        $table->string('currency', 3);
+        $table->string('email');
+        $table->string('channel')->nullable();
+        $table->json('metadata')->nullable();
+        $table->json('customer')->nullable();
+        $table->timestamp('paid_at')->nullable();
+        $table->timestamps();
+    });
 
     // Create a transaction first
     \KenDeNigerian\PayZephyr\Models\PaymentTransaction::create([
@@ -402,23 +409,30 @@ test('webhook controller updates transaction from webhook with success status', 
 });
 
 test('webhook controller updates transaction with provider-specific channels', function () {
-    // Create table if it doesn't exist
-    if (!Schema::hasTable('payment_transactions')) {
-        Schema::create('payment_transactions', function ($table) {
-            $table->id();
-            $table->string('reference')->unique();
-            $table->string('provider');
-            $table->string('status');
-            $table->decimal('amount', 10, 2);
-            $table->string('currency', 3);
-            $table->string('email');
-            $table->string('channel')->nullable();
-            $table->json('metadata')->nullable();
-            $table->json('customer')->nullable();
-            $table->timestamp('paid_at')->nullable();
-            $table->timestamps();
-        });
+    // Ensure we're using the testing connection
+    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
+    
+    // Create table (drop first to ensure clean state)
+    try {
+        Schema::connection('testing')->dropIfExists('payment_transactions');
+    } catch (\Exception $e) {
+        // Ignore if table doesn't exist
     }
+    
+    Schema::connection('testing')->create('payment_transactions', function ($table) {
+        $table->id();
+        $table->string('reference')->unique();
+        $table->string('provider');
+        $table->string('status');
+        $table->decimal('amount', 10, 2);
+        $table->string('currency', 3);
+        $table->string('email');
+        $table->string('channel')->nullable();
+        $table->json('metadata')->nullable();
+        $table->json('customer')->nullable();
+        $table->timestamp('paid_at')->nullable();
+        $table->timestamps();
+    });
 
     // Create transactions for each provider
     $references = [
@@ -475,23 +489,30 @@ test('webhook controller updates transaction with provider-specific channels', f
 });
 
 test('webhook controller handles database error during update gracefully', function () {
-    // Create table if it doesn't exist
-    if (!Schema::hasTable('payment_transactions')) {
-        Schema::create('payment_transactions', function ($table) {
-            $table->id();
-            $table->string('reference')->unique();
-            $table->string('provider');
-            $table->string('status');
-            $table->decimal('amount', 10, 2);
-            $table->string('currency', 3);
-            $table->string('email');
-            $table->string('channel')->nullable();
-            $table->json('metadata')->nullable();
-            $table->json('customer')->nullable();
-            $table->timestamp('paid_at')->nullable();
-            $table->timestamps();
-        });
+    // Ensure we're using the testing connection
+    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
+    
+    // Create table (drop first to ensure clean state)
+    try {
+        Schema::connection('testing')->dropIfExists('payment_transactions');
+    } catch (\Exception $e) {
+        // Ignore if table doesn't exist
     }
+    
+    Schema::connection('testing')->create('payment_transactions', function ($table) {
+        $table->id();
+        $table->string('reference')->unique();
+        $table->string('provider');
+        $table->string('status');
+        $table->decimal('amount', 10, 2);
+        $table->string('currency', 3);
+        $table->string('email');
+        $table->string('channel')->nullable();
+        $table->json('metadata')->nullable();
+        $table->json('customer')->nullable();
+        $table->timestamp('paid_at')->nullable();
+        $table->timestamps();
+    });
 
     // Create a transaction first
     \KenDeNigerian\PayZephyr\Models\PaymentTransaction::create([

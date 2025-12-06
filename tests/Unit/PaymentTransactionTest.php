@@ -12,12 +12,22 @@ use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
  * This ensures we don't rely on external migrations.
  */
 beforeEach(function () {
-    Schema::create('payment_transactions', function (Blueprint $table) {
+    // Ensure we're using the testing connection
+    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
+    
+    // Always create the table (RefreshDatabase will handle cleanup)
+    try {
+        Schema::connection('testing')->dropIfExists('payment_transactions');
+    } catch (\Exception $e) {
+        // Ignore if table doesn't exist
+    }
+    
+    Schema::connection('testing')->create('payment_transactions', function (Blueprint $table) {
         $table->id();
         $table->string('reference');
         $table->string('provider');
         $table->string('status');
-        $table->decimal('amount', 15);
+        $table->decimal('amount', 15, 2);
         $table->string('currency');
         $table->string('email');
         $table->string('channel')->nullable();
