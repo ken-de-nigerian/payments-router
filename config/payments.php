@@ -64,7 +64,7 @@ return [
             'secret_key' => env('MONNIFY_SECRET_KEY'),
             'contract_code' => env('MONNIFY_CONTRACT_CODE'),
             'callback_url' => env('MONNIFY_CALLBACK_URL'),
-            'base_url' => env('MONNIFY_BASE_URL', 'https://api.monnify.com') // https://sandbox.monnify.com on sandbox environment,
+            'base_url' => env('MONNIFY_BASE_URL', 'https://api.monnify.com'), // Sandbox: https://sandbox.monnify.com | Live: https://api.monnify.com,
             'currencies' => ['NGN'],
             'enabled' => env('MONNIFY_ENABLED', false),
         ],
