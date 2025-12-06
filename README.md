@@ -768,10 +768,6 @@ If PayZephyr helped your project:
 - [ ] Recurring billing
 - [ ] Split payments enhancements
 
-### In Progress
-- [x] Security enhancements (v1.0.1)
-- [x] PayPal improvements (v1.0.2)
-
 ---
 
 **Built with ❤️ for the Laravel community by [Ken De Nigerian](https://github.com/ken-de-nigerian)**
