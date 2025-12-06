@@ -113,6 +113,8 @@ return [
 ```php
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
+// Builder methods can be chained in any order
+// redirect() must be called last to execute
 return Payment::amount(10000)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
@@ -122,6 +124,7 @@ return Payment::amount(10000)
 ### 2. With Metadata
 
 ```php
+// All builder methods are chainable in any order
 return Payment::amount(50000)
     ->currency('NGN')
     ->email('customer@example.com')
@@ -132,17 +135,18 @@ return Payment::amount(50000)
         'customer_id' => auth()->id(),
     ])
     ->description('Premium Plan Subscription')
-    ->redirect();
+    ->redirect(); // Must be called last
 ```
 
 ### 3. Multiple Providers
 
 ```php
 // Try Paystack, fallback to Stripe
+// with() or using() can be called anywhere in the chain
 return Payment::amount(10000)
     ->email('customer@example.com')
-    ->with(['paystack', 'stripe'])
-    ->redirect();
+    ->with(['paystack', 'stripe']) // or ->using(['paystack', 'stripe'])
+    ->redirect(); // Must be called last
 ```
 
 ### 4. Verify Payment
@@ -153,7 +157,12 @@ public function callback(Request $request)
     $reference = $request->input('reference');
     
     try {
+        // verify() is a standalone method, NOT chainable
+        // It searches all providers if no provider is specified
         $verification = Payment::verify($reference);
+        
+        // Or specify a provider explicitly
+        // $verification = Payment::verify($reference, 'paystack');
         
         if ($verification->isSuccessful()) {
             // Update your database
@@ -179,11 +188,12 @@ public function callback(Request $request)
 ### 5. Using Helper Function
 
 ```php
-// Same as Payment facade, more concise
+// The payment() helper works exactly like the Payment facade
+// All builder methods are chainable in any order
 return payment()
     ->amount(10000)
     ->email('customer@example.com')
-    ->redirect();
+    ->redirect(); // Must be called last
 ```
 
 **📖 See [Architecture Guide](architecture.md) for advanced patterns**
@@ -347,13 +357,21 @@ composer format
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
 test('payment charge works', function () {
+    // Builder methods can be chained in any order
     $response = Payment::amount(10000)
         ->email('test@example.com')
-        ->with('paystack')
-        ->charge();
+        ->with('paystack') // or ->using('paystack')
+        ->charge(); // Must be called last
 
     expect($response->reference)->toBeString()
         ->and($response->status)->toBe('pending');
+});
+
+test('payment verification works', function () {
+    // verify() is standalone, not chainable
+    $verification = Payment::verify('ref_123');
+    
+    expect($verification->isSuccessful())->toBeBool();
 });
 ```
 
@@ -378,29 +396,41 @@ Payment::shouldReceive('charge')
 
 ### Fluent API Methods
 
-#### Builder Methods (Chainable)
+#### Builder Methods (Chainable - Can be called in any order)
 
 ```php
 Payment::amount(float $amount)           // Set payment amount
 Payment::currency(string $currency)      // Set currency (default: NGN)
-Payment::email(string $email)            // Set customer email (required)
-Payment::reference(string $reference)    // Set custom reference
-Payment::callback(string $url)           // Set callback URL
-Payment::metadata(array $metadata)       // Set custom metadata
-Payment::idempotency(string $key)        // Set unique idempotency key
+Payment::email(string $email)           // Set customer email (required)
+Payment::reference(string $reference)   // Set custom reference
+Payment::callback(string $url)          // Set callback URL
+Payment::metadata(array $metadata)      // Set custom metadata
+Payment::idempotency(string $key)       // Set unique idempotency key
 Payment::description(string $description) // Set payment description
-Payment::customer(array $customer)       // Set customer information
-Payment::channels(array $channels)       // Set payment channels
-Payment::with(string|array $providers)   // Set provider(s)
+Payment::customer(array $customer)      // Set customer information
+Payment::channels(array $channels)      // Set payment channels
+Payment::with(string|array $providers)  // Set provider(s) for this transaction
+Payment::using(string|array $providers)  // Alias for with()
 ```
 
-#### Action Methods
+**Note:** Builder methods can be chained in any order. They return the Payment instance for method chaining.
+
+#### Action Methods (Must be called last)
 
 ```php
-Payment::charge()                        // Get ChargeResponse (no redirect)
-Payment::redirect()                      // Redirect user to the payment page
-Payment::verify(string $reference)       // Verify payment status
+Payment::charge()                        // Returns ChargeResponse (no redirect)
+Payment::redirect()                      // Redirects user to payment page
 ```
+
+**Note:** `charge()` and `redirect()` must be called last in the chain to execute the payment. They compile all the builder data and process the transaction.
+
+#### Verification Method (Standalone - NOT chainable)
+
+```php
+Payment::verify(string $reference, ?string $provider = null)  // Returns VerificationResponse
+```
+
+**Note:** `verify()` is a standalone method that cannot be chained. It searches all enabled providers if no provider is specified, or verifies with the specified provider.
 
 ### Response Objects
 

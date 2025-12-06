@@ -29,11 +29,13 @@ PAYSTACK_ENABLED=true
 ### Usage Example
 
 ```php
+// Builder methods can be chained in any order
+// redirect() must be called last to execute
 Payment::amount(50000)
     ->currency('NGN')
     ->email('customer@example.com')
     ->metadata(['order_id' => 123])
-    ->with('paystack')
+    ->with('paystack') // or ->using('paystack')
     ->redirect();
 ```
 
@@ -81,11 +83,12 @@ FLUTTERWAVE_ENABLED=true
 ### Usage Example
 
 ```php
+// Builder methods can be chained in any order
 Payment::amount(10000)
     ->currency('KES')
     ->email('customer@example.com')
-    ->with('flutterwave')
-    ->redirect();
+    ->with('flutterwave') // or ->using('flutterwave')
+    ->redirect(); // Must be called last
 ```
 
 ### Webhook Configuration
@@ -119,12 +122,13 @@ MONNIFY_ENABLED=true
 ### Usage Example
 
 ```php
+// Builder methods can be chained in any order
 Payment::amount(25000)
     ->currency('NGN')
     ->email('customer@example.com')
     ->customer(['name' => 'John Doe'])
-    ->with('monnify')
-    ->redirect();
+    ->with('monnify') // or ->using('monnify')
+    ->redirect(); // Must be called last
 ```
 
 ### Webhook Configuration
@@ -160,11 +164,12 @@ STRIPE_ENABLED=true
 
 ```php
 // Get client secret for frontend
+// Use charge() instead of redirect() to get response object
 $response = Payment::amount(10000)
     ->currency('USD')
     ->email('customer@example.com')
-    ->with('stripe')
-    ->charge();
+    ->with('stripe') // or ->using('stripe')
+    ->charge(); // Must be called last
 
 return response()->json([
     'client_secret' => $response->metadata['client_secret'],
@@ -213,11 +218,12 @@ PAYPAL_ENABLED=true
 ### Usage Example
 
 ```php
+// Builder methods can be chained in any order
 Payment::amount(100.00)
     ->currency('USD')
     ->email('customer@example.com')
-    ->with('paypal')
-    ->redirect();
+    ->with('paypal') // or ->using('paypal')
+    ->redirect(); // Must be called last
 ```
 
 ### Webhook Configuration
@@ -234,10 +240,11 @@ Configure in PayPal Dashboard under Webhooks.
 
 ```php
 // Try Paystack first, then Stripe if it fails
+// with() or using() can be called anywhere in the chain
 Payment::amount(10000)
-    ->with(['paystack', 'stripe'])
+    ->with(['paystack', 'stripe']) // or ->using(['paystack', 'stripe'])
     ->email('customer@example.com')
-    ->redirect();
+    ->redirect(); // Must be called last
 ```
 
 ### Global Fallback
@@ -250,6 +257,7 @@ Set in config:
 
 Then use:
 ```php
+// Uses default and fallback from config
 Payment::amount(10000)
     ->email('customer@example.com')
     ->redirect(); // Tries paystack, falls back to stripe

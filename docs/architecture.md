@@ -85,11 +85,14 @@ The manager:
 
 Provides a clean, expressive interface:
 ```php
+// Builder methods can be chained in any order
+// with() or using() can be called anywhere in the chain
+// redirect() or charge() must be called last to execute
 Payment::amount(1000)
     ->currency('NGN')
     ->email('user@example.com')
-    ->with('paystack')
-    ->redirect();
+    ->with('paystack') // or ->using('paystack')
+    ->redirect(); // Must be called last
 ```
 
 ### 6. Service Provider
@@ -105,10 +108,10 @@ Registers:
 
 ### Charge Flow
 
-1. User calls `Payment::amount()->redirect()`
-2. Payment builds ChargeRequest DTO
-3. PaymentManager receives request
-4. Manager gets fallback provider chain
+1. User calls `Payment::amount()->email()->redirect()` (builder methods can be in any order)
+2. Payment builds ChargeRequest DTO from all chained builder methods
+3. PaymentManager receives request via `chargeWithFallback()`
+4. Manager gets fallback provider chain (from `with()`/`using()` or config defaults)
 5. For each provider in chain:
    - Check if enabled
    - Run health check (if enabled)
@@ -117,15 +120,18 @@ Registers:
    - Return on success, continue on failure
 6. Driver makes API call
 7. Driver returns ChargeResponse DTO
-8. User redirected to payment page
+8. Transaction logged to database (if enabled)
+9. User redirected to payment page (if `redirect()` was called) or response returned (if `charge()` was called)
 
 ### Verification Flow
 
-1. User calls `Payment::verify($reference)`
-2. Manager tries all providers (or specified one)
+1. User calls `Payment::verify($reference)` or `Payment::verify($reference, $provider)`
+   - **Note:** `verify()` is a standalone method, NOT chainable
+2. Manager tries all enabled providers (or specified one)
 3. First successful verification returns
-4. VerificationResponse DTO returned
-5. Application handles result
+4. Transaction status updated in database (if logging enabled)
+5. VerificationResponse DTO returned
+6. Application handles result
 
 ### Webhook Flow
 

@@ -114,20 +114,23 @@ PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
 // Redirect user to the payment page
+// Note: Builder methods can be chained in any order
 return Payment::amount(10000)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
-    ->redirect();
+    ->redirect(); // Must be called last to execute
 ```
 
 ### Using Helper Function
 
 ```php
+// The payment() helper works exactly like the Payment facade
+// All builder methods are chainable in any order
 return payment()
     ->amount(10000)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
-    ->redirect();
+    ->redirect(); // Must be called last to execute
 ```
 
 ### With All Options
@@ -135,6 +138,9 @@ return payment()
 ```php
 use Illuminate\Support\Str;
 
+// Builder methods can be chained in any order
+// with() or using() can be called anywhere in the chain
+// charge() or redirect() must be called last
 return Payment::amount(50000)
     ->currency('NGN')
     ->email('customer@example.com')
@@ -144,9 +150,8 @@ return Payment::amount(50000)
     ->metadata(['order_id' => 12345])
     ->customer(['name' => 'John Doe', 'phone' => '+2348012345678'])
     ->channels(['card', 'bank_transfer'])
-    ->with('paystack')
-    ->redirect();
-
+    ->with('paystack') // or ->using('paystack')
+    ->redirect(); // Must be called last to execute
 ```
 
 ### Verify Payment
@@ -157,7 +162,12 @@ public function callback(Request $request)
     $reference = $request->input('reference');
     
     try {
+        // verify() is a standalone method, NOT chainable
+        // It searches all providers if no provider is specified
         $verification = Payment::verify($reference);
+        
+        // Or specify a provider explicitly
+        // $verification = Payment::verify($reference, 'paystack');
         
         if ($verification->isSuccessful()) {
             // Payment successful
@@ -306,10 +316,11 @@ PaymentTransaction::pending()->get();
 
 ```php
 // Try Paystack first, fallback to Stripe
+// with() or using() can be called anywhere in the chain
 return Payment::amount(10000)
     ->email('customer@example.com')
-    ->with(['paystack', 'stripe'])
-    ->redirect();
+    ->with(['paystack', 'stripe']) // or ->using(['paystack', 'stripe'])
+    ->redirect(); // Must be called last to execute
 ```
 
 ### Direct Driver Access
@@ -335,10 +346,11 @@ if ($driver->isCurrencySupported('NGN')) {
 
 ```php
 // Get payment details without redirecting
+// Use charge() instead of redirect() to get the response object
 $response = Payment::amount(10000)
     ->email('customer@example.com')
-    ->with('stripe')
-    ->charge();
+    ->with('stripe') // or ->using('stripe')
+    ->charge(); // Must be called last to execute
 
 return response()->json([
     'reference' => $response->reference,
@@ -394,13 +406,21 @@ composer format
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
 test('payment charge works', function () {
+    // Builder methods can be chained in any order
     $response = Payment::amount(10000)
         ->email('test@example.com')
-        ->with('paystack')
-        ->charge();
+        ->with('paystack') // or ->using('paystack')
+        ->charge(); // Must be called last
 
     expect($response->reference)->toBeString()
         ->and($response->status)->toBe('pending');
+});
+
+test('payment verification works', function () {
+    // verify() is standalone, not chainable
+    $verification = Payment::verify('ref_123');
+    
+    expect($verification->isSuccessful())->toBeBool();
 });
 ```
 
@@ -451,25 +471,41 @@ PayZephyr follows clean architecture principles:
 
 ### Payment Methods
 
-```php
-// Builder methods (chainable)
-Payment::amount(float $amount)
-Payment::currency(string $currency)
-Payment::email(string $email)
-Payment::reference(string $reference)
-Payment::idempotency(string $key)        // Set unique idempotency key
-Payment::callback(string $url)
-Payment::metadata(array $metadata)
-Payment::description(string $description)
-Payment::customer(array $customer)
-Payment::channels(array $channels)
-Payment::with(string|array $providers)
+#### Builder Methods (Chainable - Can be called in any order)
 
-// Action methods
-Payment::charge()                        // Returns ChargeResponse
-Payment::redirect()                      // Redirects to payment page
-Payment::verify(string $reference)       // Returns VerificationResponse
+```php
+Payment::amount(float $amount)           // Set payment amount
+Payment::currency(string $currency)      // Set currency (default: NGN)
+Payment::email(string $email)            // Set customer email (required)
+Payment::reference(string $reference)    // Set custom reference
+Payment::idempotency(string $key)        // Set unique idempotency key
+Payment::callback(string $url)           // Set callback URL
+Payment::metadata(array $metadata)       // Set custom metadata
+Payment::description(string $description) // Set payment description
+Payment::customer(array $customer)       // Set customer information
+Payment::channels(array $channels)        // Set payment channels
+Payment::with(string|array $providers)    // Set provider(s) for this transaction
+Payment::using(string|array $providers)   // Alias for with()
 ```
+
+**Note:** Builder methods can be chained in any order. They return the Payment instance for method chaining.
+
+#### Action Methods (Must be called last)
+
+```php
+Payment::charge()                        // Returns ChargeResponse (no redirect)
+Payment::redirect()                      // Redirects user to payment page
+```
+
+**Note:** `charge()` and `redirect()` must be called last in the chain to execute the payment. They compile all the builder data and process the transaction.
+
+#### Verification Method (Standalone - NOT chainable)
+
+```php
+Payment::verify(string $reference, ?string $provider = null)  // Returns VerificationResponse
+```
+
+**Note:** `verify()` is a standalone method that cannot be chained. It searches all enabled providers if no provider is specified, or verifies with the specified provider.
 
 ### Response Objects
 
