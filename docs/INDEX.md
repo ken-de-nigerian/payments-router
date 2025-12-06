@@ -387,6 +387,7 @@ Payment::email(string $email)            // Set customer email (required)
 Payment::reference(string $reference)    // Set custom reference
 Payment::callback(string $url)           // Set callback URL
 Payment::metadata(array $metadata)       // Set custom metadata
+Payment::idempotency(string $key)        // Set unique idempotency key
 Payment::description(string $description) // Set payment description
 Payment::customer(array $customer)       // Set customer information
 Payment::channels(array $channels)       // Set payment channels
