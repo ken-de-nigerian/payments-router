@@ -8,7 +8,27 @@ use KenDeNigerian\PayZephyr\PaymentManager;
 beforeEach(function () {
     config([
         'payments.logging.enabled' => false,
-        'payments.webhook.verify_signature' => false, // Disable for these tests to focus on routing logic
+        'payments.webhook.verify_signature' => false,
+
+        // 🟢 FIX: Define configurations so the drivers can be instantiated without errors
+        'payments.providers.monnify' => [
+            'driver' => 'monnify',
+            'api_key' => 'test_key',
+            'secret_key' => 'test_secret',
+            'contract_code' => '123',
+            'enabled' => true,
+        ],
+        'payments.providers.stripe' => [
+            'driver' => 'stripe',
+            'secret_key' => 'test_secret',
+            'enabled' => true,
+        ],
+        'payments.providers.paypal' => [
+            'driver' => 'paypal',
+            'client_id' => 'test_id',
+            'client_secret' => 'test_secret',
+            'enabled' => true,
+        ],
     ]);
 });
 
@@ -31,7 +51,6 @@ test('webhook controller routes stripe requests correctly', function () {
     $manager = app(PaymentManager::class);
     $controller = new WebhookController($manager);
 
-    // Stripe structure usually wraps data in 'data.object'
     $payload = [
         'type' => 'payment_intent.succeeded',
         'data' => [
