@@ -149,6 +149,7 @@ class PayPalDriver extends AbstractDriver
                         'experience_context' => [
                             'brand_name' => $this->config['brand_name'] ?? 'Your Store',
                             'payment_method_preference' => 'IMMEDIATE_PAYMENT_REQUIRED',
+                            'landing_page' => 'GUEST_CHECKOUT',
                             'user_action' => 'PAY_NOW',
                             'return_url' => $callback,
                             'cancel_url' => $callback,
