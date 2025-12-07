@@ -731,13 +731,13 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 Please see [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.4
+### Latest Release: v1.0.5
 
 ### Fixed
-- Standardize callback URL query parameters across all drivers
-- AbstractDriver: Added appendQueryParam helper for safe URL construction.
-- Drivers (Flutterwave, Monnify, PayPal, Stripe): Updated charge methods to explicitly append the 'reference' query parameter to the callback URL.
-- This ensures a unified developer experience where Payment::verify(\$request→reference) works consistently for all providers.
+
+- Implement cache-based provider resolution for verify()
+- Ensures fast verification for custom references even if database logging is disabled.
+- Resolution Priority: Explicit → Cache → Database → Prefix → Fallback Loop.
 
 ---
 
