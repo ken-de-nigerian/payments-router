@@ -731,10 +731,13 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 Please see [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.3
+### Latest Release: v1.0.4
 
-### Changed
-- **PayPal:** Updated the default checkout flow to use `landing_page => GUEST_CHECKOUT`. This ensures users see the "Pay with Debit/Credit Card" option immediately instead of being forced to log in, significantly improving conversion rates.
+### Fixed
+- Standardize callback URL query parameters across all drivers
+- AbstractDriver: Added appendQueryParam helper for safe URL construction.
+- Drivers (Flutterwave, Monnify, PayPal, Stripe): Updated charge methods to explicitly append the 'reference' query parameter to the callback URL.
+- This ensures a unified developer experience where Payment::verify(\$request→reference) works consistently for all providers.
 
 ---
 
