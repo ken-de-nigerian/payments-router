@@ -93,7 +93,7 @@ class StripeDriver extends AbstractDriver
      * converting the amount to minor units (cents) automatically.
      *
      * @throws ChargeException
-     * @throws RandomException
+     * @throws RandomException|InvalidConfigurationException
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
@@ -102,6 +102,12 @@ class StripeDriver extends AbstractDriver
 
         try {
             $reference = $request->reference ?? $this->generateReference('STRIPE');
+
+            $callback = $request->callbackUrl ?? $this->config['callback_url'] ?? null;
+
+            if (! $callback) {
+                throw new InvalidConfigurationException('Stripe requires a callback URL for its redirect flow. Please set "callback_url" in your config/payments.php or use ->callbackUrl() in your payment chain.');
+            }
 
             // Build the URLs safely using the helper
             $successUrl = $this->appendQueryParam($request->callbackUrl, 'status', 'success');
