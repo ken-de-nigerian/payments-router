@@ -391,7 +391,10 @@ test('payment manager logTransaction creates transaction with all fields', funct
         ->and((float) $transaction->amount)->toBe(5000.0) // Cast to float for comparison
         ->and($transaction->currency)->toBe('NGN')
         ->and($transaction->email)->toBe('customer@example.com')
-        ->and($transaction->metadata)->toBe(['order_id' => 123])
+        ->and($transaction->metadata)->toBe([
+            'order_id' => 123,
+            '_provider_id' => 'access_123'
+        ])
         ->and($transaction->customer)->toBe(['name' => 'John Doe']);
 });
 
