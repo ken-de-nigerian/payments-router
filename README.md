@@ -731,22 +731,16 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 Please see [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.1
+### Latest Release: v1.0.2
 
-**Security Updates:**
-- ✅ Fixed critical webhook signature validation
-- ✅ Enhanced input validation
-- ✅ Added transaction logging
+### Fixed
+- **Flutterwave:** Fixed `404 Not Found` error caused by incorrect URL path resolution. Removed leading slashes in `FlutterwaveDriver` methods to ensure endpoints correctly append to the configured versioned base URL (`/v3/`).
+- **PayPal:** Fixed `422 Unprocessable Entity` error by refactoring the payload to use the modern `experience_context` structure instead of the deprecated `application_context`.
+- **PayPal:** Fixed "Cannot redirect to an empty URL" crash. The driver now correctly identifies the `payer-action` link type returned by the API v2, which replaced the previous `approve` link type.
+- **Monnify:** Fixed a syntax error (missing comma) in the published `config/payments.php` file that caused application crashes during boot.
 
-**New Features:**
-- ✅ PaymentTransaction model with scopes
-- ✅ Automatic database logging
-- ✅ PayPal zero-decimal currency support
-
-**Improvements:**
-- ✅ Better floating-point handling
-- ✅ Removed unused dependencies
-- ✅ Comprehensive security audit
+### Documentation
+- **Monnify:** Added inline documentation in the configuration file to clarify the correct Base URLs for Sandbox (`https://sandbox.monnify.com`) vs. Live (`https://api.monnify.com`) environments.
 
 ---
 
