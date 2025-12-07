@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.6] - 2025-12-07
+
+### Fixed
+
+- StripeDriver charge() must use config callbackUrl as fallback to prevent empty success_url error when using →charge().
+
 ## [1.0.5] - 2025-12-07
 
 ### Fixed

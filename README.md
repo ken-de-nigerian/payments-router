@@ -731,13 +731,11 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 Please see [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.5
+### Latest Release: v1.0.6
 
 ### Fixed
 
-- Implement cache-based provider resolution for verify()
-- Ensures fast verification for custom references even if database logging is disabled.
-- Resolution Priority: Explicit → Cache → Database → Prefix → Fallback Loop.
+- StripeDriver charge() must use config callbackUrl as fallback to prevent empty success_url error when using →charge().
 
 ---
 
