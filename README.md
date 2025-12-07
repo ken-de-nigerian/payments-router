@@ -731,11 +731,15 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 Please see [CHANGELOG.md](CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.6
+### Latest Release: v1.0.7
 
 ### Fixed
 
-- StripeDriver charge() must use config callbackUrl as fallback to prevent empty success_url error when using →charge().
+- Implement cache-first verification to support Unified API without DB logging
+- PaymentManager: Now caches 'CustomRef ⇒ ProviderID' mapping for 1 hour during charge().
+- PaymentManager: verify() uses Cache → DB → Prefix logic to find the correct Provider and ID.
+- StripeDriver: Added support for verification via Checkout Session ID (cs_).
+- MonnifyDriver: Fixed verification failure caused by query parameters in reference string.
 
 ---
 

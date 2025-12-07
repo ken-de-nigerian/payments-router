@@ -123,9 +123,7 @@ class PaymentManager
                 }
 
                 $response = $driver->charge($request);
-
-                // This ensures verify() works fast even if DB logging is disabled
-                Cache::put("payzephyr_ref_$response->reference", $providerName, now()->addHour());
+                $this->cacheSessionData($response->reference, $providerName, $response->accessCode);
 
                 // Log transaction to database
                 $this->logTransaction($request, $response, $providerName);
@@ -164,6 +162,10 @@ class PaymentManager
         }
 
         try {
+            $metadata = array_merge($request->metadata, $response->metadata, [
+                '_provider_id' => $response->accessCode,
+            ]);
+
             PaymentTransaction::create([
                 'reference' => $response->reference,
                 'provider' => $provider,
@@ -171,13 +173,12 @@ class PaymentManager
                 'amount' => $request->amount,
                 'currency' => $request->currency,
                 'email' => $request->email,
-                'channel' => null, // Will be updated by webhook
-                'metadata' => $request->metadata,
+                'channel' => null,
+                'metadata' => $metadata,
                 'customer' => $request->customer,
-                'paid_at' => null, // Will be updated on verification/webhook
+                'paid_at' => null,
             ]);
         } catch (Throwable $e) {
-            // Don't fail the payment if logging fails
             logger()->error('Failed to log transaction', [
                 'error' => $e->getMessage(),
                 'reference' => $response->reference,
@@ -199,16 +200,16 @@ class PaymentManager
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponse
     {
-        // Use the smart resolver to find the correct provider(s)
-        $providers = $this->resolveProvidersForVerification($reference, $provider);
+        $resolution = $this->resolveVerificationContext($reference, $provider);
+        $providers = $resolution['provider'] ? [$resolution['provider']] : array_keys($this->getEnabledProviders());
+        $verificationId = $resolution['id'];
+
         $exceptions = [];
 
         foreach ($providers as $providerName) {
             try {
                 $driver = $this->driver($providerName);
-                $response = $driver->verify($reference);
-
-                // Update transaction in database
+                $response = $driver->verify($verificationId);
                 $this->updateTransactionFromVerification($reference, $response);
 
                 return $response;
@@ -224,37 +225,54 @@ class PaymentManager
     }
 
     /**
-     * Smartly determine which provider(s) to check.
+     * Cache session data to map Custom Reference -> Provider ID.
      */
-    protected function resolveProvidersForVerification(string $reference, ?string $explicitProvider): array
+    protected function cacheSessionData(string $reference, string $provider, string $providerId): void
     {
-        // 1. Explicit provider passed? Use it (Fastest).
-        if ($explicitProvider) {
-            return [$explicitProvider];
+        Cache::put("payzephyr_session_$reference", [
+            'provider' => $provider,
+            'id' => $providerId,
+        ], now()->addHour());
+    }
+
+    /**
+     * Resolve the Provider and the ID to use for verification.
+     * Priority: Cache -> Database -> Heuristics -> Input
+     */
+    protected function resolveVerificationContext(string $reference, ?string $explicitProvider): array
+    {
+        // 1. Check Cache (Fastest & Works without DB)
+        $cached = Cache::get("payzephyr_session_$reference");
+        if ($cached) {
+            return [
+                'provider' => $cached['provider'],
+                'id' => $cached['id'],
+            ];
         }
 
-        // 2. Check Cache (Fast & Works for Custom Refs without DB)
-        $cachedProvider = Cache::get("payzephyr_ref_$reference");
-        if ($cachedProvider) {
-            return [$cachedProvider];
-        }
-
-        // 3. Check Database (Reliable for long-term / if cache expired)
+        // 2. Check Database (If logging is enabled)
         if (config('payments.logging.enabled', true)) {
-            $dbProvider = PaymentTransaction::where('reference', $reference)->value('provider');
-            if ($dbProvider) {
-                return [$dbProvider];
+            $transaction = PaymentTransaction::where('reference', $reference)->first();
+            if ($transaction) {
+                $providerId = $transaction->metadata['_provider_id']
+                    ?? $transaction->metadata['session_id']
+                    ?? $transaction->metadata['order_id']
+                    ?? $reference;
+
+                return [
+                    'provider' => $transaction->provider,
+                    'id' => $providerId,
+                ];
             }
         }
 
-        // 4. Check Prefix (Reliable for Package-Generated Refs)
-        $guessedProvider = $this->detectProviderFromReference($reference);
-        if ($guessedProvider) {
-            return [$guessedProvider];
-        }
+        // 3. Heuristic / Explicit Fallback
+        $provider = $explicitProvider ?? $this->detectProviderFromReference($reference);
 
-        // 5. Fallback: Check ALL providers (Slow, Safety Net)
-        return array_keys($this->getEnabledProviders());
+        return [
+            'provider' => $provider,
+            'id' => $reference,
+        ];
     }
 
     /**

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.7] - 2025-12-07
+
+### Fixed
+
+- Implement cache-first verification to support Unified API without DB logging
+- PaymentManager: Now caches 'CustomRef ⇒ ProviderID' mapping for 1 hour during charge().
+- PaymentManager: verify() uses Cache → DB → Prefix logic to find the correct Provider and ID.
+- StripeDriver: Added support for verification via Checkout Session ID (cs_).
+- MonnifyDriver: Fixed verification failure caused by query parameters in reference string.
+
 ## [1.0.6] - 2025-12-07
 
 ### Fixed

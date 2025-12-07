@@ -97,16 +97,17 @@ class StripeDriver extends AbstractDriver
      */
     public function charge(ChargeRequest $request): ChargeResponse
     {
-        // Store request for potential HTTP fallback (though SDK handles it)
         $this->setCurrentRequest($request);
 
         try {
             $reference = $request->reference ?? $this->generateReference('STRIPE');
-
             $callback = $request->callbackUrl ?? $this->config['callback_url'] ?? null;
 
-            if (! $callback) {
-                throw new InvalidConfigurationException('Stripe requires a callback URL for its redirect flow. Please set "callback_url" in your config/payments.php or use ->callbackUrl() in your payment chain.');
+            if (empty($callback)) {
+                throw new InvalidConfigurationException(
+                    'Stripe requires a callback URL for its redirect flow. '.
+                    'Please set "callback_url" in your config/payments.php or use ->callback() in your payment chain.'
+                );
             }
 
             // Build the URLs safely using the helper
@@ -182,10 +183,30 @@ class StripeDriver extends AbstractDriver
     public function verify(string $reference): VerificationResponse
     {
         try {
+            if (str_starts_with($reference, 'cs_')) {
+                $session = $this->stripe->checkout->sessions->retrieve($reference);
+
+                $status = match ($session->payment_status) {
+                    'paid' => 'success',
+                    'unpaid' => 'pending',
+                    default => 'failed'
+                };
+
+                return new VerificationResponse(
+                    reference: $session->client_reference_id ?? $session->id,
+                    status: $status,
+                    amount: $session->amount_total / 100,
+                    currency: strtoupper($session->currency),
+                    paidAt: $status === 'success' ? date('Y-m-d H:i:s') : null,
+                    metadata: (array) $session->metadata,
+                    provider: $this->getName(),
+                    customer: ['email' => $session->customer_details->email ?? null],
+                );
+            }
+
             try {
                 $intent = $this->stripe->paymentIntents->retrieve($reference);
             } catch (ApiErrorException) {
-                // Fallback: search the latest transactions for a matching metadata reference
                 $intents = $this->stripe->paymentIntents->all([
                     'limit' => 1,
                 ])->data;
@@ -278,7 +299,7 @@ class StripeDriver extends AbstractDriver
             return true;
 
         } catch (AuthenticationException) {
-            // Invalid API key, but API is reachable
+
             return true;
 
         } catch (ApiErrorException $e) {

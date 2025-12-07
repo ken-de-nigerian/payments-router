@@ -158,8 +158,10 @@ class MonnifyDriver extends AbstractDriver
      */
     public function verify(string $reference): VerificationResponse
     {
+        $cleanReference = explode('?', $reference)[0];
+
         try {
-            $response = $this->makeRequest('GET', "/api/v2/transactions/$reference", [
+            $response = $this->makeRequest('GET', "/api/v2/transactions/$cleanReference", [
                 'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
             ]);
 

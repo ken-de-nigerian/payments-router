@@ -14,7 +14,7 @@ use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
  * The Payment Builder - Your main interface for processing payments.
  *
  * This class lets you build payment requests step-by-step using a simple chainable syntax.
- * For example: Payment::amount(1000)->email('user@example.com')->redirect()
+ * For example, Payment::amount(1000)->email('user@example.com')->redirect()
  *
  * Once you call redirect() or charge(), it sends everything to PaymentManager to handle.
  */
@@ -32,7 +32,7 @@ class Payment
 
     /**
      * Which payment provider(s) to use for this payment (e.g., 'paystack', 'stripe').
-     * If empty, uses the default from config.
+     * If empty, use the default from config.
      */
     protected array $providers = [];
 
@@ -142,7 +142,7 @@ class Payment
 
     /**
      * Limit which payment methods the customer can use.
-     * For example: ['card', 'bank_transfer'] means only cards and bank transfers.
+     * For example, ['card', 'bank_transfer'] means only cards and bank transfers.
      * Useful for providers like Paystack.
      */
     public function channels(array $channels): static
@@ -154,11 +154,11 @@ class Payment
 
     /**
      * Choose which payment provider(s) to use for this payment.
-     * 
+     *
      * Examples:
      * - with('paystack') - Use only Paystack
      * - with(['paystack', 'stripe']) - Try Paystack first, then Stripe if it fails
-     * 
+     *
      * If you don't call this, it uses the default provider from your config.
      *
      * @param  string|array  $providers  Provider name(s) like 'paystack', 'stripe', etc.
@@ -184,7 +184,7 @@ class Payment
      *
      * This creates a payment request and sends it to the payment provider.
      * Returns a ChargeResponse object with details like the payment URL.
-     * 
+     *
      * Use this when you want to handle the redirect yourself (e.g., for API responses).
      * For automatic redirects, use redirect() instead.
      *
@@ -205,7 +205,7 @@ class Payment
      *
      * This is the easiest way to handle payments - it processes the payment
      * and sends the customer to the provider's checkout page.
-     * 
+     *
      * Use this in your controller: return Payment::amount(1000)->email('user@example.com')->redirect();
      *
      * @throws ProviderException If all payment providers fail.
@@ -225,7 +225,7 @@ class Payment
      *
      * @param  string  $reference  The transaction reference (from the payment response or callback).
      * @param  string|null  $provider  Optional: specify which provider to check (e.g., 'paystack').
-     *                                  If null, searches all providers automatically.
+     *                                 If null, searches all providers automatically.
      *
      * @throws ProviderException If the payment can't be found or verified.
      */
