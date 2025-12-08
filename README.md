@@ -27,116 +27,83 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 
 ## 📦 Installation
 
+> **👋 New to PayZephyr?** Check out our **[Getting Started Guide](docs/GETTING_STARTED.md)** for a complete step-by-step tutorial!
+
 ### Requirements
 - PHP 8.2 or higher
 - Laravel 10.x, 11.x, or 12.x
+- Composer
 
-### Install via Composer
+### Quick Install
 
 ```bash
+# 1. Install the package
 composer require kendenigerian/payzephyr
-```
 
-### Publish Configuration
-
-```bash
+# 2. Publish configuration
 php artisan vendor:publish --tag=payments-config
-```
 
-This creates `config/payments.php` where you configure your payment providers.
-
-### Publish & Run Migrations
-
-```bash
+# 3. Publish and run migrations
 php artisan vendor:publish --tag=payments-migrations
 php artisan migrate
 ```
 
-This creates the `payment_transactions` table for automatic transaction logging.
+**That's it!** You're ready to start accepting payments.
+
+**📖 Need more help?** See the [Getting Started Guide](docs/GETTING_STARTED.md) for detailed instructions with examples.
 
 ---
 
 ## ⚙️ Configuration
 
-### Environment Variables
-
 Add your provider credentials to `.env`:
 
 ```env
-# Default Payment Provider
+# Default Provider
 PAYMENTS_DEFAULT_PROVIDER=paystack
-
-# Fallback Provider
 PAYMENTS_FALLBACK_PROVIDER=stripe
 
-# Paystack Configuration
-PAYSTACK_SECRET_KEY=your_paystack_secret_key_here
-PAYSTACK_PUBLIC_KEY=your_paystack_public_key_here
-PAYSTACK_MERCHANT_EMAIL=your_merchant_email@example.com
-PAYSTACK_CALLBACK_URL=https://yourapp.com/payments/paystack/callback
-PAYSTACK_WEBHOOK_URL=https://yourapp.com/payments/paystack/webhook
-PAYSTACK_BASE_URL=https://api.paystack.co
+# Paystack (Required: secret_key, public_key)
+PAYSTACK_SECRET_KEY=sk_test_xxxxx
+PAYSTACK_PUBLIC_KEY=pk_test_xxxxx
+PAYSTACK_CALLBACK_URL=https://yourapp.com/payments/callback
 PAYSTACK_ENABLED=true
 
-# Flutterwave Configuration
-FLUTTERWAVE_SECRET_KEY=your_flutterwave_secret_key_here
-FLUTTERWAVE_PUBLIC_KEY=your_flutterwave_public_key_here
-FLUTTERWAVE_ENCRYPTION_KEY=your_flutterwave_encryption_key_here
-FLUTTERWAVE_CALLBACK_URL=https://yourapp.com/payments/flutterwave/callback
-FLUTTERWAVE_WEBHOOK_URL=https://yourapp.com/payments/flutterwave/webhook
-FLUTTERWAVE_BASE_URL=https://api.flutterwave.com/v3
-FLUTTERWAVE_ENABLED=false
-
-# Monnify Configuration
-MONNIFY_API_KEY=your_monnify_api_key_here
-MONNIFY_SECRET_KEY=your_monnify_secret_key_here
-MONNIFY_CONTRACT_CODE=your_monnify_contract_code_here
-MONNIFY_CALLBACK_URL=https://yourapp.com/payments/monnify/callback
-MONNIFY_BASE_URL=https://api.monnify.com
-MONNIFY_ENABLED=false
-
-# Stripe Configuration
-STRIPE_SECRET_KEY=your_stripe_secret_key_here
-STRIPE_PUBLIC_KEY=your_stripe_public_key_here
-STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
-STRIPE_CALLBACK_URL=https://yourapp.com/payments/stripe/callback
-STRIPE_BASE_URL=https://api.stripe.com
+# Stripe (Required: secret_key, public_key, webhook_secret)
+STRIPE_SECRET_KEY=sk_test_xxxxx
+STRIPE_PUBLIC_KEY=pk_test_xxxxx
+STRIPE_WEBHOOK_SECRET=whsec_xxxxx
+STRIPE_CALLBACK_URL=https://yourapp.com/payments/callback
 STRIPE_ENABLED=false
 
-# PayPal Configuration
-PAYPAL_CLIENT_ID=your_paypal_client_id_here
-PAYPAL_CLIENT_SECRET=your_paypal_client_secret_here
+# Flutterwave (Required: secret_key, public_key, encryption_key)
+FLUTTERWAVE_SECRET_KEY=FLWSECK_TEST_xxxxx
+FLUTTERWAVE_PUBLIC_KEY=FLWPUBK_TEST_xxxxx
+FLUTTERWAVE_ENCRYPTION_KEY=xxxxx
+FLUTTERWAVE_CALLBACK_URL=https://yourapp.com/payments/callback
+FLUTTERWAVE_ENABLED=false
+
+# Monnify (Required: api_key, secret_key, contract_code)
+MONNIFY_API_KEY=MK_TEST_xxxxx
+MONNIFY_SECRET_KEY=xxxxx
+MONNIFY_CONTRACT_CODE=xxxxx
+MONNIFY_CALLBACK_URL=https://yourapp.com/payments/callback
+MONNIFY_ENABLED=false
+
+# PayPal (Required: client_id, client_secret)
+PAYPAL_CLIENT_ID=xxxxx
+PAYPAL_CLIENT_SECRET=xxxxx
 PAYPAL_MODE=sandbox
-PAYPAL_CALLBACK_URL=https://yourapp.com/payments/paypal/callback
-PAYPAL_BASE_URL=https://api-m.sandbox.paypal.com
+PAYPAL_CALLBACK_URL=https://yourapp.com/payments/callback
 PAYPAL_ENABLED=false
 
-# Currency Configuration
+# Optional Settings
 PAYMENTS_DEFAULT_CURRENCY=NGN
-PAYMENTS_CURRENCY_CACHE_TTL=3600
-
-# Webhook Configuration
-PAYMENTS_WEBHOOK_PATH=/payments/webhook
-PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
-
-# Health Check Configuration
-PAYMENTS_HEALTH_CHECK_ENABLED=true
-PAYMENTS_HEALTH_CHECK_CACHE_TTL=300
-PAYMENTS_HEALTH_CHECK_TIMEOUT=5
-
-# Logging Configuration
 PAYMENTS_LOGGING_ENABLED=true
-PAYMENTS_LOG_CHANNEL=stack
-
-# Security Configuration
-PAYMENTS_ENCRYPT_KEYS=true
-PAYMENTS_RATE_LIMIT_ENABLED=true
-PAYMENTS_RATE_LIMIT_ATTEMPTS=60
-PAYMENTS_RATE_LIMIT_DECAY=1
-
-# Testing Mode
-PAYMENTS_TESTING_MODE=false
+PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
 ```
+
+**📖 See [Configuration Guide](docs/DOCUMENTATION.md#configuration) for complete details.**
 
 ---
 
@@ -183,7 +150,7 @@ return Payment::amount(50000)
     ->idempotency(Str::uuid()->toString()) // Prevent double billing
     ->metadata(['order_id' => 12345])
     ->customer(['name' => 'John Doe', 'phone' => '+2348012345678'])
-    ->channels(['card', 'bank_transfer'])
+    ->channels(['card', 'bank_transfer']) // Unified channel names work across all providers
     ->with('paystack') // or ->using('paystack')
     ->redirect(); // Must be called last to execute
 ```
@@ -478,16 +445,24 @@ PaymentTransaction::pending()->get();
 
 ## 📚 Documentation
 
-### Core Documentation
+### Getting Started
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** ⭐ **Start here if you're new!** - Step-by-step beginner tutorial
+- **[Complete Documentation](docs/DOCUMENTATION.md)** - Comprehensive guide covering all features
 - **[Installation & Setup](README.md)** - You are here
+
+### Core Documentation
 - **[Architecture Guide](docs/architecture.md)** - System design and components
 - **[Provider Details](docs/providers.md)** - Detailed provider information
 - **[Webhook Guide](docs/webhooks.md)** - Complete webhook documentation
 
+### For Contributors
+- **[Contributing Guide for Beginners](docs/CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** - Step-by-step contribution tutorial
+- **[Contributing Guidelines](docs/CONTRIBUTING.md)** - Detailed technical contribution guide
+- **[Architecture Guide](docs/architecture.md)** - Understand the codebase structure
+
 ### Additional Resources
-- **[CHANGELOG](CHANGELOG.md)** - Version history and updates
-- **[CONTRIBUTING](CONTRIBUTING.md)** - Contribution guidelines
-- **[SECURITY](SECURITY_AUDIT.md)** - Security audit and best practices
+- **[CHANGELOG](docs/CHANGELOG.md)** - Version history and updates
+- **[SECURITY](docs/SECURITY_AUDIT.md)** - Security audit and best practices
 - **[LICENSE](LICENSE)** - MIT License
 
 ---
@@ -562,7 +537,7 @@ return response()->json([
 6. ✅ Implement rate limiting on webhooks
 7. ✅ Keep the package updated
 
-**📖 For the complete security guide, see [SECURITY_AUDIT.md](SECURITY_AUDIT.md)**
+**📖 For the complete security guide, see [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)**
 
 ---
 
@@ -717,7 +692,7 @@ $verification->isPending()    // Boolean
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
+Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
 - Code of Conduct
 - Development setup
 - Coding standards
@@ -729,7 +704,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for:
 
 ## 📝 Changelog
 
-Please see [CHANGELOG.md](CHANGELOG.md) for recent changes.
+Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
 ### Latest Release: v1.0.7
 
@@ -808,7 +783,7 @@ If PayZephyr helped your project:
 | 📦 Packagist     | [kendenigerian/payzephyr](https://packagist.org/packages/kendenigerian/payzephyr) |
 | 🐙 GitHub        | [ken-de-nigerian/payzephyr](https://github.com/ken-de-nigerian/payzephyr)         |
 | 📖 Documentation | [docs/](docs/INDEX.md)                                                            |
-| 🔐 Security      | [SECURITY_AUDIT.md](SECURITY_AUDIT.md)                                            |
-| 📝 Changelog     | [CHANGELOG.md](CHANGELOG.md)                                                      |
-| 🤝 Contributing  | [CONTRIBUTING.md](CONTRIBUTING.md)                                                |
+| 🔐 Security      | [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)                                       |
+| 📝 Changelog     | [CHANGELOG.md](docs/CHANGELOG.md)                                                 |
+| 🤝 Contributing  | [CONTRIBUTING.md](docs/CONTRIBUTING.md)                                           |
 | ⚖️ License       | [LICENSE](LICENSE)                                                                |

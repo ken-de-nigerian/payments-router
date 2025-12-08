@@ -119,7 +119,7 @@ class MonnifyDriver extends AbstractDriver
                     'reference',
                     $reference
                 ),
-                'paymentMethods' => ['CARD', 'ACCOUNT_TRANSFER'],
+                'paymentMethods' => $this->mapChannels($request) ?? ['CARD', 'ACCOUNT_TRANSFER'],
                 'metadata' => $request->metadata,
             ];
 
@@ -161,7 +161,7 @@ class MonnifyDriver extends AbstractDriver
         $cleanReference = explode('?', $reference)[0];
 
         try {
-            $response = $this->makeRequest('GET', "/api/v2/transactions/$cleanReference", [
+            $response = $this->makeRequest('GET', "/api/v2/merchant/transactions/query?paymentReference=$cleanReference", [
                 'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
             ]);
 
@@ -177,14 +177,14 @@ class MonnifyDriver extends AbstractDriver
                 reference: $result['paymentReference'] ?? $reference,
                 status: $this->normalizeStatus($result['paymentStatus']),
                 amount: (float) $result['amountPaid'],
-                currency: $result['currencyCode'],
+                currency: $result['currency'] ?? $result['currencyCode'] ?? 'NGN',
                 paidAt: $result['paidOn'] ?? null,
                 metadata: $result['metaData'] ?? [],
                 provider: $this->getName(),
                 channel: $result['paymentMethod'] ?? null,
                 customer: [
-                    'email' => $result['customerEmail'] ?? null,
-                    'name' => $result['customerName'] ?? null,
+                    'email' => $result['customer']['email'] ?? null,
+                    'name' => $result['customer']['name'] ?? null,
                 ],
             );
         } catch (GuzzleException $e) {
@@ -229,16 +229,4 @@ class MonnifyDriver extends AbstractDriver
         }
     }
 
-    /**
-     * Normalize Monnify-specific statuses to internal standard statuses.
-     */
-    private function normalizeStatus(string $status): string
-    {
-        return match (strtoupper($status)) {
-            'PAID', 'OVERPAID' => 'success',
-            'PENDING', 'PARTIALLY_PAID' => 'pending',
-            'FAILED', 'CANCELLED', 'EXPIRED' => 'failed',
-            default => strtolower($status),
-        };
-    }
 }

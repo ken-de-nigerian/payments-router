@@ -117,9 +117,10 @@ class StripeDriver extends AbstractDriver
             $cancelUrl = $this->appendQueryParam($callback, 'status', 'cancelled');
             $cancelUrl = $this->appendQueryParam($cancelUrl, 'reference', $reference);
 
-            // Build Stripe API parameters
+            $paymentMethods = $this->mapChannels($request) ?? ['card'];
+
             $params = [
-                'payment_method_types' => ['card'],
+                'payment_method_types' => $paymentMethods,
                 'line_items' => [[
                     'price_data' => [
                         'currency' => strtolower($request->currency),
@@ -183,71 +184,57 @@ class StripeDriver extends AbstractDriver
     public function verify(string $reference): VerificationResponseDTO
     {
         try {
+
             if (str_starts_with($reference, 'cs_')) {
-                $session = $this->stripe->checkout->sessions->retrieve($reference);
+                $session = $this->stripe->checkout->sessions->retrieve($reference, [
+                    'expand' => ['payment_intent'],
+                ]);
 
-                $status = match ($session->payment_status) {
-                    'paid' => 'success',
-                    'unpaid' => 'pending',
-                    default => 'failed'
-                };
-
-                return new VerificationResponseDTO(
-                    reference: $session->client_reference_id ?? $session->id,
-                    status: $status,
-                    amount: $session->amount_total / 100,
-                    currency: strtoupper($session->currency),
-                    paidAt: $status === 'success' ? date('Y-m-d H:i:s') : null,
-                    metadata: (array) $session->metadata,
-                    provider: $this->getName(),
-                    customer: ['email' => $session->customer_details->email ?? null],
-                );
+                return $this->mapFromCheckoutSession($session);
             }
 
-            try {
+            if (str_starts_with($reference, 'pi_')) {
                 $intent = $this->stripe->paymentIntents->retrieve($reference);
-            } catch (ApiErrorException) {
-                $intents = $this->stripe->paymentIntents->all([
-                    'limit' => 1,
-                ])->data;
 
-                $intent = null;
-                foreach ($intents as $pi) {
-                    if (($pi->metadata['reference'] ?? '') === $reference) {
-                        $intent = $pi;
-                        break;
-                    }
-                }
+                return $this->mapFromPaymentIntent($intent);
+            }
 
-                if (! $intent) {
-                    throw new VerificationException('Payment intent not found');
+            $sessions = $this->stripe->checkout->sessions->all([
+                'limit' => 1,
+            ])->data;
+
+            $found = null;
+
+            foreach ($sessions as $session) {
+                if (($session->client_reference_id ?? null) === $reference) {
+                    $found = $session;
+                    break;
                 }
             }
 
-            $this->log('info', 'Payment verified', [
-                'reference' => $reference,
-                'status' => $intent->status,
-            ]);
+            if ($found) {
+                $session = $this->stripe->checkout->sessions->retrieve($found->id, [
+                    'expand' => ['payment_intent'],
+                ]);
 
-            return new VerificationResponseDTO(
-                reference: $intent->metadata['reference'] ?? $intent->id,
-                status: $this->normalizeStatus($intent->status),
-                amount: $intent->amount / 100,
-                currency: strtoupper($intent->currency),
-                paidAt: $intent->status === 'succeeded' ? date('Y-m-d H:i:s', $intent->created) : null,
-                metadata: (array) $intent->metadata,
-                provider: $this->getName(),
-                channel: $intent->payment_method ?? null,
-                customer: [
-                    'email' => $intent->receipt_email,
-                ],
-            );
+                return $this->mapFromCheckoutSession($session);
+            }
+
+            $intents = $this->stripe->paymentIntents->all(['limit' => 10])->data;
+
+            foreach ($intents as $intent) {
+                if (($intent->metadata['reference'] ?? null) === $reference) {
+                    return $this->mapFromPaymentIntent($intent);
+                }
+            }
+
+            throw new VerificationException("Payment not found for reference [$reference]");
         } catch (ApiErrorException $e) {
-            $this->log('error', 'Verification failed', [
-                'reference' => $reference,
-                'error' => $e->getMessage(),
-            ]);
-            throw new VerificationException('Stripe verification failed: '.$e->getMessage(), 0, $e);
+            throw new VerificationException(
+                'Stripe verification failed: '.$e->getMessage(),
+                0,
+                $e
+            );
         }
     }
 
@@ -309,17 +296,49 @@ class StripeDriver extends AbstractDriver
         }
     }
 
-    /**
-     * Normalize Stripe-specific statuses to internal standard statuses.
-     */
-    private function normalizeStatus(string $status): string
+    private function mapFromCheckoutSession($session): VerificationResponseDTO
     {
-        return match ($status) {
-            'succeeded' => 'success',
-            'processing' => 'pending',
-            'requires_payment_method', 'requires_confirmation', 'requires_action' => 'pending',
-            'canceled' => 'cancelled',
-            default => $status,
+        $pi = $session->payment_intent;
+
+        $status = match ($session->payment_status) {
+            'paid' => 'success',
+            'unpaid' => 'pending',
+            default => 'failed'
         };
+
+        return new VerificationResponseDTO(
+            reference: $session->client_reference_id ?? $session->id,
+            status: $status,
+            amount: ($session->amount_total ?? $pi?->amount) / 100,
+            currency: strtoupper((string) $session->currency),
+            paidAt: $session->payment_status === 'paid'
+                ? date('Y-m-d H:i:s', $session->created)
+                : null,
+            metadata: (array) ($session->metadata ?? []),
+            provider: $this->getName(),
+            channel: implode(',', $session->payment_method_types ?? []),
+            customer: [
+                'email' => $session->customer_email,
+            ],
+        );
+    }
+
+    private function mapFromPaymentIntent($intent): VerificationResponseDTO
+    {
+        return new VerificationResponseDTO(
+            reference: $intent->metadata['reference'] ?? $intent->id,
+            status: $this->normalizeStatus($intent->status),
+            amount: $intent->amount / 100,
+            currency: strtoupper($intent->currency),
+            paidAt: $intent->status === 'succeeded'
+                ? date('Y-m-d H:i:s', $intent->created)
+                : null,
+            metadata: (array) $intent->metadata,
+            provider: $this->getName(),
+            channel: $intent->payment_method_types[0] ?? null,
+            customer: [
+                'email' => $intent->receipt_email,
+            ],
+        );
     }
 }

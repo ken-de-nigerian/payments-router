@@ -6,18 +6,16 @@ namespace KenDeNigerian\PayZephyr;
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
-use KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver;
-use KenDeNigerian\PayZephyr\Drivers\MonnifyDriver;
-use KenDeNigerian\PayZephyr\Drivers\PayPalDriver;
-use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
-use KenDeNigerian\PayZephyr\Drivers\StripeDriver;
 use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
+use KenDeNigerian\PayZephyr\Services\DriverFactory;
+use KenDeNigerian\PayZephyr\Services\ProviderDetector;
 use Throwable;
 
 /**
@@ -41,9 +39,23 @@ class PaymentManager
      */
     protected array $config;
 
-    public function __construct()
-    {
+    /**
+     * Provider detector service for identifying providers from references.
+     */
+    protected ProviderDetector $providerDetector;
+
+    /**
+     * Driver factory for creating driver instances.
+     */
+    protected DriverFactory $driverFactory;
+
+    public function __construct(
+        ?ProviderDetector $providerDetector = null,
+        ?DriverFactory $driverFactory = null
+    ) {
         $this->config = Config::get('payments', []);
+        $this->providerDetector = $providerDetector ?? app(ProviderDetector::class);
+        $this->driverFactory = $driverFactory ?? app(DriverFactory::class);
     }
 
     /**
@@ -70,13 +82,8 @@ class PaymentManager
             throw new DriverNotFoundException("Payment driver [$name] not found or disabled");
         }
 
-        $driverClass = $this->resolveDriverClass($config['driver']);
-
-        if (! class_exists($driverClass)) {
-            throw new DriverNotFoundException("Driver class [$driverClass] not found");
-        }
-
-        $this->drivers[$name] = new $driverClass($config);
+        $driverName = $config['driver'] ?? $name;
+        $this->drivers[$name] = $this->driverFactory->create($driverName, $config);
 
         return $this->drivers[$name];
     }
@@ -277,24 +284,11 @@ class PaymentManager
 
     /**
      * Attempt to identify the provider based on the reference prefix.
+     * Delegates to ProviderDetector service (SRP compliance).
      */
     protected function detectProviderFromReference(string $reference): ?string
     {
-        $prefixes = [
-            'PAYSTACK' => 'paystack',
-            'FLW' => 'flutterwave',
-            'MON' => 'monnify',
-            'STRIPE' => 'stripe',
-            'PAYPAL' => 'paypal',
-        ];
-
-        foreach ($prefixes as $prefix => $driver) {
-            if (str_starts_with(strtoupper($reference), $prefix.'_')) {
-                return $driver;
-            }
-        }
-
-        return null;
+        return $this->providerDetector->detectFromReference($reference);
     }
 
     /**
@@ -309,10 +303,11 @@ class PaymentManager
         }
 
         try {
+            $statusEnum = PaymentStatus::tryFromString($response->status);
             PaymentTransaction::where('reference', $reference)->update([
                 'status' => $response->status,
                 'channel' => $response->channel,
-                'paid_at' => $response->isSuccessful() ? ($response->paidAt ?? now()) : null,
+                'paid_at' => $statusEnum?->isSuccessful() ? ($response->paidAt ?? now()) : null,
             ]);
         } catch (Throwable $e) {
             logger()->error('Failed to update transaction from verification', [
@@ -347,24 +342,6 @@ class PaymentManager
         return array_unique(array_filter($chain));
     }
 
-    /**
-     * Convert a short provider name (like 'paystack') to the full class name.
-     *
-     * This lets you use simple names in config instead of long class paths.
-     * Example: 'paystack' becomes 'KenDeNigerian\PayZephyr\Drivers\PaystackDriver'
-     */
-    protected function resolveDriverClass(string $driver): string
-    {
-        $map = [
-            'paystack' => PaystackDriver::class,
-            'flutterwave' => FlutterwaveDriver::class,
-            'monnify' => MonnifyDriver::class,
-            'stripe' => StripeDriver::class,
-            'paypal' => PayPalDriver::class,
-        ];
-
-        return $map[$driver] ?? $driver;
-    }
 
     /**
      * Get all payment providers that are currently enabled in your config.

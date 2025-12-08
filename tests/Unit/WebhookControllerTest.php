@@ -27,7 +27,7 @@ beforeEach(function () {
 
 test('webhook controller handles valid paystack webhook', function () {
     $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = [
         'event' => 'charge.success',
@@ -81,8 +81,7 @@ test('webhook controller handles valid paystack webhook', function () {
 test('webhook controller rejects invalid signature', function () {
     config(['payments.webhook.verify_signature' => true]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = ['event' => 'charge.success', 'data' => ['reference' => 'ref_123']];
     $request = Request::create('/payments/webhook/paystack', 'POST', $payload);
@@ -119,8 +118,7 @@ test('webhook controller rejects invalid signature', function () {
 test('webhook controller bypasses signature verification when disabled', function () {
     config(['payments.webhook.verify_signature' => false]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = ['event' => 'charge.success', 'data' => ['reference' => 'ref_123']];
     $request = Request::create('/payments/webhook/paystack', 'POST', $payload);
@@ -134,8 +132,7 @@ test('webhook controller bypasses signature verification when disabled', functio
 });
 
 test('webhook controller handles invalid provider gracefully', function () {
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $request = Request::create('/payments/webhook/invalid_provider', 'POST', []);
 
@@ -147,8 +144,7 @@ test('webhook controller handles invalid provider gracefully', function () {
 test('webhook controller handles exceptions during processing', function () {
     config(['payments.webhook.verify_signature' => false]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     // Create a request that might cause issues
     $request = Request::create('/payments/webhook/paystack', 'POST', [
@@ -166,8 +162,7 @@ test('webhook controller handles exceptions during processing', function () {
 test('webhook controller dispatches both provider-specific and general events', function () {
     config(['payments.webhook.verify_signature' => false]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = [
         'event' => 'charge.success',
@@ -185,8 +180,7 @@ test('webhook controller dispatches both provider-specific and general events', 
 });
 
 test('webhook controller handles flutterwave webhook with valid signature', function () {
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = [
         'event' => 'charge.completed',
@@ -233,8 +227,7 @@ test('webhook controller handles flutterwave webhook with valid signature', func
 test('webhook controller logs webhook processing', function () {
     config(['payments.webhook.verify_signature' => false]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $request = Request::create('/payments/webhook/paystack', 'POST', [
         'event' => 'charge.success',
@@ -251,8 +244,7 @@ test('webhook controller logs webhook processing', function () {
 test('webhook controller handles empty payload', function () {
     config(['payments.webhook.verify_signature' => false]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $request = Request::create('/payments/webhook/paystack', 'POST', []);
 
@@ -266,8 +258,7 @@ test('webhook controller handles empty payload', function () {
 test('webhook controller handles complex nested payload', function () {
     config(['payments.webhook.verify_signature' => false]);
 
-    $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = [
         'event' => 'charge.success',

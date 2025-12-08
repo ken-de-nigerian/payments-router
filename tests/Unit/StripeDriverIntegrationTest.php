@@ -130,13 +130,26 @@ test('stripe verify returns success', function () {
         }
     };
 
-    $stripeMock = new class($paymentIntents)
+    $sessionsService = new class
     {
-        public function __construct(public object $paymentIntents) {}
+        public function all(): object
+        {
+            return (object) ['data' => []];
+        }
+    };
+
+    $checkoutService = new class($sessionsService)
+    {
+        public function __construct(public object $sessions) {}
+    };
+
+    $stripeMock = new class($paymentIntents, $checkoutService)
+    {
+        public function __construct(public object $paymentIntents, public object $checkout) {}
     };
 
     $driver = createMockStripeDriver($stripeMock);
-    $result = $driver->verify('stripe_ref_123');
+    $result = $driver->verify('pi_stripe_ref_123');
 
     expect($result->status)->toBe('success')
         ->and($result->amount)->toBe(10000.0)
@@ -163,13 +176,26 @@ test('stripe verify returns failed', function () {
         }
     };
 
-    $stripeMock = new class($paymentIntents)
+    $sessionsService = new class
     {
-        public function __construct(public object $paymentIntents) {}
+        public function all(): object
+        {
+            return (object) ['data' => []];
+        }
+    };
+
+    $checkoutService = new class($sessionsService)
+    {
+        public function __construct(public object $sessions) {}
+    };
+
+    $stripeMock = new class($paymentIntents, $checkoutService)
+    {
+        public function __construct(public object $paymentIntents, public object $checkout) {}
     };
 
     $driver = createMockStripeDriver($stripeMock);
-    $result = $driver->verify('stripe_failed');
+    $result = $driver->verify('pi_stripe_failed');
 
     expect($result->isFailed())->toBeTrue();
 });
@@ -184,14 +210,28 @@ test('stripe verify handles not found', function () {
 
         public function all(): object
         {
+            // Return empty list when searching by metadata
+            return (object) ['data' => []];
+        }
+    };
+
+    $sessionsService = new class
+    {
+        public function all(): object
+        {
             // Emulate finding nothing by metadata either
             return (object) ['data' => []];
         }
     };
 
-    $stripeMock = new class($paymentIntents)
+    $checkoutService = new class($sessionsService)
     {
-        public function __construct(public object $paymentIntents) {}
+        public function __construct(public object $sessions) {}
+    };
+
+    $stripeMock = new class($paymentIntents, $checkoutService)
+    {
+        public function __construct(public object $paymentIntents, public object $checkout) {}
     };
 
     $driver = createMockStripeDriver($stripeMock);

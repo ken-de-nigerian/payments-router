@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
+use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
+use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
+
 /**
  * ChargeResponseDTO - Payment Initialization Response
  *
@@ -21,6 +24,24 @@ final readonly class ChargeResponseDTO
         public array $metadata = [],
         public ?string $provider = null,
     ) {}
+
+    /**
+     * Get normalized status using StatusNormalizer.
+     */
+    protected function getNormalizedStatus(): string
+    {
+        // Try to use container if available, otherwise use static method
+        try {
+            if (function_exists('app')) {
+                $normalizer = app(StatusNormalizer::class);
+                return $normalizer->normalize($this->status, $this->provider);
+            }
+        } catch (\Throwable $e) {
+            // Fall back to static normalization if container unavailable
+        }
+        
+        return StatusNormalizer::normalizeStatic($this->status);
+    }
 
     /**
      * Create from array
@@ -57,7 +78,9 @@ final readonly class ChargeResponseDTO
      */
     public function isSuccessful(): bool
     {
-        return in_array(strtolower($this->status), ['success', 'succeeded', 'completed', 'successful']);
+        $normalizedStatus = $this->getNormalizedStatus();
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isSuccessful() ?? false;
     }
 
     /**
@@ -65,6 +88,8 @@ final readonly class ChargeResponseDTO
      */
     public function isPending(): bool
     {
-        return strtolower($this->status) === 'pending';
+        $normalizedStatus = $this->getNormalizedStatus();
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isPending() ?? false;
     }
 }

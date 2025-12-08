@@ -37,7 +37,7 @@ final readonly class ChargeRequestDTO
 
     /**
      * Check that all required payment data is valid.
-     * Makes sure amount is positive, email is valid, currency is 3 letters, etc.
+     * Makes sure amount is positive, email is valid, currency is three letters, etc.
      *
      * @throws InvalidArgumentException If any data is invalid.
      */
@@ -71,7 +71,7 @@ final readonly class ChargeRequestDTO
      *
      * Payment providers need amounts in the smallest unit:
      * - $100.00 becomes 10000 cents
-     * - ₦100.00 becomes 10000 kobo
+     * - ₦100.00 becomes 10000 kobos
      *
      * This method rounds to avoid floating-point precision issues.
      *

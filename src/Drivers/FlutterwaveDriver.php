@@ -92,6 +92,11 @@ class FlutterwaveDriver extends AbstractDriver
                 'meta' => $request->metadata,
             ];
 
+            $channels = $this->mapChannels($request);
+            if (! empty($channels)) {
+                $payload['payment_options'] = implode(',', $channels);
+            }
+
             $response = $this->makeRequest('POST', 'payments', [
                 'json' => $payload,
             ]);
@@ -218,18 +223,5 @@ class FlutterwaveDriver extends AbstractDriver
         } catch (GuzzleException) {
             return false;
         }
-    }
-
-    /**
-     * Normalize Flutterwave-specific statuses to internal standard statuses.
-     */
-    private function normalizeStatus(string $status): string
-    {
-        return match (strtolower($status)) {
-            'successful' => 'success',
-            'failed' => 'failed',
-            'pending' => 'pending',
-            default => $status,
-        };
     }
 }

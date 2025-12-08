@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Services\ChannelMapper;
+use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Psr\Http\Message\ResponseInterface;
 use Random\RandomException;
 
@@ -36,6 +38,18 @@ abstract class AbstractDriver implements DriverInterface
      * Used to access the idempotency key when making API requests.
      */
     protected ?ChargeRequestDTO $currentRequest = null;
+
+    /**
+     * Status normalizer instance.
+     * Can be injected for testing or to use custom normalizer.
+     */
+    protected ?StatusNormalizer $statusNormalizer = null;
+
+    /**
+     * Channel mapper instance.
+     * Can be injected for testing or to use custom mapper.
+     */
+    protected ?ChannelMapper $channelMapper = null;
 
     /**
      * Create a new payment driver instance.
@@ -87,11 +101,24 @@ abstract class AbstractDriver implements DriverInterface
     protected function makeRequest(string $method, string $uri, array $options = []): ResponseInterface
     {
         // Inject idempotency key if available and not already set
-        if ($this->currentRequest?->idempotencyKey && ! isset($options['headers']['Idempotency-Key'])) {
-            $options['headers'] = array_merge(
-                $options['headers'] ?? [],
-                $this->getIdempotencyHeader($this->currentRequest->idempotencyKey)
-            );
+        if ($this->currentRequest?->idempotencyKey) {
+            $idempotencyHeaders = $this->getIdempotencyHeader($this->currentRequest->idempotencyKey);
+
+            // Check if any of the idempotency headers are already set
+            $headersAlreadySet = false;
+            foreach (array_keys($idempotencyHeaders) as $headerName) {
+                if (isset($options['headers'][$headerName])) {
+                    $headersAlreadySet = true;
+                    break;
+                }
+            }
+
+            if (! $headersAlreadySet) {
+                $options['headers'] = array_merge(
+                    $options['headers'] ?? [],
+                    $idempotencyHeaders
+                );
+            }
         }
 
         return $this->client->request($method, $uri, $options);
@@ -224,5 +251,98 @@ abstract class AbstractDriver implements DriverInterface
     public function setClient(Client $client): void
     {
         $this->client = $client;
+    }
+
+    /**
+     * Normalize provider-specific status values to internal standard statuses.
+     *
+     * This method delegates to the StatusNormalizer service, which can be
+     * extended without modifying this class (OCP compliance).
+     *
+     * Drivers can override this method to provide custom normalization logic,
+     * or they can register provider-specific mappings with the normalizer.
+     *
+     * @param  string  $status  The provider-specific status value
+     * @return string Normalized status value
+     */
+    protected function normalizeStatus(string $status): string
+    {
+        return $this->getStatusNormalizer()->normalize($status, $this->getName());
+    }
+
+    /**
+     * Get the status normalizer instance.
+     * Uses dependency injection if available, otherwise creates a new instance.
+     */
+    protected function getStatusNormalizer(): StatusNormalizer
+    {
+        if ($this->statusNormalizer === null) {
+            $this->statusNormalizer = app(StatusNormalizer::class);
+        }
+
+        return $this->statusNormalizer;
+    }
+
+    /**
+     * Set a custom status normalizer (mainly for testing).
+     *
+     * @return $this
+     */
+    public function setStatusNormalizer(StatusNormalizer $normalizer): self
+    {
+        $this->statusNormalizer = $normalizer;
+
+        return $this;
+    }
+
+    /**
+     * Get the channel mapper instance.
+     * Uses dependency injection if available, otherwise creates a new instance.
+     */
+    protected function getChannelMapper(): ChannelMapper
+    {
+        if ($this->channelMapper === null) {
+            $this->channelMapper = app(ChannelMapper::class);
+        }
+
+        return $this->channelMapper;
+    }
+
+    /**
+     * Set a custom channel mapper (mainly for testing).
+     *
+     * @return $this
+     */
+    public function setChannelMapper(ChannelMapper $mapper): self
+    {
+        $this->channelMapper = $mapper;
+
+        return $this;
+    }
+
+    /**
+     * Map unified channels to a provider-specific format.
+     * If no channels are provided, returns null (provider uses its defaults).
+     * Only returns default channels if explicitly needed by the provider.
+     *
+     * @param  ChargeRequestDTO  $request  The payment request
+     * @return array<string>|null Provider-specific channels or null if not applicable
+     */
+    protected function mapChannels(ChargeRequestDTO $request): ?array
+    {
+        $mapper = $this->getChannelMapper();
+
+        if (! $mapper->supportsChannels($this->getName())) {
+            return null;
+        }
+
+        // Only map if channels are explicitly provided
+        if (! empty($request->channels)) {
+            return $mapper->mapChannels($request->channels, $this->getName());
+        }
+
+        // Return null to let provider use its defaults
+        // Drivers can override this behavior if needed
+        return null;
     }
 }

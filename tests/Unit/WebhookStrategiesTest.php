@@ -34,7 +34,7 @@ beforeEach(function () {
 
 test('webhook controller routes monnify requests correctly', function () {
     $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = ['event' => 'charge.success', 'transactionReference' => 'ref_monnify'];
     $request = Request::create('/payments/webhook/monnify', 'POST', $payload);
@@ -49,7 +49,7 @@ test('webhook controller routes monnify requests correctly', function () {
 
 test('webhook controller routes stripe requests correctly', function () {
     $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = [
         'type' => 'payment_intent.succeeded',
@@ -69,7 +69,7 @@ test('webhook controller routes stripe requests correctly', function () {
 
 test('webhook controller routes paypal requests correctly', function () {
     $manager = app(PaymentManager::class);
-    $controller = new WebhookController($manager);
+    $controller = app(WebhookController::class);
 
     $payload = ['event_type' => 'PAYMENT.CAPTURE.COMPLETED', 'resource' => ['id' => 'pay_123']];
     $request = Request::create('/payments/webhook/paypal', 'POST', $payload);

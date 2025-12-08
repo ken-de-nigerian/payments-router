@@ -80,8 +80,9 @@ class PaystackDriver extends AbstractDriver
                 'metadata' => $request->metadata,
             ];
 
-            if ($request->channels) {
-                $payload['channels'] = $request->channels;
+            $channels = $this->mapChannels($request);
+            if ($channels) {
+                $payload['channels'] = $channels;
             }
 
             $response = $this->makeRequest('POST', '/transaction/initialize', [

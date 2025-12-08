@@ -128,11 +128,26 @@ test('paypal verify returns pending', function () {
             'status' => 'APPROVED',
             'purchase_units' => [[
                 'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
+                'payments' => [
+                    'captures' => [
+                        // Has a capture but it's still pending
+                        [
+                            'id' => 'CAPTURE_123',
+                            'status' => 'PENDING',
+                            'create_time' => '2024-01-01T00:00:00Z',
+                        ],
+                    ],
+                ],
             ]],
+            'payer' => [
+                'email_address' => 'test@example.com',
+                'name' => ['given_name' => 'Test'],
+            ],
         ])),
     ]);
 
     $result = $driver->verify('pp_pending');
+    // Status is APPROVED with a PENDING capture, which should normalize to pending
     expect($result->isPending())->toBeTrue();
 });
 

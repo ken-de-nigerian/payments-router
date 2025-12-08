@@ -45,7 +45,7 @@ beforeEach(function () {
 });
 
 test('webhook controller extracts paystack reference correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -61,7 +61,7 @@ test('webhook controller extracts paystack reference correctly', function () {
 });
 
 test('webhook controller extracts flutterwave reference correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -77,7 +77,7 @@ test('webhook controller extracts flutterwave reference correctly', function () 
 });
 
 test('webhook controller extracts monnify reference correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -91,7 +91,7 @@ test('webhook controller extracts monnify reference correctly', function () {
 });
 
 test('webhook controller extracts monnify transaction reference as fallback', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -105,7 +105,7 @@ test('webhook controller extracts monnify transaction reference as fallback', fu
 });
 
 test('webhook controller extracts stripe reference from metadata', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -125,7 +125,7 @@ test('webhook controller extracts stripe reference from metadata', function () {
 });
 
 test('webhook controller extracts stripe reference from client_reference_id', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -143,7 +143,7 @@ test('webhook controller extracts stripe reference from client_reference_id', fu
 });
 
 test('webhook controller extracts paypal reference from custom_id', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -159,7 +159,7 @@ test('webhook controller extracts paypal reference from custom_id', function () 
 });
 
 test('webhook controller extracts paypal reference from purchase_units', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -179,7 +179,7 @@ test('webhook controller extracts paypal reference from purchase_units', functio
 });
 
 test('webhook controller returns null for unknown provider', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
@@ -191,7 +191,7 @@ test('webhook controller returns null for unknown provider', function () {
 });
 
 test('webhook controller determines paystack status correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -207,7 +207,7 @@ test('webhook controller determines paystack status correctly', function () {
 });
 
 test('webhook controller determines flutterwave status correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -223,7 +223,7 @@ test('webhook controller determines flutterwave status correctly', function () {
 });
 
 test('webhook controller determines monnify status correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -237,7 +237,7 @@ test('webhook controller determines monnify status correctly', function () {
 });
 
 test('webhook controller determines stripe status correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -255,7 +255,7 @@ test('webhook controller determines stripe status correctly', function () {
 });
 
 test('webhook controller determines stripe status from type', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -270,7 +270,7 @@ test('webhook controller determines stripe status from type', function () {
 });
 
 test('webhook controller determines paypal status correctly', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(\KenDeNigerian\PayZephyr\Http\Controllers\WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -286,7 +286,7 @@ test('webhook controller determines paypal status correctly', function () {
 });
 
 test('webhook controller determines paypal status from event_type', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(\KenDeNigerian\PayZephyr\Http\Controllers\WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
@@ -300,55 +300,43 @@ test('webhook controller determines paypal status from event_type', function () 
 });
 
 test('webhook controller normalizes status variations to success', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('normalizeStatus');
-    $method->setAccessible(true);
+    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
 
     $successVariations = ['success', 'succeeded', 'completed', 'successful', 'payment.capture.completed', 'paid'];
 
     foreach ($successVariations as $variation) {
-        $normalized = $method->invoke($controller, $variation);
+        $normalized = $normalizer->normalize($variation, 'paypal');
         expect($normalized)->toBe('success');
     }
 });
 
 test('webhook controller normalizes status variations to failed', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('normalizeStatus');
-    $method->setAccessible(true);
+    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
 
     $failedVariations = ['failed', 'cancelled', 'declined', 'payment.capture.denied'];
 
     foreach ($failedVariations as $variation) {
-        $normalized = $method->invoke($controller, $variation);
+        $normalized = $normalizer->normalize($variation, 'paypal');
         expect($normalized)->toBe('failed');
     }
 });
 
 test('webhook controller normalizes status variations to pending', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('normalizeStatus');
-    $method->setAccessible(true);
+    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
 
     $pendingVariations = ['pending', 'processing', 'requires_action', 'requires_payment_method'];
 
     foreach ($pendingVariations as $variation) {
-        $normalized = $method->invoke($controller, $variation);
+        $normalized = $normalizer->normalize($variation);
         expect($normalized)->toBe('pending');
     }
 });
 
 test('webhook controller returns original status for unknown status', function () {
-    $controller = new WebhookController(app(PaymentManager::class));
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('normalizeStatus');
-    $method->setAccessible(true);
+    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
 
     $unknownStatus = 'custom_status';
-    $normalized = $method->invoke($controller, $unknownStatus);
+    $normalized = $normalizer->normalize($unknownStatus);
     expect($normalized)->toBe('custom_status');
 });
 
@@ -388,7 +376,7 @@ test('webhook controller updates transaction from webhook with success status', 
         'email' => 'test@example.com',
     ]);
 
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('updateTransactionFromWebhook');
     $method->setAccessible(true);
@@ -454,7 +442,7 @@ test('webhook controller updates transaction with provider-specific channels', f
         ]);
     }
 
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('updateTransactionFromWebhook');
     $method->setAccessible(true);
@@ -524,7 +512,7 @@ test('webhook controller handles database error during update gracefully', funct
         'email' => 'test@example.com',
     ]);
 
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $reflection = new \ReflectionClass($controller);
     $method = $reflection->getMethod('updateTransactionFromWebhook');
     $method->setAccessible(true);
@@ -548,8 +536,6 @@ test('webhook controller handles webhook without reference', function () {
 
     $request->headers->set('x-paystack-signature', 'valid_signature');
 
-    $controller = new WebhookController(app(PaymentManager::class));
-
     // Mock driver validation
     $driver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $driver->shouldReceive('validateWebhook')->andReturn(true);
@@ -557,7 +543,7 @@ test('webhook controller handles webhook without reference', function () {
     $manager = Mockery::mock(PaymentManager::class);
     $manager->shouldReceive('driver')->andReturn($driver);
 
-    $controller = new WebhookController($manager);
+    $controller = new \KenDeNigerian\PayZephyr\Http\Controllers\WebhookController($manager);
 
     $response = $controller->handle($request, 'paystack');
 
@@ -576,7 +562,7 @@ test('webhook controller handles webhook with signature verification disabled', 
         ],
     ]);
 
-    $controller = new WebhookController(app(PaymentManager::class));
+    $controller = app(WebhookController::class);
     $response = $controller->handle($request, 'paystack');
 
     expect($response->getStatusCode())->toBe(200);
@@ -589,7 +575,7 @@ test('webhook controller handles exception during processing', function () {
     $manager = Mockery::mock(PaymentManager::class);
     $manager->shouldReceive('driver')->andThrow(new \Exception('Driver error'));
 
-    $controller = new WebhookController($manager);
+    $controller = new \KenDeNigerian\PayZephyr\Http\Controllers\WebhookController($manager);
     $response = $controller->handle($request, 'paystack');
 
     expect($response->getStatusCode())->toBe(500)

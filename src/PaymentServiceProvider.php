@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr;
 
 use Illuminate\Support\ServiceProvider;
+use KenDeNigerian\PayZephyr\Services\ChannelMapper;
+use KenDeNigerian\PayZephyr\Services\DriverFactory;
+use KenDeNigerian\PayZephyr\Services\ProviderDetector;
+use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 
 /**
  * Service Provider for the PayZephyr package.
@@ -25,6 +29,11 @@ class PaymentServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__.'/../config/payments.php', 'payments');
 
+        // Register services as singletons (SRP: each service has a single responsibility)
+        $this->app->singleton(StatusNormalizer::class);
+        $this->app->singleton(ProviderDetector::class);
+        $this->app->singleton(ChannelMapper::class);
+        $this->app->singleton(DriverFactory::class);
         $this->app->singleton(PaymentManager::class);
 
         $this->app->bind(Payment::class, function ($app) {
@@ -51,5 +60,24 @@ class PaymentServiceProvider extends ServiceProvider
         }
 
         $this->loadRoutesFrom(__DIR__.'/../routes/webhooks.php');
+
+        // Register webhook-specific status mappings (OCP: extensible without modification)
+        $this->registerWebhookStatusMappings();
+    }
+
+    /**
+     * Register webhook-specific status mappings.
+     * This allows extending status normalization for webhook events without
+     * modifying the core StatusNormalizer class (OCP compliance).
+     */
+    protected function registerWebhookStatusMappings(): void
+    {
+        $normalizer = $this->app->make(StatusNormalizer::class);
+
+        // PayPal webhook event types
+        $normalizer->registerProviderMappings('paypal', [
+            'success' => ['PAYMENT.CAPTURE.COMPLETED', 'COMPLETED'],
+            'failed' => ['PAYMENT.CAPTURE.DENIED'],
+        ]);
     }
 }

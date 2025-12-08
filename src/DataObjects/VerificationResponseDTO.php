@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
+use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
+use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
+
 /**
  * Class VerificationResponseDTO
  *
@@ -24,6 +27,24 @@ final readonly class VerificationResponseDTO
         public ?string $bank = null,
         public ?array $customer = null,
     ) {}
+
+    /**
+     * Get normalized status using StatusNormalizer.
+     */
+    protected function getNormalizedStatus(): string
+    {
+        // Try to use container if available, otherwise use static method
+        try {
+            if (function_exists('app')) {
+                $normalizer = app(StatusNormalizer::class);
+                return $normalizer->normalize($this->status, $this->provider);
+            }
+        } catch (\Throwable $e) {
+            // Fall back to static normalization if container unavailable
+        }
+        
+        return StatusNormalizer::normalizeStatic($this->status);
+    }
 
     /**
      * Create from array
@@ -70,7 +91,9 @@ final readonly class VerificationResponseDTO
      */
     public function isSuccessful(): bool
     {
-        return in_array(strtolower($this->status), ['success', 'succeeded', 'completed', 'successful']);
+        $normalizedStatus = $this->getNormalizedStatus();
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isSuccessful() ?? false;
     }
 
     /**
@@ -78,7 +101,9 @@ final readonly class VerificationResponseDTO
      */
     public function isFailed(): bool
     {
-        return in_array(strtolower($this->status), ['failed', 'rejected', 'cancelled', 'declined', 'denied']);
+        $normalizedStatus = $this->getNormalizedStatus();
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isFailed() ?? false;
     }
 
     /**
@@ -86,6 +111,8 @@ final readonly class VerificationResponseDTO
      */
     public function isPending(): bool
     {
-        return strtolower($this->status) === 'pending';
+        $normalizedStatus = $this->getNormalizedStatus();
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isPending() ?? false;
     }
 }

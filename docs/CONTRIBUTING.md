@@ -2,6 +2,8 @@
 
 First off, thank you for considering contributing to PayZephyr! It's people like you that make PayZephyr such a great tool.
 
+> **👋 New to contributing?** Check out our **[Contributing Guide for Beginners](CONTRIBUTING_GUIDE.md)** for a step-by-step walkthrough!
+
 ## 📋 Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
@@ -438,7 +440,7 @@ test('new provider validates webhook signature', function () {
 - [ ] Code is formatted (`composer format`)
 - [ ] Static analysis passes (`composer analyse`)
 - [ ] Documentation is updated (if needed)
-- [ ] CHANGELOG.md is updated
+- [ ] docs/CHANGELOG.md is updated
 - [ ] Commit messages are clear
 - [ ] Branch is up to date with `main`
 
@@ -489,7 +491,7 @@ Add screenshots for UI changes.
 - [ ] Documentation updated
 - [ ] Tests added/updated
 - [ ] All tests passing
-- [ ] CHANGELOG.md updated
+- [ ] docs/CHANGELOG.md updated
 
 ## Related Issues
 Fixes #123
@@ -584,19 +586,11 @@ In `config/payments.php`:
 
 ### Step 3: Register in PaymentManager
 
-In `src/PaymentManager.php`:
+The `DriverFactory` will automatically pick it up from config, but you can also register it in `PaymentServiceProvider::boot()`:
 
 ```php
-protected function resolveDriverClass(string $driver): string
-{
-    $map = [
-        'paystack' => PaystackDriver::class,
-        // ... other drivers
-        'newprovider' => NewProviderDriver::class,
-    ];
-
-    return $map[$driver] ?? $driver;
-}
+$factory = app(DriverFactory::class);
+$factory->register('newprovider', NewProviderDriver::class);
 ```
 
 ### Step 4: Write Tests

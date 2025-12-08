@@ -7,8 +7,10 @@ namespace KenDeNigerian\PayZephyr\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\PaymentManager;
+use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
 /**
@@ -22,9 +24,14 @@ use Throwable;
  */
 class WebhookController extends Controller
 {
+    protected StatusNormalizer $statusNormalizer;
+
     public function __construct(
-        protected PaymentManager $manager
-    ) {}
+        protected PaymentManager $manager,
+        ?StatusNormalizer $statusNormalizer = null
+    ) {
+        $this->statusNormalizer = $statusNormalizer ?? app(StatusNormalizer::class);
+    }
 
     /**
      * Process an incoming webhook from a payment provider.
@@ -61,10 +68,12 @@ class WebhookController extends Controller
             $payload = $request->all();
             $reference = $this->extractReference($provider, $payload);
 
+            // Update transaction if reference exists and logging is enabled
             if ($reference && config('payments.logging.enabled', true)) {
                 $this->updateTransactionFromWebhook($provider, $reference, $payload);
             }
 
+            // Fire events even if no reference (webhook still processed)
             event("payments.webhook.$provider", [$payload]);
             event('payments.webhook', [$provider, $payload]);
 
@@ -124,34 +133,7 @@ class WebhookController extends Controller
             default => 'unknown',
         };
 
-        return $this->normalizeStatus($status);
-    }
-
-    /**
-     * Convert provider-specific status names to our standard format.
-     *
-     * Examples:
-     * - 'successful', 'succeeded', 'completed', 'PAID' → 'success'
-     * - 'failed', 'cancelled', 'declined' → 'failed'
-     * - 'pending', 'processing' → 'pending'
-     */
-    protected function normalizeStatus(string $status): string
-    {
-        $status = strtolower($status);
-
-        if (in_array($status, ['success', 'succeeded', 'completed', 'successful', 'payment.capture.completed', 'paid'])) {
-            return 'success';
-        }
-
-        if (in_array($status, ['failed', 'cancelled', 'declined', 'payment.capture.denied'])) {
-            return 'failed';
-        }
-
-        if (in_array($status, ['pending', 'processing', 'requires_action', 'requires_payment_method'])) {
-            return 'pending';
-        }
-
-        return $status;
+        return $this->statusNormalizer->normalize($status, $provider);
     }
 
     /**
@@ -168,7 +150,8 @@ class WebhookController extends Controller
                 'status' => $status,
             ];
 
-            if ($status === 'success') {
+            $statusEnum = PaymentStatus::tryFromString($status);
+            if ($statusEnum?->isSuccessful()) {
                 $updateData['paid_at'] = now();
             }
 

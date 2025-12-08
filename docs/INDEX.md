@@ -2,14 +2,17 @@
 
 Welcome to the PayZephyr documentation! This guide will help you get started and make the most of the package.
 
+> **👋 New to PayZephyr?** Start with our **[Getting Started Guide](GETTING_STARTED.md)** - a complete beginner-friendly tutorial!
+
 ---
 
 ## 📚 Table of Contents
 
 ### Getting Started
-1. [Installation & Quick Start](../README.md)
-2. [Configuration Guide](#configuration)
-3. [Basic Usage Examples](#basic-usage)
+1. **[Getting Started Guide](GETTING_STARTED.md)** ⭐ **Start here!** - Complete beginner tutorial
+2. [Installation & Quick Start](../README.md)
+3. [Configuration Guide](#configuration)
+4. [Basic Usage Examples](#basic-usage)
 
 ### Core Documentation
 1. [Architecture Overview](architecture.md) - System design and components
@@ -19,13 +22,14 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 ### Advanced Topics
 1. [Transaction Logging](#transaction-logging)
 2. [Error Handling](#error-handling)
-3. [Security Best Practices](../SECURITY_AUDIT.md)
+3. [Security Best Practices](SECURITY_AUDIT.md)
 4. [Testing Your Integration](#testing)
 
 ### Development
-1. [Contributing Guidelines](../CONTRIBUTING.md)
-2. [Changelog](../CHANGELOG.md)
-3. [API Reference](#api-reference)
+1. **[Contributing Guide for Beginners](CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** - Step-by-step contribution tutorial
+2. [Contributing Guidelines](CONTRIBUTING.md) - Detailed technical guide
+3. [Changelog](CHANGELOG.md)
+4. [API Reference](#api-reference)
 
 ---
 
@@ -36,8 +40,8 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 **I want to...**
 - 💳 **Accept payments** → [Basic Usage](#basic-usage) - Start here for your first payment!
 - 🔔 **Handle webhooks** → [Webhook Guide](webhooks.md) - Learn how to receive payment notifications
-- 🏦 **Add a new provider** → [Architecture](architecture.md) + [Contributing](../CONTRIBUTING.md)
-- 🔐 **Secure my integration** → [Security Audit](../SECURITY_AUDIT.md)
+- 🏦 **Add a new provider** → [Architecture](architecture.md) + [Contributing](CONTRIBUTING.md)
+- 🔐 **Secure my integration** → [Security Audit](SECURITY_AUDIT.md)
 - 🐛 **Debug issues** → [Error Handling](#error-handling)
 - 📊 **Track transactions** → [Transaction Logging](#transaction-logging)
 
@@ -608,7 +612,7 @@ Enable detailed logging:
 3. ✅ [Implement basic payment flow](#basic-usage)
 4. ✅ [Set up webhooks](webhooks.md)
 5. ✅ [Test your integration](#testing)
-6. ✅ [Review security guidelines](../SECURITY_AUDIT.md)
+6. ✅ [Review security guidelines](SECURITY_AUDIT.md)
 7. ✅ Deploy to production
 
 ---

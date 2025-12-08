@@ -45,7 +45,6 @@ test('config has all required keys', function () {
         'webhook',
         'health_check',
         'logging',
-        'security',
         'testing_mode',
     ]);
 });

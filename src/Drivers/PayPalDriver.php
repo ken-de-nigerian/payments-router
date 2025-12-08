@@ -51,6 +51,14 @@ class PayPalDriver extends AbstractDriver
     }
 
     /**
+     * PayPal uses 'PayPal-Request-Id' header instead of standard 'Idempotency-Key'.
+     */
+    protected function getIdempotencyHeader(string $key): array
+    {
+        return ['PayPal-Request-Id' => $key];
+    }
+
+    /**
      * Get the required decimal precision for a specific currency.
      *
      * PayPal is strict about amount formatting.
@@ -128,6 +136,8 @@ class PayPalDriver extends AbstractDriver
      */
     public function charge(ChargeRequestDTO $request): ChargeResponseDTO
     {
+        $this->setCurrentRequest($request);
+
         try {
             $reference = $request->reference ?? $this->generateReference('PAYPAL');
             $callback = $request->callbackUrl ?? $this->config['callback_url'] ?? null;
@@ -159,15 +169,8 @@ class PayPalDriver extends AbstractDriver
                 ],
             ];
 
-            $headers = ['Authorization' => 'Bearer '.$this->getAccessToken()];
-
-            // Add idempotency key if provided
-            if ($request->idempotencyKey) {
-                $headers['PayPal-Request-Id'] = $request->idempotencyKey;
-            }
-
             $response = $this->makeRequest('POST', '/v2/checkout/orders', [
-                'headers' => $headers,
+                'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
                 'json' => $payload,
             ]);
 
@@ -204,6 +207,8 @@ class PayPalDriver extends AbstractDriver
         } catch (GuzzleException $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
             throw new ChargeException('PayPal charge failed: '.$e->getMessage(), 0, $e);
+        } finally {
+            $this->clearCurrentRequest();
         }
     }
 
@@ -216,8 +221,7 @@ class PayPalDriver extends AbstractDriver
     public function verify(string $reference): VerificationResponseDTO
     {
         try {
-            // Note: $reference here is expected to be the PayPal Order ID (accessCode),
-            // not necessarily the merchant's local reference.
+
             $response = $this->makeRequest('GET', "/v2/checkout/orders/$reference", [
                 'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
             ]);
@@ -225,22 +229,42 @@ class PayPalDriver extends AbstractDriver
             $data = $this->parseResponse($response);
 
             if (! isset($data['id'])) {
-                throw new VerificationException('PayPal order not found');
+                throw new VerificationException("PayPal order not found: $reference");
             }
 
+            $status = strtoupper($data['status']);
             $purchaseUnit = $data['purchase_units'][0] ?? [];
             $amount = $purchaseUnit['amount'] ?? [];
-            $payments = $purchaseUnit['payments']['captures'][0] ?? null;
+
+            $captures = $purchaseUnit['payments']['captures'] ?? [];
+            $capture = $captures[0] ?? null;
+
+            // If status is APPROVED and no capture exists, auto-capture the order
+            if ($status === 'APPROVED' && empty($capture)) {
+                $capture = $this->captureOrder($reference);
+                $status = 'COMPLETED';
+            } elseif ($capture && isset($capture['status'])) {
+                // If capture exists, check its status
+                $captureStatus = strtoupper($capture['status']);
+                // If capture is pending, the order is still pending (APPROVED normalizes to pending)
+                // If capture is completed, the order is completed
+                if ($captureStatus === 'PENDING') {
+                    $status = 'APPROVED'; // Keep as APPROVED (which normalizes to pending)
+                } elseif ($captureStatus === 'COMPLETED') {
+                    $status = 'COMPLETED';
+                }
+            }
 
             return new VerificationResponseDTO(
                 reference: $purchaseUnit['custom_id'] ?? $reference,
-                status: $this->normalizeStatus($data['status']),
-                amount: (float) ($amount['value'] ?? 0),
+                status: $this->normalizeStatus($status),
+                amount: isset($amount['value']) ? (float) $amount['value'] : 0,
                 currency: $amount['currency_code'] ?? 'USD',
-                paidAt: $payments['create_time'] ?? null,
+                paidAt: $capture['create_time'] ?? null,
                 metadata: [
                     'order_id' => $data['id'],
-                    'capture_id' => $payments['id'] ?? null,
+                    'capture_id' => $capture['id'] ?? null,
+                    'raw' => $data,
                 ],
                 provider: $this->getName(),
                 customer: [
@@ -248,8 +272,13 @@ class PayPalDriver extends AbstractDriver
                     'name' => $data['payer']['name']['given_name'] ?? null,
                 ],
             );
+
         } catch (GuzzleException $e) {
-            throw new VerificationException('PayPal verification failed: '.$e->getMessage(), 0, $e);
+            throw new VerificationException(
+                'PayPal verification failed: '.$e->getMessage(),
+                0,
+                $e
+            );
         }
     }
 
@@ -381,16 +410,26 @@ class PayPalDriver extends AbstractDriver
         }
     }
 
-    /**
-     * Normalize PayPal V2 statuses to internal standard statuses.
-     */
-    private function normalizeStatus(string $status): string
+
+    private function captureOrder(string $orderId): ?array
     {
-        return match (strtoupper($status)) {
-            'COMPLETED' => 'success',
-            'CREATED', 'SAVED', 'APPROVED', 'PAYER_ACTION_REQUIRED' => 'pending',
-            'VOIDED', 'CANCELLED' => 'cancelled',
-            default => strtolower($status),
-        };
+        try {
+            $response = $this->makeRequest('POST', "/v2/checkout/orders/$orderId/capture", [
+                'headers' => ['Authorization' => 'Bearer '.$this->getAccessToken()],
+            ]);
+
+            $data = $this->parseResponse($response);
+
+            return $data['purchase_units'][0]['payments']['captures'][0] ?? null;
+
+        } catch (GuzzleException $e) {
+            $this->log('error', 'PayPal capture failed: '.$e->getMessage());
+
+            throw new VerificationException(
+                'PayPal capture failed: '.$e->getMessage(),
+                0,
+                $e
+            );
+        }
     }
 }

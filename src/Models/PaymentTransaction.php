@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
+use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 
 /**
  * PaymentTransaction - Database Model for Payment Records
@@ -81,28 +84,57 @@ class PaymentTransaction extends Model
     /**
      * Get only payments that were successful.
      * Usage: PaymentTransaction::successful()->get()
+     *
+     * @param Builder $query
+     * @return Builder
      */
-    public function scopeSuccessful($query)
+    public function scopeSuccessful(Builder $query): Builder
     {
-        return $query->whereIn('status', ['success', 'succeeded', 'completed', 'successful']);
+        // Include both normalized and common variations
+        $successStatuses = [
+            PaymentStatus::SUCCESS->value,
+            'succeeded',
+            'completed',
+            'successful',
+            'paid',
+        ];
+        
+        return $query->whereIn('status', $successStatuses);
     }
 
     /**
      * Get only payments that failed.
      * Usage: PaymentTransaction::failed()->get()
+     *
+     * @param Builder $query
+     * @return Builder
      */
-    public function scopeFailed($query)
+    public function scopeFailed(Builder $query): Builder
     {
-        return $query->whereIn('status', ['failed', 'cancelled', 'declined']);
+        // Include both normalized and common variations
+        $failedStatuses = [
+            PaymentStatus::FAILED->value,
+            PaymentStatus::CANCELLED->value,
+            'declined',
+            'rejected',
+            'denied',
+            'voided',
+            'expired',
+        ];
+        
+        return $query->whereIn('status', $failedStatuses);
     }
 
     /**
      * Get only payments that are still pending (waiting for customer).
      * Usage: PaymentTransaction::pending()->get()
+     *
+     * @param Builder $query
+     * @return Builder
      */
-    public function scopePending($query)
+    public function scopePending(Builder $query): Builder
     {
-        return $query->where('status', 'pending');
+        return $query->where('status', PaymentStatus::PENDING->value);
     }
 
     /**
@@ -110,7 +142,20 @@ class PaymentTransaction extends Model
      */
     public function isSuccessful(): bool
     {
-        return in_array(strtolower($this->status), ['success', 'succeeded', 'completed', 'successful']);
+        // Try to use container if available, otherwise use static method
+        try {
+            if (function_exists('app')) {
+                $normalizer = app(StatusNormalizer::class);
+                $normalizedStatus = $normalizer->normalize($this->status);
+            } else {
+                $normalizedStatus = StatusNormalizer::normalizeStatic($this->status);
+            }
+        } catch (\Throwable $e) {
+            $normalizedStatus = StatusNormalizer::normalizeStatic($this->status);
+        }
+        
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isSuccessful() ?? false;
     }
 
     /**
@@ -118,7 +163,20 @@ class PaymentTransaction extends Model
      */
     public function isFailed(): bool
     {
-        return in_array(strtolower($this->status), ['failed', 'cancelled', 'declined']);
+        // Try to use container if available, otherwise use static method
+        try {
+            if (function_exists('app')) {
+                $normalizer = app(StatusNormalizer::class);
+                $normalizedStatus = $normalizer->normalize($this->status);
+            } else {
+                $normalizedStatus = StatusNormalizer::normalizeStatic($this->status);
+            }
+        } catch (\Throwable $e) {
+            $normalizedStatus = StatusNormalizer::normalizeStatic($this->status);
+        }
+        
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isFailed() ?? false;
     }
 
     /**
@@ -126,6 +184,19 @@ class PaymentTransaction extends Model
      */
     public function isPending(): bool
     {
-        return strtolower($this->status) === 'pending';
+        // Try to use container if available, otherwise use static method
+        try {
+            if (function_exists('app')) {
+                $normalizer = app(StatusNormalizer::class);
+                $normalizedStatus = $normalizer->normalize($this->status);
+            } else {
+                $normalizedStatus = StatusNormalizer::normalizeStatic($this->status);
+            }
+        } catch (\Throwable $e) {
+            $normalizedStatus = StatusNormalizer::normalizeStatic($this->status);
+        }
+        
+        $status = PaymentStatus::tryFromString($normalizedStatus);
+        return $status?->isPending() ?? false;
     }
 }
