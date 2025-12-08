@@ -251,9 +251,13 @@ class PaymentManager
         // 1. Check Cache (Fastest & Works without DB)
         $cached = Cache::get("payzephyr_session_$reference");
         if ($cached) {
+            $verificationId = ($cached['provider'] === 'paystack' || $cached['provider'] === 'flutterwave')
+                ? $reference
+                : $cached['id'];
+
             return [
                 'provider' => $cached['provider'],
-                'id' => $cached['id'],
+                'id' => $verificationId,
             ];
         }
 
@@ -261,10 +265,13 @@ class PaymentManager
         if (config('payments.logging.enabled', true)) {
             $transaction = PaymentTransaction::where('reference', $reference)->first();
             if ($transaction) {
-                $providerId = $transaction->metadata['_provider_id']
-                    ?? $transaction->metadata['session_id']
-                    ?? $transaction->metadata['order_id']
-                    ?? $reference;
+                $providerId = match ($transaction->provider) {
+                    'paystack', 'flutterwave' => $reference,
+                    default => $transaction->metadata['_provider_id']
+                        ?? $transaction->metadata['session_id']
+                        ?? $transaction->metadata['order_id']
+                        ?? $reference,
+                };
 
                 return [
                     'provider' => $transaction->provider,
