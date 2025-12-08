@@ -254,9 +254,7 @@ class StripeDriver extends AbstractDriver
             ?? null;
 
         if (! $signature) {
-            $this->log('warning', 'Webhook signature missing', [
-                'available_headers' => array_keys($headers),
-            ]);
+            $this->log('warning', 'Webhook signature missing');
 
             return false;
         }

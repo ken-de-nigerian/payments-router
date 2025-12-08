@@ -50,6 +50,7 @@ class WebhookController extends Controller
             $driver = $this->manager->driver($provider);
             // Get the raw request body - this is critical for signature validation
             // getContent() returns the raw body even if Laravel has parsed it
+            // Note: If using a proxy/tunnel (like ngrok, Expose, etc.), ensure it doesn't modify the body
             $rawBody = $request->getContent();
 
             if (config('payments.webhook.verify_signature', true)) {
@@ -61,7 +62,6 @@ class WebhookController extends Controller
                 if (! $isValid) {
                     logger()->warning("Invalid webhook signature for $provider", [
                         'ip' => $request->ip(),
-                        'headers' => $request->headers->all(),
                     ]);
 
                     return response()->json(['error' => 'Invalid signature'], 403);

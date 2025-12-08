@@ -20,5 +20,7 @@ Route::post(
     [WebhookController::class, 'handle']
 )->middleware([
     'api',
-    'throttle:60,1', // 60 requests per minute per IP
+    // Increased throttle limit and timeout to handle concurrent webhooks
+    // SQLite users: Consider using 'file' or 'array' cache driver to avoid database locks
+    'throttle:120,1', // 120 requests per minute per IP
 ])->name('payments.webhook');

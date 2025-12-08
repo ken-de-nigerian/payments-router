@@ -6,6 +6,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.0.9] - 2025-12-08
+
+### Fixed
+
+- **Stripe Webhook Validation**: Enhanced webhook signature validation with improved error messages and troubleshooting hints. Fixed validation failures by ensuring proper webhook secret configuration.
+- **Flutterwave Webhook Validation**: Improved webhook validation with better error handling and logging. Added support for `FLUTTERWAVE_WEBHOOK_SECRET` configuration option.
+- **SQLite Database Locks**: Increased webhook throttle limit from 60 to 120 requests per minute to reduce concurrent database lock issues when using SQLite cache driver. Added documentation note recommending `file` or `array` cache drivers for webhook routes.
+
+### Improved
+
+- **Webhook Error Messages**: Enhanced error messages for both Stripe and Flutterwave webhook validation failures with specific troubleshooting hints and configuration guidance.
+- **Configuration**: Added `webhook_secret` option to Flutterwave configuration for dedicated webhook secret management (falls back to `secret_key` for backward compatibility).
+
+### Changed
+
+- **Webhook Throttling**: Increased throttle limit for webhook routes from 60 to 120 requests per minute to better handle concurrent webhook deliveries from payment providers.
+
+---
 ## [1.0.8] - 2025-12-08
 
 ### Refactor
@@ -22,16 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Each driver encapsulates its own data extraction logic
   - Follows SOLID principles (Open/Closed Principle)
   - Easier to test and maintain
-    
-## [1.0.8] - 2025-12-08
-
-### Refactor
-
-- Isolate webhook and transaction logic for maintainability
-- Moves provider-specific reference extraction and status normalization logic from WebhookController into the respective Drivers.
-- This adheres to the Single Responsibility Principle (SRP) and prepares the codebase for future feature expansion (e.g., Subscriptions and Refunds) by: Introducing abstract methods in AbstractDriver for webhook parsing.
-- Extracting transaction logging and verification context resolution into dedicated services (TransactionResolver and TransactionLogger) from PaymentManager.
-- Simplifying WebhookController to only handle validation and delegation.
 
 
 ## [1.0.7] - 2025-12-07
@@ -318,7 +326,7 @@ php artisan migrate  # Run new migration if not already run
 
 ## Upgrade Guide
 
-### From 1.0.x to 1.0.8
+### From 1.0.x to 1.0.9
 
 **No breaking changes** - Simply update:
 

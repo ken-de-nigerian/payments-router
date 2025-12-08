@@ -1,0 +1,35 @@
+fix: improve webhook validation and fix SQLite database locks
+
+Enhanced webhook signature validation for Stripe and Flutterwave with
+better error messages and troubleshooting guidance. Fixed SQLite database
+lock issues when handling concurrent webhook requests.
+
+Changes:
+- Enhanced Stripe webhook validation with improved error messages
+  - Added specific hints for webhook secret configuration
+  - Better exception handling for signature verification failures
+  - Clearer troubleshooting guidance in error logs
+
+- Enhanced Flutterwave webhook validation
+  - Added support for FLUTTERWAVE_WEBHOOK_SECRET configuration
+  - Improved error messages with troubleshooting hints
+  - Better logging for validation failures
+  - Falls back to secret_key for backward compatibility
+
+- Fixed SQLite database locks
+  - Increased webhook throttle limit from 60 to 120 requests/minute
+  - Added documentation note recommending file/array cache drivers
+  - Better handling of concurrent webhook deliveries
+
+- Configuration updates
+  - Added webhook_secret option to Flutterwave config
+  - Updated webhook route comments with SQLite guidance
+
+- Code cleanup
+  - Removed debug logging after fixing validation issues
+  - Cleaned up verbose error messages
+  - Improved code maintainability
+
+Fixes webhook validation failures for both Stripe and Flutterwave providers.
+Resolves SQLite database lock errors when multiple webhooks arrive simultaneously.
+
