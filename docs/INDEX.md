@@ -22,8 +22,7 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 ### Advanced Topics
 1. [Transaction Logging](#transaction-logging)
 2. [Error Handling](#error-handling)
-3. [Security Best Practices](SECURITY_AUDIT.md)
-4. [Testing Your Integration](#testing)
+3. [Testing Your Integration](#testing)
 
 ### Development
 1. **[Contributing Guide for Beginners](CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** - Step-by-step contribution tutorial
@@ -41,7 +40,6 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 - 💳 **Accept payments** → [Basic Usage](#basic-usage) - Start here for your first payment!
 - 🔔 **Handle webhooks** → [Webhook Guide](webhooks.md) - Learn how to receive payment notifications
 - 🏦 **Add a new provider** → [Architecture](architecture.md) + [Contributing](CONTRIBUTING.md)
-- 🔐 **Secure my integration** → [Security Audit](SECURITY_AUDIT.md)
 - 🐛 **Debug issues** → [Error Handling](#error-handling)
 - 📊 **Track transactions** → [Transaction Logging](#transaction-logging)
 
@@ -591,7 +589,6 @@ Enable detailed logging:
 ### Getting Help
 
 - 📧 **Email**: ken.de.nigerian@gmail.com
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 - 📖 **Wiki**: [GitHub Wiki](https://github.com/ken-de-nigerian/payzephyr/wiki)
 
@@ -612,8 +609,7 @@ Enable detailed logging:
 3. ✅ [Implement basic payment flow](#basic-usage)
 4. ✅ [Set up webhooks](webhooks.md)
 5. ✅ [Test your integration](#testing)
-6. ✅ [Review security guidelines](SECURITY_AUDIT.md)
-7. ✅ Deploy to production
+6. ✅ Deploy to production
 
 ---
 

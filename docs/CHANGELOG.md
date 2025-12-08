@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.0.8] - 2025-12-08
+
+### Refactor
+
+- Isolate webhook and transaction logic for maintainability
+- Moves provider-specific reference extraction and status normalization logic from WebhookController into the respective Drivers.
+- This adheres to the Single Responsibility Principle (SRP) and prepares the codebase for future feature expansion (e.g., Subscriptions and Refunds) by: Introducing abstract methods in AbstractDriver for webhook parsing.
+- Extracting transaction logging and verification context resolution into dedicated services (TransactionResolver and TransactionLogger) from PaymentManager.
+- Simplifying WebhookController to only handle validation and delegation.
+
 
 ## [1.0.7] - 2025-12-07
 
@@ -57,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.1] - 2025-12-04
 
-### 🚀 Added
+### Added
 - **PaymentTransaction Model**: Full Eloquent model for transaction management
   - Mass assignment protection with explicit `$fillable` array
   - Convenient scopes: `successful()`, `failed()`, `pending()`
@@ -93,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Ensures payment providers trigger automatic retries
   - Improves webhook reliability and event processing
 
-### 🔒 Security
+### Security
 - **CRITICAL: Webhook Signature Validation Fix**
   - Fixed webhook signature bypass vulnerability
   - Now uses raw request body for signature verification
@@ -111,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Only necessary fields are marked as fillable
   - Prevents unauthorized field modification
 
-### 🐛 Fixed
+### Fixed
 - **Floating-Point Precision Issues**:
   - Improved `getAmountInMinorUnits()` with proper rounding
   - Uses `PHP_ROUND_HALF_UP` for consistent banker's rounding
@@ -128,14 +138,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Webhook controller updates records automatically
   - Verification updates records on success
 
-### 🗑️ Removed
+### Removed
 - **Unused Dependencies**:
   - Removed `moneyphp/money` from composer.json
   - Removed unused `CurrencyConverterInterface` contract
   - Cleaned up unused exception classes
   - Reduced package size and complexity
 
-### 📝 Changed
+### Changed
 - **WebhookController**:
   - Now uses raw request body for signature validation
   - Extracts reference intelligently per provider
@@ -155,7 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented floating-point handling
   - Added overflow protection
 
-### 📚 Documentation
+### Documentation
 - **New README.md**:
   - Professional formatting with badges
   - Comprehensive usage examples
@@ -171,10 +181,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compliance notes (PCI-DSS, GDPR)
   - Incident response procedures
 
-### ⚠️ Breaking Changes
+### Breaking Changes
 None - This release is fully backward compatible.
 
-### 🔄 Migration Guide
+### Migration Guide
 No migration needed. Simply update via composer:
 
 ```bash
@@ -291,7 +301,7 @@ php artisan migrate  # Run new migration if not already run
 
 ## Upgrade Guide
 
-### From 1.0.x to 1.1.0
+### From 1.0.x to 1.0.8
 
 **No breaking changes** - Simply update:
 
@@ -322,7 +332,6 @@ composer update kendenigerian/payzephyr
 ## Support
 
 - 📧 Email: ken.de.nigerian@gmail.com
-- 🐛 Issues: [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 
 ---
@@ -331,16 +340,4 @@ composer update kendenigerian/payzephyr
 
 - [Documentation](https://github.com/ken-de-nigerian/payzephyr/wiki)
 - [Contributing Guide](CONTRIBUTING.md)
-- [License](LICENSE)
-
----
-
-**Legend**:
-- 🚀 Added—New features
-- 🔒 Security—Security improvements
-- 🐛 Fixed - Bug fixes
-- 🗑️ Removed—Removed features
-- 📝 Changed—Changes to existing features
-- 📚 Documentation - Documentation updates
-- ⚠️ Breaking - Breaking changes
-- 🔄 Migration—Migration required
+- [License](/LICENSE)

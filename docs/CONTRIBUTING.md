@@ -671,7 +671,6 @@ logger('Error: ' . $e->getMessage());
 
 - 📧 Email: ken.de.nigerian@gmail.com
 - 💬 Discussions: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
-- 🐛 Issues: [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
 
 ---
 

@@ -262,79 +262,6 @@ public function handle(array $payload): void
 }
 ```
 
-**What happens:**
-1. Provider sends a POST request to `/payments/webhook/paystack`
-2. `WebhookController` receives it
-3. Controller verifies the webhook signature (security check)
-4. Controller updates the payment record in database
-5. Controller fires Laravel events
-6. Your event listeners handle the webhook
-7. You update orders, send emails, etc.
-
-### Complete Flow Diagram
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ 1. YOUR CODE: Initialize Payment                            │
-│    Payment::amount(1000)->email('user@example.com')->redirect() │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 2. PAYMENT MANAGER: Choose Provider & Create Payment        │
-│    - Checks which providers are enabled                     │
-│    - Tries default provider (e.g., Paystack)                │
-│    - If fails, tries fallback (e.g., Stripe)               │
-│    - Creates payment on provider's API                      │
-│    - Gets checkout URL                                      │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────┐
-│ 3. CUSTOMER: Redirected to Provider's Checkout             │
-│    - Customer enters card details                           │
-│    - Provider processes payment                             │
-│    - Payment succeeds or fails                              │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-        ┌──────────────┴──────────────┐
-        │                              │
-        ▼                              ▼
-┌──────────────────┐        ┌──────────────────┐
-│ 4A. CALLBACK     │        │ 4B. WEBHOOK      │
-│ Customer returns │        │ Provider sends   │
-│ to your site     │        │ notification     │
-└────────┬─────────┘        └────────┬─────────┘
-         │                           │
-         │                           │
-         ▼                           ▼
-┌──────────────────┐        ┌──────────────────┐
-│ Verify payment   │        │ Update database  │
-│ Update order     │        │ Fire events      │
-│ Show success     │        │ Handle webhook   │
-└──────────────────┘        └──────────────────┘
-```
-
-### Key Points to Remember
-
-1. **Two Ways to Know Payment Status:**
-   - **Callback:** Customer returns to your site (may not always happen)
-   - **Webhook:** Provider sends notification (more reliable)
-
-2. **Always Handle Both:**
-   - Check if order is already paid (webhook might have updated it first)
-   - Use idempotency checks to prevent processing twice
-
-3. **Automatic Fallback:**
-   - If Paystack fails, automatically tries Stripe
-   - No code changes needed - just configure multiple providers
-
-4. **Database Logging:**
-   - All payments are automatically logged to `payment_transactions` table
-   - You can query this table to see payment history
-
----
-
 ## 🔔 Webhooks
 
 ### Webhook URLs
@@ -441,7 +368,7 @@ PaymentTransaction::pending()->get();
 ## 📚 Documentation
 
 ### Getting Started
-- **[Getting Started Guide](docs/GETTING_STARTED.md)** ⭐ **Start here if you're new!** - Step-by-step beginner tutorial
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** ⭐ **Start here if you're new!** — Step-by-step beginner tutorial
 - **[Complete Documentation](docs/DOCUMENTATION.md)** - Comprehensive guide covering all features
 - **[Installation & Setup](README.md)** - You are here
 
@@ -451,13 +378,12 @@ PaymentTransaction::pending()->get();
 - **[Webhook Guide](docs/webhooks.md)** - Complete webhook documentation
 
 ### For Contributors
-- **[Contributing Guide for Beginners](docs/CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** - Step-by-step contribution tutorial
+- **[Contributing Guide for Beginners](docs/CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** — Step-by-step contribution tutorial
 - **[Contributing Guidelines](docs/CONTRIBUTING.md)** - Detailed technical contribution guide
 - **[Architecture Guide](docs/architecture.md)** - Understand the codebase structure
 
 ### Additional Resources
 - **[CHANGELOG](docs/CHANGELOG.md)** - Version history and updates
-- **[SECURITY](docs/SECURITY_AUDIT.md)** - Security audit and best practices
 - **[LICENSE](LICENSE)** - MIT License
 
 ---
@@ -514,28 +440,6 @@ return response()->json([
 
 ---
 
-## 🔐 Security
-
-### Reporting Vulnerabilities
-
-**Do NOT** create public GitHub issues for security vulnerabilities.
-
-📧 Email security issues to: **ken.de.nigerian@gmail.com**
-
-### Security Best Practices
-
-1. ✅ Always use HTTPS for webhook URLs
-2. ✅ Enable signature verification in production
-3. ✅ Rotate API keys periodically
-4. ✅ Use environment variables for credentials
-5. ✅ Monitor failed webhooks for attacks
-6. ✅ Implement rate limiting on webhooks
-7. ✅ Keep the package updated
-
-**📖 For the complete security guide, see [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)**
-
----
-
 ## 🧪 Testing
 
 ```bash
@@ -575,48 +479,6 @@ test('payment verification works', function () {
     expect($verification->isSuccessful())->toBeBool();
 });
 ```
-
----
-
-## 🏗️ Architecture
-
-PayZephyr follows clean architecture principles:
-
-```
-┌─────────────────────────────────────────────┐
-│           Facades & Helpers                  │
-│     (Payment::, payment())                   │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│          Payment (Fluent API)                │
-│    Builds ChargeRequest & calls Manager      │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│         PaymentManager                       │
-│   - Manages driver instances                 │
-│   - Handles fallback logic                   │
-│   - Logs transactions                        │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│           Drivers Layer                      │
-│  AbstractDriver ← DriverInterface            │
-│         ├─ PaystackDriver                    │
-│         ├─ FlutterwaveDriver                 │
-│         ├─ MonnifyDriver                     │
-│         ├─ StripeDriver                      │
-│         └─ PayPalDriver                      │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│      External Payment APIs                   │
-└──────────────────────────────────────────────┘
-```
-
-**📖 For detailed architecture, see [docs/architecture.md](docs/architecture.md)**
-
 ---
 
 ## 📊 API Reference
@@ -701,44 +563,21 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.7
+### Latest Release: v1.0.8
 
-### Fixed
+### Refactor
 
-- Implement cache-first verification to support Unified API without DB logging
-- PaymentManager: Now caches 'CustomRef ⇒ ProviderID' mapping for 1 hour during charge().
-- PaymentManager: verify() uses Cache → DB → Prefix logic to find the correct Provider and ID.
-- StripeDriver: Added support for verification via Checkout Session ID (cs_).
-- MonnifyDriver: Fixed verification failure caused by query parameters in reference string.
+   - Isolate webhook and transaction logic for maintainability
+   - Moves provider-specific reference extraction and status normalization logic from WebhookController into the respective Drivers.
+   - This adheres to the Single Responsibility Principle (SRP) and prepares the codebase for future feature expansion (e.g., Subscriptions and Refunds) by: Introducing abstract methods in AbstractDriver for webhook parsing.
+   - Extracting transaction logging and verification context resolution into dedicated services (TransactionResolver and TransactionLogger) from PaymentManager.
+   - Simplifying WebhookController to only handle validation and delegation.
 
 ---
 
 ## 📄 License
 
 The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.
-
----
-
-### Built With
-- [Laravel](https://laravel.com) - The PHP Framework
-- [Guzzle](https://docs.guzzlephp.org) - HTTP Client
-- [Stripe PHP](https://github.com/stripe/stripe-php) - Stripe SDK
-- [Pest PHP](https://pestphp.com) - Testing Framework
-
----
-
-## 💬 Support & Community
-
-### Get Help
-- 📧 **Email**: ken.de.nigerian@gmail.com
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/ken-de-nigerian/payzephyr/wiki)
-
-### Stay Updated
-- ⭐ Star the repository
-- 👁️ Watch for releases
-- 🔔 Subscribe to discussions
 
 ---
 
@@ -768,17 +607,3 @@ If PayZephyr helped your project:
 ---
 
 **Built with ❤️ for the Laravel community by [Ken De Nigerian](https://github.com/ken-de-nigerian)**
-
----
-
-## Quick Links
-
-| Resource         | Link                                                                              |
-|------------------|-----------------------------------------------------------------------------------|
-| 📦 Packagist     | [kendenigerian/payzephyr](https://packagist.org/packages/kendenigerian/payzephyr) |
-| 🐙 GitHub        | [ken-de-nigerian/payzephyr](https://github.com/ken-de-nigerian/payzephyr)         |
-| 📖 Documentation | [docs/](docs/INDEX.md)                                                            |
-| 🔐 Security      | [SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)                                       |
-| 📝 Changelog     | [CHANGELOG.md](docs/CHANGELOG.md)                                                 |
-| 🤝 Contributing  | [CONTRIBUTING.md](docs/CONTRIBUTING.md)                                           |
-| ⚖️ License       | [LICENSE](LICENSE)                                                                |

@@ -39,13 +39,13 @@ You don't need to be an expert to contribute! Here are ways you can help:
 
 ### For Developers
 
-4. **🔧 Code Contributions**
+1. **🔧 Code Contributions**
    - Fix bugs
    - Add new features
    - Improve code quality
    - Add tests
 
-5. **🏦 New Providers**
+2. **🏦 New Providers**
    - Add support for new payment providers
    - Improve existing provider implementations
 

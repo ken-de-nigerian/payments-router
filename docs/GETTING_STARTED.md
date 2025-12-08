@@ -421,7 +421,7 @@ Now that you've made your first payment:
 
 1. **Read the Full Documentation**
    - [Complete Documentation](DOCUMENTATION.md)
-   - [API Reference](../README.md#api-reference)
+   - [API Reference](../README.md)
 
 2. **Learn About Webhooks**
    - [Webhook Guide](webhooks.md)
@@ -436,7 +436,6 @@ Now that you've made your first payment:
    - Switch to live API keys
    - Enable webhook signature verification
    - Set up proper error handling
-   - Review [Security Guide](SECURITY_AUDIT.md)
 
 ---
 

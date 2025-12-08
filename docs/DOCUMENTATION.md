@@ -21,12 +21,15 @@
 
 ## Introduction
 
-PayZephyr is a unified payment abstraction layer for Laravel that supports multiple payment providers with automatic fallback, webhooks, and comprehensive transaction logging. It provides a clean, fluent API for processing payments across different providers without changing your code.
+PayZephyr is a unified payment abstraction layer for Laravel
+that supports multiple payment providers with automatic fallback,
+webhooks, and comprehensive transaction logging.
+It provides a clean, fluent API for processing payments across different providers without changing your code.
 
 ### Key Features
 
 - **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, and PayPal
-- **Automatic Fallback**: Seamlessly switch to backup providers if primary fails
+- **Automatic Fallback**: Seamlessly switch to back up providers if primary fails
 - **Fluent API**: Clean, expressive syntax for payment operations
 - **Idempotency Support**: Prevent duplicate charges with unique keys
 - **Webhook Security**: Secure signature validation for all providers
@@ -470,8 +473,6 @@ Webhooks are automatically validated using provider-specific signature verificat
 ### API Key Security
 
 Never commit API keys to version control. Always use environment variables and `.env` files (which should be in `.gitignore`).
-
-For the complete security guide, see [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
 
 ---
 
