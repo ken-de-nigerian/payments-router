@@ -48,6 +48,8 @@ class WebhookController extends Controller
     {
         try {
             $driver = $this->manager->driver($provider);
+            // Get the raw request body - this is critical for signature validation
+            // getContent() returns the raw body even if Laravel has parsed it
             $rawBody = $request->getContent();
 
             if (config('payments.webhook.verify_signature', true)) {

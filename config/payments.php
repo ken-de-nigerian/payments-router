@@ -48,6 +48,7 @@ return [
             'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
             'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
             'encryption_key' => env('FLUTTERWAVE_ENCRYPTION_KEY'),
+            'webhook_secret' => env('FLUTTERWAVE_WEBHOOK_SECRET'), // Secret Hash from Flutterwave Dashboard
             'base_url' => env('FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3/'),
             'currencies' => ['NGN', 'USD', 'EUR', 'GBP', 'KES', 'UGX', 'TZS'],
             'enabled' => env('FLUTTERWAVE_ENABLED', false),

@@ -194,16 +194,48 @@ class FlutterwaveDriver extends AbstractDriver
      * Flutterwave uses a "Secret Hash" mechanism. The value sent in the
      * 'verif-hash' header must exactly match the Secret Hash configured in the
      * Flutterwave dashboard (and stored in our config).
+     *
+     * The Secret Hash is a simple string comparison - no cryptographic hashing is involved.
+     * It's just a shared secret that you configure in both Flutterwave dashboard and your app.
      */
     public function validateWebhook(array $headers, string $body): bool
     {
         $signature = $headers['verif-hash'][0] ?? $headers['Verif-Hash'][0] ?? null;
+
         if (! $signature) {
+            $this->log('warning', 'Webhook signature (verif-hash) missing', [
+                'available_headers' => array_keys($headers),
+                'hint' => 'Flutterwave webhooks must include the "verif-hash" header',
+            ]);
+
             return false;
         }
-        $secretHash = $this->config['webhook_secret'] ?? $this->config['secret_key'];
 
-        return hash_equals($signature, $secretHash);
+        // Flutterwave allows using either webhook_secret or secret_key as the secret hash
+        $secretHash = $this->config['webhook_secret'] ?? $this->config['secret_key'] ?? null;
+
+        if (empty($secretHash)) {
+            $this->log('warning', 'Webhook secret hash not configured', [
+                'hint' => 'Set FLUTTERWAVE_WEBHOOK_SECRET in your .env file, or ensure FLUTTERWAVE_SECRET_KEY is set. Get the Secret Hash from Flutterwave Dashboard → Settings → Webhooks → Secret Hash',
+            ]);
+
+            return false;
+        }
+
+        $isValid = hash_equals($signature, $secretHash);
+
+        if (! $isValid) {
+            $this->log('warning', 'Webhook validation failed', [
+                'reason' => 'Secret hash mismatch',
+                'hint' => 'The verif-hash header does not match your configured secret. Ensure FLUTTERWAVE_WEBHOOK_SECRET (or FLUTTERWAVE_SECRET_KEY) matches the Secret Hash in Flutterwave Dashboard → Settings → Webhooks',
+                'received_hash_length' => strlen($signature),
+                'expected_hash_length' => strlen($secretHash),
+            ]);
+        } else {
+            $this->log('info', 'Webhook validated successfully');
+        }
+
+        return $isValid;
     }
 
     /**

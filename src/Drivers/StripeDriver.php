@@ -243,6 +243,9 @@ class StripeDriver extends AbstractDriver
      *
      * Validates the timestamp and signature against the endpoint's
      * signing secret (whsec_...) to prevent replay attacks and forgery.
+     *
+     * Note: The body must be the exact raw request body as received.
+     * Laravel's Request::getContent() should be used to get the raw body.
      */
     public function validateWebhook(array $headers, string $body): bool
     {
@@ -250,13 +253,25 @@ class StripeDriver extends AbstractDriver
             ?? $headers['Stripe-Signature'][0]
             ?? null;
 
-        if (! $signature || empty($this->config['webhook_secret'])) {
-            $this->log('warning', 'Webhook signature or secret missing');
+        if (! $signature) {
+            $this->log('warning', 'Webhook signature missing', [
+                'available_headers' => array_keys($headers),
+            ]);
+
+            return false;
+        }
+
+        if (empty($this->config['webhook_secret'])) {
+            $this->log('warning', 'Webhook secret not configured', [
+                'hint' => 'Set STRIPE_WEBHOOK_SECRET in your .env file. Get it from Stripe Dashboard → Developers → Webhooks → Select endpoint → Signing secret',
+            ]);
 
             return false;
         }
 
         try {
+            // Stripe's constructEvent validates the signature and returns the event object
+            // It throws an exception if validation fails
             Webhook::constructEvent(
                 $body,
                 $signature,
@@ -266,9 +281,17 @@ class StripeDriver extends AbstractDriver
             $this->log('info', 'Webhook validated successfully');
 
             return true;
+        } catch (\Stripe\Exception\SignatureVerificationException $e) {
+            $this->log('warning', 'Webhook validation failed', [
+                'error' => $e->getMessage(),
+                'hint' => 'Ensure STRIPE_WEBHOOK_SECRET matches the signing secret from your Stripe webhook endpoint. The secret should start with "whsec_".',
+            ]);
+
+            return false;
         } catch (Exception $e) {
             $this->log('warning', 'Webhook validation failed', [
                 'error' => $e->getMessage(),
+                'exception_type' => get_class($e),
             ]);
 
             return false;
