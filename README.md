@@ -565,20 +565,11 @@ Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
 ### Latest Release: v1.0.9
 
-### Refactor - Open/Closed Principle (OCP) Implementation
+### Fixed
 
-   - **Moved provider-specific logic to drivers**: All webhook data extraction and verification ID resolution logic is now encapsulated in individual driver classes.
-   - **Eliminated hardcoded match statements**: `WebhookController` and `PaymentManager` no longer contain provider-specific `match ($provider)` statements.
-   - **New driver methods**: Added four new methods to `DriverInterface`:
-     - `extractWebhookReference()` - Extract payment reference from webhook payload
-     - `extractWebhookStatus()` - Extract payment status from webhook payload
-     - `extractWebhookChannel()` - Extract payment channel from webhook payload
-     - `resolveVerificationId()` - Resolve the ID needed for payment verification
-   - **Benefits**:
-     - Adding new providers no longer requires modifying core classes
-     - Each driver encapsulates its own data extraction logic
-     - Follows SOLID principles (Open/Closed Principle)
-     - Easier to test and maintain
+- **Stripe Webhook Validation**: Enhanced webhook signature validation with improved error messages and troubleshooting hints. Fixed validation failures by ensuring proper webhook secret configuration.
+- **Flutterwave Webhook Validation**: Improved webhook validation with better error handling and logging. Added support for `FLUTTERWAVE_WEBHOOK_SECRET` configuration option.
+- **SQLite Database Locks**: Increased webhook throttle limit from 60 to 120 requests per minute to reduce concurrent database lock issues when using SQLite cache driver. Added documentation note recommending `file` or `array` cache drivers for webhook routes.
 
 ---
 
