@@ -563,7 +563,7 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.0.8
+### Latest Release: v1.0.9
 
 ### Refactor - Open/Closed Principle (OCP) Implementation
 

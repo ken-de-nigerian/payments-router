@@ -10,6 +10,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Refactor
 
+- **Moved provider-specific logic to drivers**: All webhook data extraction and verification ID resolution logic is now encapsulated in individual driver classes.
+- **Eliminated hardcoded match statements**: `WebhookController` and `PaymentManager` no longer contain provider-specific `match ($provider)` statements.
+- **New driver methods**: Added four new methods to `DriverInterface`:
+  - `extractWebhookReference()` - Extract payment reference from webhook payload
+  - `extractWebhookStatus()` - Extract payment status from webhook payload
+  - `extractWebhookChannel()` - Extract payment channel from webhook payload
+  - `resolveVerificationId()` - Resolve the ID needed for payment verification
+- **Benefits**:
+  - Adding new providers no longer requires modifying core classes
+  - Each driver encapsulates its own data extraction logic
+  - Follows SOLID principles (Open/Closed Principle)
+  - Easier to test and maintain
+    
+## [1.0.8] - 2025-12-08
+
+### Refactor
+
 - Isolate webhook and transaction logic for maintainability
 - Moves provider-specific reference extraction and status normalization logic from WebhookController into the respective Drivers.
 - This adheres to the Single Responsibility Principle (SRP) and prepares the codebase for future feature expansion (e.g., Subscriptions and Refunds) by: Introducing abstract methods in AbstractDriver for webhook parsing.
