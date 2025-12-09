@@ -6,6 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.5] - 2025-12-10
+
+### Added
+- **OPay Driver**: New payment driver with dual authentication support
+  - Create Payment API: Bearer token authentication using Public Key
+  - Status API: HMAC-SHA512 signature authentication using Private Key (Secret Key) and Merchant ID
+  - Support for card payments, bank transfer, USSD, and mobile money
+  - Comprehensive test coverage with integration and coverage tests
+
+- **Remita Driver**: New payment driver for Remita payment processing
+  - Support for RRR (Remita Retrieval Reference) generation
+  - SHA512 hash-based authentication
+  - Webhook signature validation
+  - Comprehensive test coverage
+
+### Changed
+- **OPay Driver**: Improved authentication implementation
+  - Implemented HMAC-SHA512 signature generation for status API
+  - Signature uses private key (secret_key) concatenated with merchant ID
+  - Maintains backward compatibility for create payment API
+  - Updated documentation to reflect dual authentication requirements
+
+### Documentation
+- Added comprehensive OPay driver documentation with authentication details
+- Added Remita driver documentation
+- Updated README and provider docs with new authentication requirements
+- Clarified secret_key requirement for OPay status API
+
+### Tests
+- Added comprehensive test coverage for OPayDriver
+- Added comprehensive test coverage for RemitaDriver
+- Fixed OPayDriverIntegrationTest to include secret_key in config
+- All tests passing (700+ tests)
+
 ## [1.1.4] - 2025-12-09
 
 ### Fixed

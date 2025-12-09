@@ -589,7 +589,23 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.1.4
+### Latest Release: v1.1.5
+
+### Added
+- **OPay Driver**: New payment driver with dual authentication support
+  - Create Payment API: Bearer token authentication using Public Key
+  - Status API: HMAC-SHA512 signature authentication using Private Key and Merchant ID
+  - Support for card payments, bank transfer, USSD, and mobile money
+
+- **Remita Driver**: New payment driver for Remita payment processing
+  - Support for RRR (Remita Retrieval Reference) generation
+  - SHA512 hash-based authentication
+  - Webhook signature validation
+
+### Changed
+- **OPay Driver**: Improved authentication implementation
+  - Implemented HMAC-SHA512 signature generation for status API
+  - Updated documentation to reflect dual authentication requirements
 
 ### Fixed
 - **Square Driver**: Fixed payment verification flow and improved code quality
@@ -598,7 +614,7 @@ Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
   - Added payment link lookup as a verification strategy before order search fallback
   - Verification now supports three strategies: payment ID → payment link ID → reference ID order search
 
-### Changed
+### Changed (Previous Release)
 - **Square Driver**: Refactored `verify()` method for better maintainability
   - Extracted verification logic into focused helper methods:
     - `verifyByPaymentId()` - handles direct payment ID lookup
