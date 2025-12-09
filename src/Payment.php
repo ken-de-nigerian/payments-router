@@ -48,7 +48,7 @@ final class Payment
     /**
      * Set how much money to charge (in the main currency unit, e.g., 100.00 for $100).
      */
-    public function amount(float $amount): static
+    public function amount(float $amount): Payment
     {
         $this->data['amount'] = $amount;
 
@@ -59,7 +59,7 @@ final class Payment
      * Set the currency (e.g., 'NGN', 'USD', 'EUR').
      * Automatically converts to uppercase, so 'ngn' becomes 'NGN'.
      */
-    public function currency(string $currency): static
+    public function currency(string $currency): Payment
     {
         $this->data['currency'] = strtoupper($currency);
 
@@ -69,7 +69,7 @@ final class Payment
     /**
      * Set the customer's email address (required for most providers).
      */
-    public function email(string $email): static
+    public function email(string $email): Payment
     {
         $this->data['email'] = $email;
 
@@ -80,7 +80,7 @@ final class Payment
      * Set your own unique transaction reference (like 'ORDER_12345').
      * If you don't set this, the system will generate one automatically.
      */
-    public function reference(string $reference): static
+    public function reference(string $reference): Payment
     {
         $this->data['reference'] = $reference;
 
@@ -94,7 +94,7 @@ final class Payment
      * **Required: ** This method must be called when using the fluent API.
      * The payment will fail if the callback URL is not provided.
      */
-    public function callback(string $url): static
+    public function callback(string $url): Payment
     {
         $this->data['callback_url'] = $url;
 
@@ -105,7 +105,7 @@ final class Payment
      * Add extra information to the payment (like order ID, user ID, etc.).
      * This data gets sent to the payment provider and comes back in webhooks.
      */
-    public function metadata(array $metadata): static
+    public function metadata(array $metadata): Payment
     {
         $this->data['metadata'] = $metadata;
 
@@ -116,7 +116,7 @@ final class Payment
      * Set an idempotency key to prevent charging the same payment twice.
      * Use a unique value (like a UUID) for each payment attempt.
      */
-    public function idempotency(string $key): static
+    public function idempotency(string $key): Payment
     {
         $this->data['idempotency_key'] = $key;
 
@@ -126,7 +126,7 @@ final class Payment
     /**
      * Set a description for the payment (what the customer is paying for).
      */
-    public function description(string $description): static
+    public function description(string $description): Payment
     {
         $this->data['description'] = $description;
 
@@ -137,7 +137,7 @@ final class Payment
      * Set customer details like name, phone number, address, etc.
      * Pass an array: ['name' => 'John Doe', 'phone' => '+1234567890']
      */
-    public function customer(array $customer): static
+    public function customer(array $customer): Payment
     {
         $this->data['customer'] = $customer;
 
@@ -149,7 +149,7 @@ final class Payment
      * For example, ['card', 'bank_transfer'] means only cards and bank transfers.
      * Useful for providers like Paystack.
      */
-    public function channels(array $channels): static
+    public function channels(array $channels): Payment
     {
         $this->data['channels'] = $channels;
 
@@ -167,7 +167,7 @@ final class Payment
      *
      * @param  string|array  $providers  Provider name(s) like 'paystack', 'stripe', etc.
      */
-    public function with(string|array $providers): static
+    public function with(string|array $providers): Payment
     {
         $this->providers = is_array($providers) ? $providers : [$providers];
 
@@ -178,7 +178,7 @@ final class Payment
      * Same as with() - just an alternative name for better readability.
      * You can use either: with('paystack') or using('paystack')
      */
-    public function using(string|array $providers): static
+    public function using(string|array $providers): Payment
     {
         return $this->with($providers);
     }

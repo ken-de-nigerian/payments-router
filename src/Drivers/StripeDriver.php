@@ -14,6 +14,7 @@ use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use Random\RandomException;
 use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\AuthenticationException;
+use Stripe\Exception\SignatureVerificationException;
 use Stripe\StripeClient;
 use Stripe\Webhook;
 
@@ -279,7 +280,7 @@ final class StripeDriver extends AbstractDriver
             $this->log('info', 'Webhook validated successfully');
 
             return true;
-        } catch (\Stripe\Exception\SignatureVerificationException $e) {
+        } catch (SignatureVerificationException $e) {
             $this->log('warning', 'Webhook validation failed', [
                 'error' => $e->getMessage(),
                 'hint' => 'Ensure STRIPE_WEBHOOK_SECRET matches the signing secret from your Stripe webhook endpoint. The secret should start with "whsec_".',

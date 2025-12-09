@@ -11,7 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Create the table using the name defined in config, defaulting to 'payment_transactions'
         Schema::create(config('payments.logging.table', 'payment_transactions'), function (Blueprint $table) {
             $table->id();
             $table->string('reference')->unique()->index();

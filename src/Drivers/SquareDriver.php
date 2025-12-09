@@ -161,6 +161,8 @@ final class SquareDriver extends AbstractDriver
      * Attempt to verify payment using a direct payment ID.
      *
      * @return VerificationResponseDTO|null Returns null if the reference is not a payment ID or payment not found
+     *
+     * @throws GuzzleException
      */
     private function verifyByPaymentId(string $reference): ?VerificationResponseDTO
     {
@@ -193,6 +195,9 @@ final class SquareDriver extends AbstractDriver
      * Payment link IDs are typically alphanumeric strings (e.g., JE6RV44VZEML32Z2).
      *
      * @return VerificationResponseDTO|null Returns null if the reference is not a payment link ID or payment not found
+     *
+     * @throws GuzzleException
+     * @throws VerificationException
      */
     private function verifyByPaymentLinkId(string $reference): ?VerificationResponseDTO
     {
@@ -225,7 +230,7 @@ final class SquareDriver extends AbstractDriver
     /**
      * Verify payment by searching orders using reference_id.
      *
-     * @throws VerificationException
+     * @throws VerificationException|GuzzleException
      */
     private function verifyByReferenceId(string $reference): VerificationResponseDTO
     {
@@ -256,7 +261,8 @@ final class SquareDriver extends AbstractDriver
      * Search orders using Square's order search API.
      *
      * @return array List of orders
-     * @throws VerificationException
+     *
+     * @throws VerificationException|GuzzleException
      */
     private function searchOrders(): array
     {
@@ -289,7 +295,8 @@ final class SquareDriver extends AbstractDriver
      * Retrieve an order by ID.
      *
      * @return array Order data
-     * @throws VerificationException
+     *
+     * @throws VerificationException|GuzzleException
      */
     private function getOrderById(string $orderId): array
     {
@@ -308,6 +315,7 @@ final class SquareDriver extends AbstractDriver
      * Extract payment ID from an order's tenders.
      *
      * @return string Payment ID
+     *
      * @throws VerificationException
      */
     private function getPaymentFromOrder(array $order, string $orderId): string
@@ -329,13 +337,14 @@ final class SquareDriver extends AbstractDriver
      * Retrieve payment details by payment ID.
      *
      * @return array Payment data
+     *
+     * @throws GuzzleException
      */
     private function getPaymentDetails(string $paymentId): array
     {
         $response = $this->makeRequest('GET', "/v2/payments/$paymentId");
-        $data = $this->parseResponse($response);
 
-        return $data;
+        return $this->parseResponse($response);
     }
 
     /**
