@@ -558,7 +558,7 @@ Look for issues labeled:
 
 - **GitHub Discussions** - For questions and ideas
 - **GitHub Issues** - For bugs and feature requests
-- **Email** - ken.de.nigerian@gmail.com
+- **Email** - ken.de.nigerian@payzephyr.dev
 
 ### How to Ask
 

@@ -452,7 +452,7 @@ Now that you've made your first payment:
 
 ## 🆘 Need Help?
 
-- 📧 **Email**: ken.de.nigerian@gmail.com
+- 📧 **Email**: ken.de.nigerian@payzephyr.dev
 - 🐛 **GitHub Issues**: [Report a bug](https://github.com/ken-de-nigerian/payzephyr/issues)
 - 💬 **Discussions**: [Ask questions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 - 📖 **Documentation**: [Full docs](DOCUMENTATION.md)

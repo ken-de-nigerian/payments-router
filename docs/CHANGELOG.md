@@ -423,7 +423,7 @@ composer update kendenigerian/payzephyr
 
 ## Support
 
-- 📧 Email: ken.de.nigerian@gmail.com
+- 📧 Email: ken.de.nigerian@payzephyr.dev
 - 💬 Discussions: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 
 ---

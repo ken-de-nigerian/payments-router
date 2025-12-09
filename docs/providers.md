@@ -274,7 +274,7 @@ Payment::amount(10000)
 | Monnify     |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
 | Stripe      |  ✅  |  ✅  |  ✅  |  ✅  |  ❌  |        135+        |
 | PayPal      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |        25+         |
-| Square      |  ❌  |  ✅  |  ❌  |  ✅  |  ❌  |      CAD, AUD       |
+| Square      |  ❌  |  ✅  |  ❌  |  ✅  |  ❌  |      CAD, AUD      |
 
 ---
 

@@ -20,7 +20,7 @@ First off, thank you for considering contributing to PayZephyr! It's people like
 
 Our Code of Conduct governs this project and everyone participating in it.
 By participating, you are expected to uphold this code.
-Please report unacceptable behavior to ken.de.nigerian@gmail.com.
+Please report unacceptable behavior to ken.de.nigerian@payzephyr.dev.
 
 ### Our Standards
 
@@ -707,7 +707,7 @@ logger('Error: ' . $e->getMessage());
 
 ## Questions?
 
-- 📧 Email: ken.de.nigerian@gmail.com
+- 📧 Email: ken.de.nigerian@payzephyr.dev
 - 💬 Discussions: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 
 ---

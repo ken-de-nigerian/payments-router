@@ -660,7 +660,7 @@ For detailed architecture, see [docs/architecture.md](architecture.md).
 
 ### Getting Help
 
-- 📧 **Email**: ken.de.nigerian@gmail.com
+- 📧 **Email**: ken.de.nigerian@payzephyr.dev
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 - 📖 **Documentation**: [GitHub Wiki](https://github.com/ken-de-nigerian/payzephyr/wiki)

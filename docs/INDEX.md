@@ -588,7 +588,7 @@ Enable detailed logging:
 
 ### Getting Help
 
-- 📧 **Email**: ken.de.nigerian@gmail.com
+- 📧 **Email**: ken.de.nigerian@payzephyr.dev
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
 - 📖 **Wiki**: [GitHub Wiki](https://github.com/ken-de-nigerian/payzephyr/wiki)
 
