@@ -93,6 +93,25 @@ return [
             'currencies' => ['USD', 'CAD', 'GBP', 'AUD'],
             'enabled' => env('SQUARE_ENABLED', false),
         ],
+
+        'remita' => [
+            'driver' => 'remita',
+            'public_key' => env('REMITA_PUBLIC_KEY'),
+            'secret_key' => env('REMITA_SECRET_KEY'),
+            'base_url' => env('REMITA_BASE_URL', 'https://api.remita.net'), // Demo: https://remitademo.net | Live: https://api.remita.net
+            'currencies' => ['NGN'],
+            'enabled' => env('REMITA_ENABLED', false),
+        ],
+
+        'opay' => [
+            'driver' => 'opay',
+            'merchant_id' => env('OPAY_MERCHANT_ID'),
+            'public_key' => env('OPAY_PUBLIC_KEY'),
+            'secret_key' => env('OPAY_SECRET_KEY'), // Required for webhook validation
+            'base_url' => env('OPAY_BASE_URL', 'https://liveapi.opaycheckout.com'), // Test: https://testapi.opaycheckout.com | Live: https://liveapi.opaycheckout.com
+            'currencies' => ['NGN'],
+            'enabled' => env('OPAY_ENABLED', false),
+        ],
     ],
 
     /*

@@ -125,8 +125,12 @@ final class FlutterwaveDriver extends AbstractDriver
                 provider: $this->getName(),
             );
         } catch (GuzzleException $e) {
-            $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('Flutterwave charge failed: '.$e->getMessage(), 0, $e);
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'Charge failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new ChargeException($userMessage, 0, $e);
         } finally {
             // Always clear context to prevent memory leaks
             $this->clearCurrentRequest();
@@ -180,11 +184,13 @@ final class FlutterwaveDriver extends AbstractDriver
                 ],
             );
         } catch (GuzzleException $e) {
+            $userMessage = $this->getNetworkErrorMessage($e);
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
             ]);
-            throw new VerificationException('Flutterwave verification failed: '.$e->getMessage(), 0, $e);
+            throw new VerificationException($userMessage, 0, $e);
         }
     }
 

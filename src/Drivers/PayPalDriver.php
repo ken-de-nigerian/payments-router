@@ -124,7 +124,12 @@ final class PayPalDriver extends AbstractDriver
 
             return $this->accessToken;
         } catch (GuzzleException $e) {
-            throw new ChargeException('PayPal authentication failed: '.$e->getMessage(), 0, $e);
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'PayPal authentication failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new ChargeException('PayPal authentication failed: '.$userMessage, 0, $e);
         }
     }
 
@@ -212,8 +217,12 @@ final class PayPalDriver extends AbstractDriver
                 provider: $this->getName(),
             );
         } catch (GuzzleException $e) {
-            $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('PayPal charge failed: '.$e->getMessage(), 0, $e);
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'Charge failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new ChargeException($userMessage, 0, $e);
         } finally {
             $this->clearCurrentRequest();
         }
@@ -281,8 +290,12 @@ final class PayPalDriver extends AbstractDriver
             );
 
         } catch (GuzzleException $e) {
-            throw new VerificationException(
-                'PayPal verification failed: '.$e->getMessage(),
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'Verification failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new VerificationException($userMessage,
                 0,
                 $e
             );
@@ -386,8 +399,10 @@ final class PayPalDriver extends AbstractDriver
             return $isValid;
         } catch (GuzzleException $e) {
             // If API verification fails, log and reject webhook
+            $userMessage = $this->getNetworkErrorMessage($e);
             $this->log('error', 'PayPal webhook verification API failed', [
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
             ]);
 
             throw new WebhookException(
@@ -429,10 +444,13 @@ final class PayPalDriver extends AbstractDriver
             return $data['purchase_units'][0]['payments']['captures'][0] ?? null;
 
         } catch (GuzzleException $e) {
-            $this->log('error', 'PayPal capture failed: '.$e->getMessage());
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'PayPal capture failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
 
-            throw new VerificationException(
-                'PayPal capture failed: '.$e->getMessage(),
+            throw new VerificationException($userMessage,
                 0,
                 $e
             );

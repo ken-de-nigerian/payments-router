@@ -7,8 +7,10 @@ namespace KenDeNigerian\PayZephyr\Services;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver;
 use KenDeNigerian\PayZephyr\Drivers\MonnifyDriver;
+use KenDeNigerian\PayZephyr\Drivers\OPayDriver;
 use KenDeNigerian\PayZephyr\Drivers\PayPalDriver;
 use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
+use KenDeNigerian\PayZephyr\Drivers\RemitaDriver;
 use KenDeNigerian\PayZephyr\Drivers\SquareDriver;
 use KenDeNigerian\PayZephyr\Drivers\StripeDriver;
 use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
@@ -44,6 +46,8 @@ final class DriverFactory
         'stripe' => StripeDriver::class,
         'paypal' => PayPalDriver::class,
         'square' => SquareDriver::class,
+        'remita' => RemitaDriver::class,
+        'opay' => OPayDriver::class,
     ];
 
     /**

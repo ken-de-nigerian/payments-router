@@ -89,7 +89,12 @@ final class MonnifyDriver extends AbstractDriver
 
             return $this->accessToken;
         } catch (GuzzleException $e) {
-            throw new ChargeException('Monnify authentication failed: '.$e->getMessage(), 0, $e);
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'Monnify authentication failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new ChargeException('Monnify authentication failed: '.$userMessage, 0, $e);
         }
     }
 
@@ -188,8 +193,13 @@ final class MonnifyDriver extends AbstractDriver
                 ],
             );
         } catch (GuzzleException $e) {
-            $this->log('error', 'Verification failed', ['reference' => $reference, 'error' => $e->getMessage()]);
-            throw new VerificationException('Monnify verification failed: '.$e->getMessage(), 0, $e);
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'Verification failed', [
+                'reference' => $reference,
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new VerificationException($userMessage, 0, $e);
         }
     }
 

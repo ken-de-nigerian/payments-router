@@ -119,6 +119,19 @@ SQUARE_LOCATION_ID=location_xxx
 SQUARE_WEBHOOK_SIGNATURE_KEY=xxx
 SQUARE_ENABLED=false
 
+# Remita (Required: public_key, secret_key)
+REMITA_PUBLIC_KEY=your_public_key
+REMITA_SECRET_KEY=your_secret_key
+REMITA_BASE_URL=https://api.remita.net
+REMITA_ENABLED=false
+
+# OPay (Required: merchant_id, public_key, secret_key for status API)
+OPAY_MERCHANT_ID=your_merchant_id
+OPAY_PUBLIC_KEY=your_public_key
+OPAY_SECRET_KEY=your_secret_key  # Required for status API authentication and webhook validation
+OPAY_BASE_URL=https://liveapi.opaycheckout.com
+OPAY_ENABLED=false
+
 # Optional Settings
 PAYMENTS_DEFAULT_CURRENCY=NGN
 PAYMENTS_LOGGING_ENABLED=true

@@ -112,8 +112,12 @@ final class SquareDriver extends AbstractDriver
                 provider: $this->getName(),
             );
         } catch (GuzzleException $e) {
-            $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
-            throw new ChargeException('Square charge failed: '.$e->getMessage(), 0, $e);
+            $userMessage = $this->getNetworkErrorMessage($e);
+            $this->log('error', 'Charge failed', [
+                'error' => $e->getMessage(),
+                'error_class' => get_class($e),
+            ]);
+            throw new ChargeException($userMessage, 0, $e);
         } finally {
             $this->clearCurrentRequest();
         }
@@ -145,13 +149,13 @@ final class SquareDriver extends AbstractDriver
             // Strategy 3: Fallback to order search by reference_id
             return $this->verifyByReferenceId($reference);
         } catch (GuzzleException $e) {
+            $userMessage = $this->getNetworkErrorMessage($e);
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
+                'error_class' => get_class($e),
             ]);
-            throw new VerificationException(
-                'Square verification failed: '.$e->getMessage(),
-                0,
+            throw new VerificationException($userMessage, 0,
                 $e
             );
         }

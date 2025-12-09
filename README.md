@@ -11,7 +11,7 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 
 ## 🚀 Features
 
-- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square etc.
+- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square, Remita, OPay etc.
 - **Automatic Fallback**: Seamlessly switch to back-up providers if primary fails
 - **Fluent API**: Clean, expressive syntax for payment operations
 - **Idempotency Support**: Prevent duplicate charges with unique keys across supported providers
@@ -102,6 +102,19 @@ SQUARE_ACCESS_TOKEN=EAAAxxx
 SQUARE_LOCATION_ID=location_xxx
 SQUARE_WEBHOOK_SIGNATURE_KEY=xxx
 SQUARE_ENABLED=false
+
+# Remita (Required: public_key, secret_key)
+REMITA_PUBLIC_KEY=your_public_key
+REMITA_SECRET_KEY=your_secret_key
+REMITA_BASE_URL=https://api.remita.net
+REMITA_ENABLED=false
+
+# OPay (Required: merchant_id, public_key, secret_key for status API)
+OPAY_MERCHANT_ID=your_merchant_id
+OPAY_PUBLIC_KEY=your_public_key
+OPAY_SECRET_KEY=your_secret_key  # Required for status API authentication and webhook validation
+OPAY_BASE_URL=https://liveapi.opaycheckout.com
+OPAY_ENABLED=false
 
 # Optional Settings
 PAYMENTS_DEFAULT_CURRENCY=NGN
