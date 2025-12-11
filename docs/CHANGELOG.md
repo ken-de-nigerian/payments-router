@@ -6,6 +6,45 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.8] - 2025-12-11
+
+### Added
+- **Application-Originating Payment Events**: New events for payment lifecycle hooks
+  - `PaymentInitiated`: Dispatched after successful `charge()` operation
+    - Provides clean hooks for business logic (e.g., sending email confirmations, updating inventory)
+    - Event contains `ChargeRequestDTO`, `ChargeResponseDTO`, and provider name
+  - `PaymentVerificationSuccess`: Dispatched after successful verification with success status
+    - Triggered when payment verification results in a successful state
+    - Event contains reference, `VerificationResponseDTO`, and provider name
+  - `PaymentVerificationFailed`: Dispatched after successful verification with failed status
+    - Triggered when payment verification results in a failed state
+    - Event contains reference, `VerificationResponseDTO`, and provider name
+
+### Changed
+- **Centralized Idempotency Key Generation**: Idempotency keys are now automatically generated
+  - `ChargeRequestDTO::fromArray()` now automatically generates a UUID v4 idempotency key if not provided
+  - Ensures every payment request always has a unique idempotency key
+  - Uses Laravel's `Str::uuid()` for consistent UUID v4 format
+  - Removed manual idempotency key generation from `SquareDriver` (now handled centrally)
+  - **Benefit**: Simplifies driver logic and ensures consistent key formatting across all providers
+
+### Improved
+- **PaymentManager Cache Cleanup**: Explicit cache deletion after successful verification
+  - Cache entries are now explicitly deleted after successful verification instead of relying solely on expiration
+  - Reduces unnecessary data accumulation in cache for already-verified payments
+  - Improves cache efficiency and reduces memory usage
+
+### Documentation
+- Updated idempotency key documentation to reflect automatic generation
+- Added documentation for new payment events
+- Updated examples to show that idempotency keys are optional (auto-generated if not provided)
+
+### Tests
+- All 716 tests passing (1,447 assertions)
+- Verified backward compatibility with existing idempotency key usage
+- All events properly dispatched and testable
+
+---
 ## [1.1.7] - 2025-12-11
 
 ### Changed

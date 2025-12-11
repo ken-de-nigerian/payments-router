@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 /**
@@ -75,10 +76,16 @@ final readonly class ChargeRequestDTO
 
     /**
      * Create from array
+     *
+     * Automatically generates an idempotency key if one is not provided
+     * to ensure consistent key formatting across all providers.
      */
     public static function fromArray(array $data): ChargeRequestDTO
     {
         $amount = isset($data['amount']) ? round((float) $data['amount'], 2) : 0.0;
+
+        // Generate idempotency key if not provided
+        $idempotencyKey = $data['idempotency_key'] ?? self::generateIdempotencyKey();
 
         return new self(
             amount: $amount,
@@ -92,8 +99,19 @@ final readonly class ChargeRequestDTO
             customFields: $data['custom_fields'] ?? null,
             split: $data['split'] ?? null,
             channels: $data['channels'] ?? null,
-            idempotencyKey: $data['idempotency_key'] ?? null,
+            idempotencyKey: $idempotencyKey,
         );
+    }
+
+    /**
+     * Generate a unique idempotency key.
+     *
+     * Uses UUID v4 format for maximum uniqueness and compatibility
+     * across all payment providers.
+     */
+    protected static function generateIdempotencyKey(): string
+    {
+        return Str::uuid()->toString();
     }
 
     /**

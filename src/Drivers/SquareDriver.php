@@ -67,7 +67,7 @@ final class SquareDriver extends AbstractDriver
             $reference = $request->reference ?? $this->generateReference('SQUARE');
 
             $payload = [
-                'idempotency_key' => $request->idempotencyKey ?? uniqid('square_', true),
+                'idempotency_key' => $request->idempotencyKey,
                 'order' => [
                     'location_id' => $this->config['location_id'],
                     'reference_id' => $reference,

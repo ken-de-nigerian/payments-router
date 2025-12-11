@@ -591,7 +591,24 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.1.7
+### Latest Release: v1.1.8
+
+### Added
+- **Application-Originating Payment Events**: New events for payment lifecycle hooks
+  - `PaymentInitiated`: Dispatched after successful charge operations
+  - `PaymentVerificationSuccess`: Dispatched after successful verification with success status
+  - `PaymentVerificationFailed`: Dispatched after successful verification with failed status
+
+### Changed
+- **Centralized Idempotency Key Generation**: Idempotency keys are now automatically generated
+  - Every payment request automatically gets a unique UUID v4 idempotency key if not provided
+  - Simplifies driver logic and ensures consistent key formatting across all providers
+
+### Improved
+- **PaymentManager Cache Cleanup**: Explicit cache deletion after successful verification
+  - Reduces unnecessary data accumulation in cache
+
+### Previous Release: v1.1.7
 
 ### Changed
 - **Convention over Configuration**: Refactored core services to eliminate hardcoded provider lists

@@ -14,6 +14,9 @@ use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
+use KenDeNigerian\PayZephyr\Events\PaymentInitiated;
+use KenDeNigerian\PayZephyr\Events\PaymentVerificationFailed;
+use KenDeNigerian\PayZephyr\Events\PaymentVerificationSuccess;
 use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
@@ -105,6 +108,9 @@ class PaymentManager
                 // Log transaction to database
                 $this->logTransaction($request, $response, $providerName);
 
+                // Dispatch payment initiated event
+                PaymentInitiated::dispatch($request, $response, $providerName);
+
                 logger()->info("Payment charged successfully via [$providerName]", [
                     'reference' => $response->reference,
                 ]);
@@ -177,6 +183,16 @@ class PaymentManager
                 $driver = $this->driver($providerName);
                 $response = $driver->verify($verificationId);
                 $this->updateTransactionFromVerification($reference, $response);
+
+                // Dispatch verification events based on status
+                if ($response->isSuccessful()) {
+                    PaymentVerificationSuccess::dispatch($reference, $response, $providerName);
+                } elseif ($response->isFailed()) {
+                    PaymentVerificationFailed::dispatch($reference, $response, $providerName);
+                }
+
+                // Clean up cache entry after successful verification
+                Cache::forget($this->cacheKey('session', $reference));
 
                 return $response;
             } catch (Throwable $e) {

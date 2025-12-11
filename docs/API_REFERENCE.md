@@ -80,7 +80,7 @@ Payment::metadata([
 ```
 
 #### `idempotency(string $key): Payment`
-Set an idempotency key to prevent duplicate charges. Should be unique per transaction.
+Set an idempotency key to prevent duplicate charges. **Note:** If not provided, a UUID v4 key is automatically generated. This parameter is optional.
 
 ```php
 Payment::idempotency(Str::uuid()->toString())

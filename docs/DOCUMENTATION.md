@@ -269,17 +269,27 @@ return Payment::amount(10000)
 
 ### Idempotency Keys
 
+Idempotency keys are **automatically generated** for every payment request to prevent duplicate charges. You can optionally provide your own key:
+
 ```php
 use Illuminate\Support\Str;
 
-// Prevent duplicate charges
+// Option 1: Let the package auto-generate (recommended)
+return Payment::amount(10000)
+    ->email('customer@example.com')
+    ->redirect();
+// A UUID v4 idempotency key is automatically generated
+
+// Option 2: Provide your own idempotency key
 $idempotencyKey = Str::uuid()->toString();
 
 return Payment::amount(10000)
     ->email('customer@example.com')
-    ->idempotency($idempotencyKey)
+    ->idempotency($idempotencyKey)  // Optional: override auto-generated key
     ->redirect();
 ```
+
+**Note:** If you don't provide an idempotency key, the package automatically generates a UUID v4 key for you. This ensures consistent key formatting across all providers and simplifies driver logic.
 
 ---
 
@@ -395,6 +405,120 @@ class HandlePaystackWebhook
 ```
 
 For complete webhook documentation, see [docs/webhooks.md](webhooks.md).
+
+---
+
+## Payment Events
+
+PayZephyr dispatches events for payment lifecycle stages, allowing you to react to payment actions initiated within your application.
+
+### Available Events
+
+#### PaymentInitiated
+
+Dispatched after a successful `charge()` operation, before returning `ChargeResponseDTO`. Use this to run business logic immediately after payment initialization.
+
+```php
+use KenDeNigerian\PayZephyr\Events\PaymentInitiated;
+
+Event::listen(PaymentInitiated::class, function (PaymentInitiated $event) {
+    // Send confirmation email
+    Mail::to($event->request->email)->send(new PaymentInitiatedMail($event->response));
+    
+    // Update inventory
+    // Notify internal systems
+    // Log to analytics
+});
+```
+
+**Event Properties:**
+- `$event->request`: `ChargeRequestDTO` - The original payment request
+- `$event->response`: `ChargeResponseDTO` - The payment response
+- `$event->provider`: `string` - The provider name used
+
+#### PaymentVerificationSuccess
+
+Dispatched after a successful `verify()` operation that results in a successful state. Use this to fulfill orders, send confirmation emails, etc.
+
+```php
+use KenDeNigerian\PayZephyr\Events\PaymentVerificationSuccess;
+
+Event::listen(PaymentVerificationSuccess::class, function (PaymentVerificationSuccess $event) {
+    // Fulfill order
+    $order = Order::where('reference', $event->reference)->first();
+    $order->update(['status' => 'paid', 'paid_at' => now()]);
+    
+    // Send confirmation email
+    Mail::to($order->customer_email)->send(new OrderConfirmation($order));
+    
+    // Update inventory
+    // Notify fulfillment system
+});
+```
+
+**Event Properties:**
+- `$event->reference`: `string` - The payment reference
+- `$event->verification`: `VerificationResponseDTO` - The verification response
+- `$event->provider`: `string` - The provider name used
+
+#### PaymentVerificationFailed
+
+Dispatched after a successful `verify()` operation that results in a failed state. Use this to handle failed payments, send notifications, etc.
+
+```php
+use KenDeNigerian\PayZephyr\Events\PaymentVerificationFailed;
+
+Event::listen(PaymentVerificationFailed::class, function (PaymentVerificationFailed $event) {
+    // Update order status
+    $order = Order::where('reference', $event->reference)->first();
+    $order->update(['status' => 'failed']);
+    
+    // Send failure notification
+    Mail::to($order->customer_email)->send(new PaymentFailedMail($order));
+    
+    // Log for review
+    logger()->warning('Payment verification failed', [
+        'reference' => $event->reference,
+        'provider' => $event->provider,
+    ]);
+});
+```
+
+**Event Properties:**
+- `$event->reference`: `string` - The payment reference
+- `$event->verification`: `VerificationResponseDTO` - The verification response
+- `$event->provider`: `string` - The provider name used
+
+### Registering Event Listeners
+
+Register listeners in your `EventServiceProvider`:
+
+```php
+// app/Providers/EventServiceProvider.php
+
+use KenDeNigerian\PayZephyr\Events\PaymentInitiated;
+use KenDeNigerian\PayZephyr\Events\PaymentVerificationSuccess;
+use KenDeNigerian\PayZephyr\Events\PaymentVerificationFailed;
+
+protected $listen = [
+    PaymentInitiated::class => [
+        \App\Listeners\HandlePaymentInitiated::class,
+    ],
+    PaymentVerificationSuccess::class => [
+        \App\Listeners\HandlePaymentSuccess::class,
+    ],
+    PaymentVerificationFailed::class => [
+        \App\Listeners\HandlePaymentFailure::class,
+    ],
+];
+```
+
+### Benefits
+
+- **Decoupled Logic**: Keep payment logic separate from business logic
+- **Reactive Architecture**: Respond to payment events without coupling to the payment package
+- **Clean Hooks**: Run business logic (emails, inventory, notifications) immediately after key payment stages
+- **Testable**: Events can be easily mocked and tested
 
 ---
 
