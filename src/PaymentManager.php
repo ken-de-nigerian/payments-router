@@ -236,9 +236,17 @@ class PaymentManager
                 try {
                     $driver = $this->driver($transaction->provider);
 
-                    $providerId = $transaction->metadata['_provider_id']
-                        ?? $transaction->metadata['session_id']
-                        ?? $transaction->metadata['order_id']
+                    // Ensure metadata is an array (handle both array and ArrayObject)
+                    $metadata = $transaction->metadata;
+                    if ($metadata instanceof \ArrayObject) {
+                        $metadata = $metadata->getArrayCopy();
+                    } elseif (!is_array($metadata)) {
+                        $metadata = [];
+                    }
+
+                    $providerId = $metadata['_provider_id']
+                        ?? $metadata['session_id']
+                        ?? $metadata['order_id']
                         ?? $reference;
 
                     $verificationId = $driver->resolveVerificationId($reference, $providerId);
@@ -249,9 +257,17 @@ class PaymentManager
                     ];
                 } catch (DriverNotFoundException) {
                     // Provider not configured - fall back to using reference
-                    $providerId = $transaction->metadata['_provider_id']
-                        ?? $transaction->metadata['session_id']
-                        ?? $transaction->metadata['order_id']
+                    // Ensure metadata is an array (handle both array and ArrayObject)
+                    $metadata = $transaction->metadata;
+                    if ($metadata instanceof \ArrayObject) {
+                        $metadata = $metadata->getArrayCopy();
+                    } elseif (!is_array($metadata)) {
+                        $metadata = [];
+                    }
+
+                    $providerId = $metadata['_provider_id']
+                        ?? $metadata['session_id']
+                        ?? $metadata['order_id']
                         ?? $reference;
 
                     return [

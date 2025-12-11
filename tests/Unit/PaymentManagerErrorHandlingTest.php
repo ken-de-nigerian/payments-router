@@ -388,12 +388,24 @@ test('payment manager logTransaction creates transaction with all fields', funct
     $method->invoke($manager, $request, $response, 'paystack');
 
     $transaction = \KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'test_ref_log')->first();
+    $laravelVersion = (float) app()->version();
+    
     expect($transaction)->not->toBeNull()
         ->and((float) $transaction->amount)->toBe(5000.0) // Cast to float for comparison
         ->and($transaction->currency)->toBe('NGN')
-        ->and($transaction->email)->toBe('customer@example.com')
-        ->and($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
-        ->and($transaction->metadata['order_id'])->toBe(123)
-        ->and($transaction->metadata['_provider_id'])->toBe('access_123')
-        ->and($transaction->customer->toArray())->toBe(['name' => 'John Doe']);
+        ->and($transaction->email)->toBe('customer@example.com');
+
+    // Laravel 10 uses 'array' cast, Laravel 11+ uses AsArrayObject
+    if ($laravelVersion >= 11.0) {
+        expect($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
+            ->and($transaction->metadata['order_id'])->toBe(123)
+            ->and($transaction->metadata['_provider_id'])->toBe('access_123')
+            ->and($transaction->customer->toArray())->toBe(['name' => 'John Doe']);
+    } else {
+        expect($transaction->metadata)->toBeArray()
+            ->and($transaction->metadata['order_id'])->toBe(123)
+            ->and($transaction->metadata['_provider_id'])->toBe('access_123')
+            ->and($transaction->customer)->toBeArray()
+            ->and($transaction->customer['name'])->toBe('John Doe');
+    }
 });

@@ -69,6 +69,7 @@ test('it defaults to payment_transactions table if config is missing', function 
 
 test('it casts attributes correctly', function () {
     $now = Carbon::now();
+    $laravelVersion = (float) app()->version();
 
     $transaction = PaymentTransaction::create([
         'reference' => 'ref_123',
@@ -84,10 +85,19 @@ test('it casts attributes correctly', function () {
 
     // specific to decimal:2 cast, it returns a string to preserve precision
     expect($transaction->amount)->toBe('5000.50')
-        ->and($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
-        ->and($transaction->metadata['order_id'])->toBe(1)
-        ->and($transaction->customer)->toBeInstanceOf(\ArrayObject::class)
         ->and($transaction->paid_at)->toBeInstanceOf(Carbon::class);
+
+    // Laravel 10 uses 'array' cast, Laravel 11+ uses AsArrayObject
+    if ($laravelVersion >= 11.0) {
+        expect($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
+            ->and($transaction->metadata['order_id'])->toBe(1)
+            ->and($transaction->customer)->toBeInstanceOf(\ArrayObject::class);
+    } else {
+        expect($transaction->metadata)->toBeArray()
+            ->and($transaction->metadata['order_id'])->toBe(1)
+            ->and($transaction->customer)->toBeArray()
+            ->and($transaction->customer['name'])->toBe('Ken');
+    }
 });
 
 test('it determines successful status correctly', function () {

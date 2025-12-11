@@ -111,6 +111,7 @@ final class PaymentTransaction extends Model
         return parent::setAttribute($key, $value);
     }
 
+
     /**
      * Set table name.
      */
