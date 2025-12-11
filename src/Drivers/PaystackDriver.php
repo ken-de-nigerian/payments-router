@@ -4,22 +4,16 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Drivers;
 
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
-use Random\RandomException;
+use Throwable;
 
 /**
- * PaystackDriver - Handles Payments via Paystack
- *
- * This driver processes payments through Paystack's API.
- * When you initialize a payment, it redirects the customer to Paystack's
- * hosted checkout page where they can pay with card, bank transfer, USSD, etc.
+ * Driver implementation for the Paystack payment gateway.
  */
 final class PaystackDriver extends AbstractDriver
 {
@@ -59,12 +53,7 @@ final class PaystackDriver extends AbstractDriver
     /**
      * Create a new payment on Paystack.
      *
-     * Important: Paystack requires amounts in the smallest currency unit
-     * (kobo for NGN, cents for USD). This method automatically converts
-     * your amount (e.g., 100.00) to the correct format (10,000).
-     *
      * @throws ChargeException If the payment creation fails.
-     * @throws RandomException If reference generation fails.
      */
     public function charge(ChargeRequestDTO $request): ChargeResponseDTO
     {
@@ -111,13 +100,14 @@ final class PaystackDriver extends AbstractDriver
                 metadata: $request->metadata,
                 provider: $this->getName(),
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (ChargeException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Charge failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException($userMessage, 0, $e);
+            throw new ChargeException('Payment initialization failed: '.$e->getMessage(), 0, $e);
         } finally {
             $this->clearCurrentRequest();
         }
@@ -125,9 +115,6 @@ final class PaystackDriver extends AbstractDriver
 
     /**
      * Check if a Paystack payment was successful.
-     *
-     * Looks up the transaction by reference and returns the payment details.
-     * The amount is automatically converted back from kobo/cents to main units.
      *
      * @param  string  $reference  The transaction reference from Paystack
      *
@@ -168,14 +155,15 @@ final class PaystackDriver extends AbstractDriver
                     'code' => $result['customer']['customer_code'] ?? null,
                 ],
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (VerificationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new VerificationException($userMessage, 0, $e);
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -211,28 +199,16 @@ final class PaystackDriver extends AbstractDriver
 
     /**
      * Check if Paystack's API is working.
-     *
-     * Tries to verify a fake reference. If we get a 404 (reference not found),
-     * that means the API is working. If we get a 500 or connection error,
-     * the API is down.
      */
     public function healthCheck(): bool
     {
         try {
             $response = $this->makeRequest('GET', '/transaction/verify/invalid_ref_test');
-
-            // If we get here, the API is reachable
-            // Accept both successful responses and 4xx errors (which mean API is working)
             $statusCode = $response->getStatusCode();
 
-            return $statusCode < 500; // API is healthy if it responds with anything < 500
+            return $statusCode < 500;
 
-        } catch (ClientException $e) {
-            // 4xx errors mean the API is working (just invalid reference)
-            return $e->getResponse()->getStatusCode() < 500;
-
-        } catch (GuzzleException $e) {
-            // Network errors, timeouts, 5xx errors = unhealthy
+        } catch (Throwable $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
 
             return false;
@@ -269,7 +245,6 @@ final class PaystackDriver extends AbstractDriver
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // Paystack verifies by the main transaction reference, not the access code
         return $reference;
     }
 }

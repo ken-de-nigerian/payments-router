@@ -6,11 +6,13 @@ use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 use KenDeNigerian\PayZephyr\PaymentManager;
 
 test('payment manager returns enabled providers', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.providers' => [
-            'paystack' => ['enabled' => true, 'secret_key' => 'test'],
-            'stripe' => ['enabled' => false, 'secret_key' => 'test'],
-            'flutterwave' => ['enabled' => true, 'secret_key' => 'test'],
+            'paystack' => ['enabled' => true, 'secret_key' => 'test', 'driver' => 'paystack'],
+            'stripe' => ['enabled' => false, 'secret_key' => 'test', 'driver' => 'stripe'],
+            'flutterwave' => ['enabled' => true, 'secret_key' => 'test', 'driver' => 'flutterwave'],
         ],
     ]);
 
@@ -65,6 +67,8 @@ test('payment manager gets fallback chain', function () {
 });
 
 test('payment manager fallback chain removes duplicates', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'paystack',
         'payments.fallback' => 'paystack', // Same as default
@@ -78,6 +82,8 @@ test('payment manager fallback chain removes duplicates', function () {
 });
 
 test('payment manager fallback chain works without fallback', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'paystack',
         'payments.fallback' => null,
@@ -108,6 +114,8 @@ test('payment manager caches driver instances', function () {
 });
 
 test('payment manager resolves driver classes correctly', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.providers' => [
             'paystack' => [
@@ -133,6 +141,8 @@ test('payment manager resolves driver classes correctly', function () {
 });
 
 test('payment manager uses default driver when none specified', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'stripe',
         'payments.providers.stripe' => [
@@ -168,6 +178,8 @@ test('payment manager throws when all providers fail charge', function () {
 })->throws(ProviderException::class);
 
 test('payment manager gets enabled providers count', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.providers' => [
             'paystack' => ['enabled' => true],
@@ -183,6 +195,8 @@ test('payment manager gets enabled providers count', function () {
 });
 
 test('payment manager handles empty providers config', function () {
+    app()->forgetInstance('payments.config');
+
     config(['payments.providers' => []]);
 
     $manager = new PaymentManager;

@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.6] - 2025-12-11
+
+### Added
+- **Install Command**: New `payzephyr:install` artisan command for streamlined package setup
+  - Automatically publishes configuration file
+  - Publishes migration files
+  - Optionally runs migrations with user confirmation
+  - Displays setup instructions and example environment variables
+  - Supports `--force` flag to overwrite existing files
+
+### Changed
+- **Documentation**: Updated installation instructions across all documentation files
+  - README.md now uses `payzephyr:install` as the primary installation method
+  - GETTING_STARTED.md updated with new install command workflow
+  - DOCUMENTATION.md updated to reflect simplified installation process
+  - Manual installation steps retained as alternative option for advanced users
+
+### Improved
+- **Developer Experience**: Simplified package installation from 3 manual steps to 1 command
+  - Reduces setup time and potential for errors
+  - Provides better onboarding experience for new users
+  - Maintains backward compatibility with manual setup option
+
+### Documentation
+- Updated all installation guides to feature `payzephyr:install` command
+- Added clear examples and expected output for install command
+- Documented `--force` flag usage for overwriting existing files
+- Maintained comprehensive documentation for manual setup alternative
+
+---
 ## [1.1.5] - 2025-12-10
 
 ### Added
@@ -14,12 +44,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Status API: HMAC-SHA512 signature authentication using Private Key (Secret Key) and Merchant ID
   - Support for card payments, bank transfer, USSD, and mobile money
   - Comprehensive test coverage with integration and coverage tests
-
-- **Remita Driver**: New payment driver for Remita payment processing
-  - Support for RRR (Remita Retrieval Reference) generation
-  - SHA512 hash-based authentication
-  - Webhook signature validation
-  - Comprehensive test coverage
 
 ### Changed
 - **OPay Driver**: Improved authentication implementation
@@ -30,13 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - Added comprehensive OPay driver documentation with authentication details
-- Added Remita driver documentation
 - Updated README and provider docs with new authentication requirements
 - Clarified secret_key requirement for OPay status API
 
 ### Tests
 - Added comprehensive test coverage for OPayDriver
-- Added comprehensive test coverage for RemitaDriver
 - Fixed OPayDriverIntegrationTest to include secret_key in config
 - All tests passing (700+ tests)
 

@@ -6,19 +6,16 @@ namespace KenDeNigerian\PayZephyr\Drivers;
 
 use Exception;
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+use Throwable;
 
 /**
  * Driver implementation for the Monnify payment gateway.
- *
- * This driver handles the specific OAuth2-style authentication flow required
- * by Monnify, where an API Key and Secret are exchanged for a Bearer token.
  */
 final class MonnifyDriver extends AbstractDriver
 {
@@ -88,21 +85,17 @@ final class MonnifyDriver extends AbstractDriver
             $this->tokenExpiry = time() + ($data['responseBody']['expiresIn'] ?? 3600) - 60;
 
             return $this->accessToken;
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (Throwable $e) {
             $this->log('error', 'Monnify authentication failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException('Monnify authentication failed: '.$userMessage, 0, $e);
+            throw new ChargeException('Monnify authentication failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Initialize a transaction on Monnify.
-     *
-     * Maps the standardized ChargeRequestDTO to the Monnify 'init-transaction' payload.
-     * Requires a 'contract_code' from configuration.
      */
     public function charge(ChargeRequestDTO $request): ChargeResponseDTO
     {
@@ -150,7 +143,9 @@ final class MonnifyDriver extends AbstractDriver
                 metadata: $request->metadata,
                 provider: $this->getName(),
             );
-        } catch (GuzzleException $e) {
+        } catch (ChargeException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Charge failed', ['error' => $e->getMessage()]);
             throw new ChargeException('Monnify charge failed: '.$e->getMessage(), 0, $e);
         } finally {
@@ -192,14 +187,15 @@ final class MonnifyDriver extends AbstractDriver
                     'name' => $result['customer']['name'] ?? null,
                 ],
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (VerificationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new VerificationException($userMessage, 0, $e);
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -231,11 +227,9 @@ final class MonnifyDriver extends AbstractDriver
             return true;
 
         } catch (ClientException) {
-            // 4xx means API is reachable
             return true;
 
         } catch (ChargeException $e) {
-            // If ChargeException wraps a ClientException, API is reachable
             $previous = $e->getPrevious();
             if ($previous instanceof ClientException) {
                 return true;
@@ -278,7 +272,6 @@ final class MonnifyDriver extends AbstractDriver
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // Monnify can use either reference or provider ID
         return $providerId;
     }
 }

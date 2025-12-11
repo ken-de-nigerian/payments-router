@@ -4,35 +4,33 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Services;
 
+use KenDeNigerian\PayZephyr\Contracts\ChannelMapperInterface;
+use KenDeNigerian\PayZephyr\Enums\PaymentChannel;
+
 /**
- * Channel Mapper Service
- *
- * This service maps unified channel names to provider-specific channel names.
- * It ensures consistency across all providers while respecting their API requirements.
- *
- * Single Responsibility: Only handles channel name mapping.
+ * Channel mapper service.
  */
-final class ChannelMapper
+final class ChannelMapper implements ChannelMapperInterface
 {
-    /**
-     * Unified channel names used in the package.
-     */
+    /** @deprecated Use PaymentChannel enum instead */
     public const CHANNEL_CARD = 'card';
 
+    /** @deprecated Use PaymentChannel enum instead */
     public const CHANNEL_BANK_TRANSFER = 'bank_transfer';
 
+    /** @deprecated Use PaymentChannel enum instead */
     public const CHANNEL_USSD = 'ussd';
 
+    /** @deprecated Use PaymentChannel enum instead */
     public const CHANNEL_MOBILE_MONEY = 'mobile_money';
 
+    /** @deprecated Use PaymentChannel enum instead */
     public const CHANNEL_QR_CODE = 'qr_code';
 
     /**
-     * Map unified channels to provider-specific channel names.
+     * Map channels to provider format.
      *
-     * @param  array<string>|null  $channels  Unified channel names (e.g., ['card', 'bank_transfer'])
-     * @param  string  $provider  Provider name (e.g., 'paystack', 'monnify')
-     * @return array<string>|null Provider-specific channel names or null if not supported
+     * @param  array<string>|null  $channels
      */
     public function mapChannels(?array $channels, string $provider): ?array
     {
@@ -47,7 +45,7 @@ final class ChannelMapper
             'stripe' => $this->mapToStripe($channels),
             'paypal' => $this->mapToPayPal(),
             'square' => $this->mapToSquare($channels),
-            default => $channels, // Return as-is for unknown providers
+            default => $channels,
         };
     }
 
@@ -59,11 +57,11 @@ final class ChannelMapper
     protected function mapToPaystack(array $channels): array
     {
         $mapping = [
-            self::CHANNEL_CARD => 'card',
-            self::CHANNEL_BANK_TRANSFER => 'bank_transfer',
-            self::CHANNEL_USSD => 'ussd',
-            self::CHANNEL_MOBILE_MONEY => 'mobile_money',
-            self::CHANNEL_QR_CODE => 'qr',
+            PaymentChannel::CARD->value => 'card',
+            PaymentChannel::BANK_TRANSFER->value => 'bank_transfer',
+            PaymentChannel::USSD->value => 'ussd',
+            PaymentChannel::MOBILE_MONEY->value => 'mobile_money',
+            PaymentChannel::QR_CODE->value => 'qr',
         ];
 
         return array_filter(
@@ -79,10 +77,10 @@ final class ChannelMapper
     protected function mapToMonnify(array $channels): array
     {
         $mapping = [
-            self::CHANNEL_CARD => 'CARD',
-            self::CHANNEL_BANK_TRANSFER => 'ACCOUNT_TRANSFER',
-            self::CHANNEL_USSD => 'USSD',
-            self::CHANNEL_MOBILE_MONEY => 'PHONE_NUMBER',
+            PaymentChannel::CARD->value => 'CARD',
+            PaymentChannel::BANK_TRANSFER->value => 'ACCOUNT_TRANSFER',
+            PaymentChannel::USSD->value => 'USSD',
+            PaymentChannel::MOBILE_MONEY->value => 'PHONE_NUMBER',
         ];
 
         $mapped = array_map(
@@ -103,11 +101,11 @@ final class ChannelMapper
     protected function mapToFlutterwave(array $channels): array
     {
         $mapping = [
-            self::CHANNEL_CARD => 'card',
-            self::CHANNEL_BANK_TRANSFER => 'banktransfer',
-            self::CHANNEL_USSD => 'ussd',
-            self::CHANNEL_MOBILE_MONEY => 'mobilemoneyghana', // Default to Ghana, can be overridden
-            self::CHANNEL_QR_CODE => 'nqr',
+            PaymentChannel::CARD->value => 'card',
+            PaymentChannel::BANK_TRANSFER->value => 'banktransfer',
+            PaymentChannel::USSD->value => 'ussd',
+            PaymentChannel::MOBILE_MONEY->value => 'mobilemoneyghana',
+            PaymentChannel::QR_CODE->value => 'nqr',
         ];
 
         $mapped = array_map(
@@ -115,7 +113,6 @@ final class ChannelMapper
             $channels
         );
 
-        // Flutterwave accepts valid payment options (common ones)
         $validOptions = [
             'card', 'account', 'banktransfer', 'ussd', 'mpesa',
             'mobilemoneyghana', 'mobilemoneyfranco', 'mobilemoneyuganda',
@@ -134,8 +131,8 @@ final class ChannelMapper
     protected function mapToStripe(array $channels): array
     {
         $mapping = [
-            self::CHANNEL_CARD => 'card',
-            self::CHANNEL_BANK_TRANSFER => 'us_bank_account', // Stripe's bank transfer
+            PaymentChannel::CARD->value => 'card',
+            PaymentChannel::BANK_TRANSFER->value => 'us_bank_account',
         ];
 
         $mapped = array_map(
@@ -143,7 +140,6 @@ final class ChannelMapper
             $channels
         );
 
-        // Filter to only valid Stripe payment method types
         $validTypes = ['card', 'us_bank_account', 'link', 'affirm', 'klarna', 'cashapp', 'paypal'];
 
         return array_filter($mapped, fn ($type) => in_array($type, $validTypes));
@@ -172,8 +168,8 @@ final class ChannelMapper
     protected function mapToSquare(array $channels): array
     {
         $mapping = [
-            self::CHANNEL_CARD => 'CARD',
-            self::CHANNEL_BANK_TRANSFER => 'OTHER', // Square doesn't have direct bank transfer
+            PaymentChannel::CARD->value => 'CARD',
+            PaymentChannel::BANK_TRANSFER->value => 'OTHER',
         ];
 
         $mapped = array_map(
@@ -181,17 +177,15 @@ final class ChannelMapper
             $channels
         );
 
-        // Square payment methods
         $validMethods = ['CARD', 'CASH', 'OTHER', 'SQUARE_GIFT_CARD'];
 
         return array_filter($mapped, fn ($method) => in_array($method, $validMethods));
     }
 
     /**
-     * Get default channels for a provider if none are specified.
+     * Get default channels for provider.
      *
-     * @param  string  $provider  Provider name
-     * @return array<string> Default channels for the provider (already in provider format)
+     * @return array<string>
      */
     public function getDefaultChannels(string $provider): array
     {
@@ -201,16 +195,15 @@ final class ChannelMapper
             'flutterwave' => ['card'],
             'stripe' => ['card'],
             'paypal' => [], // PayPal doesn't use channels
-            'square' => ['CARD'], // Square Online Checkout primarily supports cards
-            default => ['card'], // Default to card for unknown providers
+            'square' => ['CARD'],
+            default => ['card'],
         };
     }
 
     /**
-     * Check if channels should be included (some providers don't support it).
+     * Check if channels should be included.
      *
-     * @param  string  $provider  Provider name
-     * @return bool True if provider supports channel filtering
+     * @param  array<string>|null  $channels
      */
     public function shouldIncludeChannels(string $provider, ?array $channels): bool
     {
@@ -222,32 +215,23 @@ final class ChannelMapper
     }
 
     /**
-     * Get unified channel names (for documentation/API consistency).
+     * Get unified channels.
      *
-     * @return array<string> All supported unified channel names
+     * @return array<string>
      */
     public static function getUnifiedChannels(): array
     {
-        return [
-            self::CHANNEL_CARD,
-            self::CHANNEL_BANK_TRANSFER,
-            self::CHANNEL_USSD,
-            self::CHANNEL_MOBILE_MONEY,
-            self::CHANNEL_QR_CODE,
-        ];
+        return PaymentChannel::values();
     }
 
     /**
-     * Check if a provider supports channel filtering.
-     *
-     * @param  string  $provider  Provider name
-     * @return bool True if provider supports channel filtering
+     * Check if provider supports channels.
      */
     public function supportsChannels(string $provider): bool
     {
         return match ($provider) {
             'paystack', 'monnify', 'flutterwave', 'stripe', 'square' => true,
-            'paypal' => false, // PayPal doesn't support channel filtering
+            'paypal' => false,
             default => false,
         };
     }

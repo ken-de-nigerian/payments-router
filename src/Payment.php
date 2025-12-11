@@ -12,41 +12,23 @@ use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
 /**
- * The Payment Builder - Your main interface for processing payments.
- *
- * This class lets you build payment requests step-by-step using a simple chainable syntax.
- * For example, Payment::amount(1000)->email('user@example.com')->redirect()
- *
- * Once you call redirect() or charge(), it sends everything to PaymentManager to handle.
+ * Payment builder for processing payments.
  */
 final class Payment
 {
-    /**
-     * The payment manager that handles all the actual payment processing.
-     */
     protected PaymentManager $manager;
 
-    /**
-     * All the payment details you've set (amount, email, currency, etc.)
-     */
     protected array $data = [];
 
-    /**
-     * Which payment provider(s) to use for this payment (e.g., 'paystack', 'stripe').
-     * If empty, use the default from config.
-     */
     protected array $providers = [];
 
-    /**
-     * Create a new payment builder.
-     */
     public function __construct(PaymentManager $manager)
     {
         $this->manager = $manager;
     }
 
     /**
-     * Set how much money to charge (in the main currency unit, e.g., 100.00 for $100).
+     * Set payment amount.
      */
     public function amount(float $amount): Payment
     {
@@ -56,8 +38,7 @@ final class Payment
     }
 
     /**
-     * Set the currency (e.g., 'NGN', 'USD', 'EUR').
-     * Automatically converts to uppercase, so 'ngn' becomes 'NGN'.
+     * Set currency code.
      */
     public function currency(string $currency): Payment
     {
@@ -67,7 +48,7 @@ final class Payment
     }
 
     /**
-     * Set the customer's email address (required for most providers).
+     * Set customer email.
      */
     public function email(string $email): Payment
     {
@@ -77,8 +58,7 @@ final class Payment
     }
 
     /**
-     * Set your own unique transaction reference (like 'ORDER_12345').
-     * If you don't set this, the system will generate one automatically.
+     * Set transaction reference.
      */
     public function reference(string $reference): Payment
     {
@@ -88,11 +68,7 @@ final class Payment
     }
 
     /**
-     * Set the URL where the customer should be sent after they finish paying.
-     * This is where you'll verify the payment status.
-     *
-     * **Required: ** This method must be called when using the fluent API.
-     * The payment will fail if the callback URL is not provided.
+     * Set callback URL (required).
      */
     public function callback(string $url): Payment
     {
@@ -102,8 +78,7 @@ final class Payment
     }
 
     /**
-     * Add extra information to the payment (like order ID, user ID, etc.).
-     * This data gets sent to the payment provider and comes back in webhooks.
+     * Set payment metadata.
      */
     public function metadata(array $metadata): Payment
     {
@@ -113,8 +88,7 @@ final class Payment
     }
 
     /**
-     * Set an idempotency key to prevent charging the same payment twice.
-     * Use a unique value (like a UUID) for each payment attempt.
+     * Set idempotency key.
      */
     public function idempotency(string $key): Payment
     {
@@ -124,7 +98,7 @@ final class Payment
     }
 
     /**
-     * Set a description for the payment (what the customer is paying for).
+     * Set payment description.
      */
     public function description(string $description): Payment
     {
@@ -134,8 +108,7 @@ final class Payment
     }
 
     /**
-     * Set customer details like name, phone number, address, etc.
-     * Pass an array: ['name' => 'John Doe', 'phone' => '+1234567890']
+     * Set customer details.
      */
     public function customer(array $customer): Payment
     {
@@ -145,9 +118,7 @@ final class Payment
     }
 
     /**
-     * Limit which payment methods the customer can use.
-     * For example, ['card', 'bank_transfer'] means only cards and bank transfers.
-     * Useful for providers like Paystack.
+     * Set payment channels.
      */
     public function channels(array $channels): Payment
     {
@@ -157,15 +128,9 @@ final class Payment
     }
 
     /**
-     * Choose which payment provider(s) to use for this payment.
+     * Set payment provider(s).
      *
-     * Examples:
-     * - with('paystack') - Use only Paystack
-     * - with(['paystack', 'stripe']) - Try Paystack first, then Stripe if it fails
-     *
-     * If you don't call this, it uses the default provider from your config.
-     *
-     * @param  string|array  $providers  Provider name(s) like 'paystack', 'stripe', etc.
+     * @param  string|array<string>  $providers
      */
     public function with(string|array $providers): Payment
     {
@@ -175,8 +140,7 @@ final class Payment
     }
 
     /**
-     * Same as with() - just an alternative name for better readability.
-     * You can use either: with('paystack') or using('paystack')
+     * Alias for with().
      */
     public function using(string|array $providers): Payment
     {
@@ -184,16 +148,10 @@ final class Payment
     }
 
     /**
-     * Process the payment and get the response (without redirecting the user).
+     * Process payment and return response.
      *
-     * This creates a payment request and sends it to the payment provider.
-     * Returns a ChargeResponseDTO object with details like the payment URL.
-     *
-     * Use this when you want to handle the redirect yourself (e.g., for API responses).
-     * For automatic redirects, use redirect() instead.
-     *
-     * @throws InvalidConfigurationException If callback URL is not set.
-     * @throws ProviderException If all payment providers fail.
+     * @throws InvalidConfigurationException
+     * @throws ProviderException
      */
     public function charge(): ChargeResponseDTO
     {
@@ -203,8 +161,12 @@ final class Payment
             );
         }
 
+        // Use config singleton to avoid breaking config caching
+        $config = app('payments.config') ?? config('payments', []);
+        $defaultCurrency = $config['currency']['default'] ?? 'NGN';
+
         $request = ChargeRequestDTO::fromArray(array_merge([
-            'currency' => config('payments.currency.default', 'NGN'),
+            'currency' => $defaultCurrency,
             'channels' => $this->data['channels'] ?? null,
         ], $this->data));
 
@@ -212,14 +174,10 @@ final class Payment
     }
 
     /**
-     * Process the payment and automatically redirect the customer to the payment page.
+     * Process payment and redirect to payment page.
      *
-     * This is the easiest way to handle payments - it processes the payment
-     * and sends the customer to the provider's checkout page.
-     *
-     * Use this in your controller: return Payment::amount(1000)->email('user@example.com')->redirect();
-     *
-     * @throws ProviderException|InvalidConfigurationException If all payment providers fail.
+     * @throws ProviderException
+     * @throws InvalidConfigurationException
      */
     public function redirect(): RedirectResponse
     {
@@ -229,16 +187,9 @@ final class Payment
     }
 
     /**
-     * Check if a payment was successful by looking up the transaction reference.
+     * Verify payment by reference.
      *
-     * This searches for the payment across all enabled providers (or the one you specify).
-     * Use this in your callback route after the customer returns from payment.
-     *
-     * @param  string  $reference  The transaction reference (from the payment response or callback).
-     * @param  string|null  $provider  Optional: specify which provider to check (e.g., 'paystack').
-     *                                 If null, searches all providers automatically.
-     *
-     * @throws ProviderException If the payment can't be found or verified.
+     * @throws ProviderException
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponseDTO
     {

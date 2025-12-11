@@ -4,23 +4,16 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Drivers;
 
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
-use Random\RandomException;
+use Throwable;
 
 /**
- * OPayDriver - Handles Payments via OPay
- *
- * This driver processes payments through OPay's API.
- * OPay uses RSA authentication and provides payment processing services.
- * When you initialize a payment, it redirects the customer to OPay's
- * hosted checkout page where they can pay with card, bank transfer, etc.
+ * Driver implementation for the Opay payment gateway.
  */
 final class OPayDriver extends AbstractDriver
 {
@@ -67,11 +60,7 @@ final class OPayDriver extends AbstractDriver
     /**
      * Create a new payment on OPay.
      *
-     * Important: OPay requires amounts in the smallest currency unit
-     * (kobo for NGN). This method automatically converts your amount.
-     *
      * @throws ChargeException If the payment creation fails.
-     * @throws RandomException If reference generation fails.
      */
     public function charge(ChargeRequestDTO $request): ChargeResponseDTO
     {
@@ -80,19 +69,37 @@ final class OPayDriver extends AbstractDriver
         try {
             $reference = $request->reference ?? $this->generateReference('OPAY');
             $amount = $request->getAmountInMinorUnits();
+            $callbackUrl = $this->appendQueryParam($request->callbackUrl, 'reference', $reference);
 
             $payload = [
+                'country' => 'NG',
                 'reference' => $reference,
-                'amount' => (string) $amount,
-                'currency' => $request->currency,
-                'callbackUrl' => $request->callbackUrl,
-                'returnUrl' => $request->callbackUrl,
-                'description' => $request->metadata['description'] ?? 'Payment for '.$reference,
-                'customerEmail' => $request->email,
-                'customerName' => $request->metadata['name'] ?? $request->email,
+                'amount' => [
+                    'total' => (string) $amount,
+                    'currency' => $request->currency,
+                ],
+                'callbackUrl' => $callbackUrl,
+                'returnUrl' => $callbackUrl,
+                'cancelUrl' => $callbackUrl,
+                'displayName' => $request->metadata['name'] ?? $request->email,
+                'userInfo' => [
+                    'userEmail' => $request->email,
+                    'userName' => $request->metadata['name'] ?? $request->email,
+                ],
+                'product' => [
+                    'name' => 'Product',
+                    'description' => $request->metadata['description'] ?? 'Payment for '.$reference,
+                ],
+                'metadata' => array_merge($request->metadata, [
+                    'reference' => $reference,
+                ]),
             ];
 
-            // Remove null values
+            $channels = $this->mapChannels($request);
+            if ($channels) {
+                $payload['payMethod'] = $channels;
+            }
+
             $payload = array_filter($payload, fn ($value) => $value !== null);
 
             $response = $this->makeRequest('POST', '/api/v1/international/cashier/create', [
@@ -101,7 +108,6 @@ final class OPayDriver extends AbstractDriver
 
             $data = $this->parseResponse($response);
 
-            // OPay returns code: '00000' = success, others = failed
             if (($data['code'] ?? '') !== '00000') {
                 throw new ChargeException(
                     $data['message'] ?? $data['msg'] ?? 'Failed to initialize OPay payment'
@@ -122,13 +128,14 @@ final class OPayDriver extends AbstractDriver
                 metadata: $request->metadata,
                 provider: $this->getName(),
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (ChargeException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Charge failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException($userMessage, 0, $e);
+            throw new ChargeException('Payment initialization failed: '.$e->getMessage(), 0, $e);
         } finally {
             $this->clearCurrentRequest();
         }
@@ -137,31 +144,25 @@ final class OPayDriver extends AbstractDriver
     /**
      * Verify an OPay payment by transaction reference.
      *
-     * Looks up the transaction by reference and returns the payment details.
-     * The amount is automatically converted back from kobo to main units.
-     *
-     * Note: The status API requires HMAC-SHA512 signature authentication,
-     * unlike the create payment API which uses public key authentication.
-     *
      * @param  string  $reference  The transaction reference
      *
-     * @throws VerificationException|InvalidConfigurationException If the payment can't be found or verified.
+     * @throws VerificationException If the payment can't be found or verified.
      */
     public function verify(string $reference): VerificationResponseDTO
     {
         try {
-            $payload = ['reference' => $reference];
-            $payloadJson = json_encode($payload, JSON_UNESCAPED_SLASHES);
+            $payload = [
+                'country' => 'NG',
+                'reference' => $reference,
+            ];
+            $payloadJson = (string) json_encode($payload, JSON_UNESCAPED_SLASHES);
 
             $privateKey = $this->config['secret_key'] ?? null;
             if (empty($privateKey)) {
                 throw new InvalidConfigurationException('OPay secret key (private key) is required for status API authentication');
             }
 
-            $hmacKey = $privateKey.$this->config['merchant_id'];
-            $signature = hash_hmac('sha512', $payloadJson, $hmacKey);
-
-            // Status API requires signature-based authentication
+            $signature = hash_hmac('sha512', $payloadJson, $privateKey);
             $response = $this->makeRequest('POST', '/api/v1/international/cashier/status', [
                 'json' => $payload,
                 'headers' => [
@@ -171,8 +172,6 @@ final class OPayDriver extends AbstractDriver
             ]);
 
             $data = $this->parseResponse($response);
-
-            // Check if response indicates success
             if (($data['code'] ?? '') !== '00000') {
                 throw new VerificationException(
                     $data['message'] ?? $data['msg'] ?? 'Failed to verify OPay transaction'
@@ -196,26 +195,27 @@ final class OPayDriver extends AbstractDriver
             return new VerificationResponseDTO(
                 reference: $result['reference'] ?? $result['orderNo'] ?? $reference,
                 status: $status,
-                amount: ($result['amount'] ?? 0) / 100,
-                currency: $result['currency'] ?? 'NGN',
-                paidAt: $result['payTime'] ?? $result['paymentDate'] ?? $result['transactionDate'] ?? null,
+                amount: ($result['amount']['total'] ?? 0) / 100,
+                currency: $result['amount']['currency'] ?? 'NGN',
+                paidAt: isset($result['createTime']) ? date('Y-m-d H:i:s', $result['createTime']) : null,
                 metadata: $result['metadata'] ?? [],
                 provider: $this->getName(),
-                channel: $result['paymentChannel'] ?? $result['channel'] ?? null,
-                cardType: $result['cardType'] ?? null,
+                channel: $result['instrumentType'] ?? null,
+                cardType: $result['opayCardToken'] ?? null,
                 customer: [
                     'email' => $result['customerEmail'] ?? $result['email'] ?? null,
                     'name' => $result['customerName'] ?? $result['name'] ?? null,
                 ],
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (VerificationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new VerificationException($userMessage, 0, $e);
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -247,9 +247,7 @@ final class OPayDriver extends AbstractDriver
             return false;
         }
 
-        // OPay uses HMAC SHA256 for webhook validation
         $expectedSignature = hash_hmac('sha256', $body, $secretKey);
-
         $isValid = hash_equals($signature, $expectedSignature);
 
         $this->log($isValid ? 'info' : 'warning', 'Webhook validation', [
@@ -265,15 +263,10 @@ final class OPayDriver extends AbstractDriver
     public function healthCheck(): bool
     {
         try {
-            // Try a simple API call to check connectivity
-            $response = $this->makeRequest('GET', '/api/v3/international/cashier/status');
+            $response = $this->makeRequest('POST', '/api/v1/international/cashier/status');
 
             return $response->getStatusCode() < 500;
-        } catch (ClientException $e) {
-            // 4xx errors mean the API is working
-            return $e->getResponse()->getStatusCode() < 500;
-        } catch (GuzzleException $e) {
-            // Network errors, timeouts, 5xx errors = unhealthy
+        } catch (Throwable $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
 
             return false;
@@ -285,7 +278,7 @@ final class OPayDriver extends AbstractDriver
      */
     public function extractWebhookReference(array $payload): ?string
     {
-        return $payload['reference'] ?? $payload['orderNo'] ?? $payload['orderNumber'] ?? null;
+        return $payload['reference'] ?? $payload['orderNo'] ?? null;
     }
 
     /**
@@ -301,7 +294,7 @@ final class OPayDriver extends AbstractDriver
      */
     public function extractWebhookChannel(array $payload): ?string
     {
-        return $payload['paymentChannel'] ?? $payload['channel'] ?? null;
+        return $payload['instrumentType'] ?? $payload['paymentChannel'] ?? null;
     }
 
     /**
@@ -310,7 +303,6 @@ final class OPayDriver extends AbstractDriver
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // OPay verifies by the main transaction reference
         return $reference;
     }
 }

@@ -20,10 +20,6 @@ use Stripe\Webhook;
 
 /**
  * Driver implementation for the Stripe payment gateway.
- *
- * This driver utilizes the official stripe/stripe-php SDK.
- * It implements the "Stripe Checkout" flow, where the user is redirected to a Stripe-hosted
- * page to complete the transaction securely.
  */
 final class StripeDriver extends AbstractDriver
 {
@@ -111,7 +107,6 @@ final class StripeDriver extends AbstractDriver
 
             $callback = $request->callbackUrl;
 
-            // Build the URLs safely using the helper
             $successUrl = $this->appendQueryParam($callback, 'status', 'success');
             $successUrl = $this->appendQueryParam($successUrl, 'reference', $reference);
 
@@ -269,8 +264,6 @@ final class StripeDriver extends AbstractDriver
         }
 
         try {
-            // Stripe's constructEvent validates the signature and returns the event object
-            // It throws an exception if validation fails
             Webhook::constructEvent(
                 $body,
                 $signature,

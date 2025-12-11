@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Exceptions;
 
 use Exception;
+use Throwable;
 
 /**
- * Class PaymentException
- *
- * Base exception for all payment-related errors
+ * Base payment exception.
  */
 class PaymentException extends Exception
 {
     protected array $context = [];
 
     /**
-     * Set exception context
+     * Set context.
      */
     public function setContext(array $context): static
     {
@@ -26,7 +25,7 @@ class PaymentException extends Exception
     }
 
     /**
-     * Get exception context
+     * Get context.
      */
     public function getContext(): array
     {
@@ -34,10 +33,10 @@ class PaymentException extends Exception
     }
 
     /**
-     * Create exception with context
+     * Create exception with context.
      */
-    public static function withContext(string $message, array $context = []): static
+    public static function withContext(string $message, array $context = [], ?Throwable $previous = null): static
     {
-        return (new static($message))->setContext($context);
+        return (new static($message, 0, $previous))->setContext($context);
     }
 }

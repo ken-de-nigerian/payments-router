@@ -275,7 +275,6 @@ Payment::amount(10000)
 | Stripe      |  ✅  |  ✅  |  ✅  |  ✅  |  ❌  |        135+        |
 | PayPal      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |        25+         |
 | Square      |  ❌  |  ✅  |  ❌  |  ✅  |  ❌  |      CAD, AUD      |
-| Remita      |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
 | OPay        |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
 
 ---
@@ -306,72 +305,10 @@ Payment::amount(10000)
 - Location ID: Get from Square Dashboard → Locations
 - Use Square Sandbox for testing
 
-### Remita
-- Public Key and Secret Key: Get from Remita Dashboard → API Credentials
-- Use Remita demo environment for testing
-
 ### OPay
 - Merchant ID, Public Key, Private Key (Secret Key): Get from OPay Business Dashboard → API Credentials
 - **Note:** Secret Key is required for Status API authentication (HMAC-SHA512) and webhook validation
 - Use OPay production environment for testing (sandbox may vary)
-
----
-
-## Remita
-
-### Configuration
-
-```env
-REMITA_PUBLIC_KEY=your_public_key
-REMITA_SECRET_KEY=your_secret_key
-REMITA_BASE_URL=https://api.remita.net
-REMITA_ENABLED=true
-```
-
-**Note:** 
-- Demo: `https://remitademo.net`
-- Live: `https://api.remita.net`
-
-### Supported Currencies
-- NGN (Nigerian Naira) only
-
-### Features
-- RRR (Remita Retrieval Reference) generation
-- Card payments
-- Bank transfer
-- USSD payments
-- Multiple payment channels
-- Government and corporate billing
-
-### Usage Example
-
-```php
-// Builder methods can be chained in any order
-// redirect() must be called last to execute
-Payment::amount(50000)
-    ->currency('NGN')
-    ->email('customer@example.com')
-    ->callback(route('payment.callback'))
-    ->with('remita') // or ->using('remita')
-    ->redirect(); // Must be called last
-```
-
-### Webhook Configuration
-
-URL: `https://yourdomain.com/payments/webhook/remita`
-
-Remita uses HMAC SHA512 for webhook signature validation. The signature is sent in the `remita-hash` header.
-
-**Important:** Set your secret key in `.env` for webhook validation:
-```env
-REMITA_SECRET_KEY=your_secret_key
-```
-
-### Testing
-
-- Use Remita demo credentials from your Remita dashboard
-- Test RRR generation in demo environment
-- Get credentials from: Remita Dashboard → Integration → API Credentials
 
 ---
 

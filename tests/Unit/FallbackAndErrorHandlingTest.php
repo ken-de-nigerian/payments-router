@@ -159,6 +159,8 @@ test('health check cache ttl is configurable', function () {
 });
 
 test('fallback chain handles empty fallback', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'paystack',
         'payments.fallback' => null,
@@ -170,6 +172,8 @@ test('fallback chain handles empty fallback', function () {
 });
 
 test('fallback chain handles same default and fallback', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'paystack',
         'payments.fallback' => 'paystack',
@@ -217,6 +221,8 @@ test('invalid driver configuration throws exception', function () {
 })->throws(DriverNotFoundException::class);
 
 test('disabled provider is not available', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.providers.paystack' => [
             'driver' => 'paystack',
@@ -226,8 +232,8 @@ test('disabled provider is not available', function () {
     ]);
 
     $manager = new PaymentManager;
-    $manager->driver('paystack');
-})->throws(DriverNotFoundException::class);
+    expect(fn () => $manager->driver('paystack'))->toThrow(DriverNotFoundException::class);
+});
 
 test('missing provider configuration throws exception', function () {
     $manager = new PaymentManager;

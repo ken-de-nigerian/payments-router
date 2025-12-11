@@ -39,10 +39,22 @@ beforeEach(function () {
 });
 
 test('it uses the configured table name', function () {
+    // Clear the cached config instance
+    app()->forgetInstance('payments.config');
+
     config(['payments.logging.table' => 'custom_transactions_table']);
 
+    // Configure the table name from config
+    $provider = new \KenDeNigerian\PayZephyr\PaymentServiceProvider(app());
+    $reflection = new \ReflectionClass($provider);
+    $method = $reflection->getMethod('configureModel');
+    $method->setAccessible(true);
+    $method->invoke($provider);
+
+    // Create a new instance to get the updated table name
     $model = new PaymentTransaction;
 
+    // The table name should be set from config
     expect($model->getTable())->toBe('custom_transactions_table');
 });
 
@@ -72,9 +84,9 @@ test('it casts attributes correctly', function () {
 
     // specific to decimal:2 cast, it returns a string to preserve precision
     expect($transaction->amount)->toBe('5000.50')
-        ->and($transaction->metadata)->toBeArray()
+        ->and($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
         ->and($transaction->metadata['order_id'])->toBe(1)
-        ->and($transaction->customer)->toBeArray()
+        ->and($transaction->customer)->toBeInstanceOf(\ArrayObject::class)
         ->and($transaction->paid_at)->toBeInstanceOf(Carbon::class);
 });
 

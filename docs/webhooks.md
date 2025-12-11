@@ -28,7 +28,6 @@ POST /payments/webhook/monnify      ← Monnify sends webhooks here
 POST /payments/webhook/stripe       ← Stripe sends webhooks here
 POST /payments/webhook/paypal       ← PayPal sends webhooks here
 POST /payments/webhook/square       ← Square sends webhooks here
-POST /payments/webhook/remita       ← Remita sends webhooks here
 POST /payments/webhook/opay         ← OPay sends webhooks here
 ```
 
@@ -94,12 +93,6 @@ You need to tell each payment provider where to send webhooks. Go to each provid
 - Go to: Developers → Webhooks → Add endpoint
 - Add URL: `https://yourdomain.com/payments/webhook/square`
 - Copy the Signature Key and set it as `SQUARE_WEBHOOK_SIGNATURE_KEY` in your `.env` file
-
-**Remita Dashboard:**
-- Go to: Integration → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/remita`
-- Remita uses HMAC SHA512 signature validation
-- Ensure `REMITA_API_KEY` is set in your `.env` file
 
 **OPay Dashboard:**
 - Go to: OPay Business Dashboard → Webhooks

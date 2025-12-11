@@ -42,7 +42,7 @@ test('opay driver healthCheck returns true for successful response', function ()
     expect($driver->healthCheck())->toBeTrue();
 });
 
-test('opay driver healthCheck returns true for 4xx errors', function () {
+test('opay driver healthCheck returns false for 4xx errors', function () {
     $driver = new OPayDriver([
         'merchant_id' => 'test_merchant',
         'public_key' => 'test_public',
@@ -60,7 +60,7 @@ test('opay driver healthCheck returns true for 4xx errors', function () {
 
     $driver->setClient($client);
 
-    expect($driver->healthCheck())->toBeTrue();
+    expect($driver->healthCheck())->toBeFalse();
 });
 
 test('opay driver healthCheck returns false for network errors', function () {

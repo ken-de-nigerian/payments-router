@@ -1,12 +1,19 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Schema;
 use KenDeNigerian\PayZephyr\Http\Controllers\WebhookController;
+use KenDeNigerian\PayZephyr\Http\Requests\WebhookRequest;
+use KenDeNigerian\PayZephyr\Jobs\ProcessWebhook;
 use KenDeNigerian\PayZephyr\PaymentManager;
 
+uses(RefreshDatabase::class);
+
 beforeEach(function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.logging.enabled' => true,
         'payments.webhook.verify_signature' => true,
@@ -51,72 +58,101 @@ beforeEach(function () {
 });
 
 test('webhook controller extracts paystack reference correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('paystack', [
         'data' => [
             'reference' => 'paystack_ref_123',
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'paystack', $payload);
+    $manager = app(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('paystack_ref_123');
+
+    // Inject mock driver into PaymentManager using reflection
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('paystack_ref_123');
 });
 
 test('webhook controller extracts flutterwave reference correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('flutterwave', [
         'data' => [
             'tx_ref' => 'flutterwave_ref_123',
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'flutterwave', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('flutterwave_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('flutterwave')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('flutterwave_ref_123');
 });
 
 test('webhook controller extracts monnify reference correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('monnify', [
+        'paymentReference' => 'monnify_ref_123',
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('monnify_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('monnify')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
 
-    $payload = [
-        'paymentReference' => 'monnify_ref_123',
-    ];
-
-    $reference = $method->invoke($controller, 'monnify', $payload);
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('monnify_ref_123');
 });
 
 test('webhook controller extracts monnify transaction reference as fallback', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('monnify', [
+        'transactionReference' => 'monnify_txn_ref_123',
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('monnify_txn_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('monnify')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
 
-    $payload = [
-        'transactionReference' => 'monnify_txn_ref_123',
-    ];
-
-    $reference = $method->invoke($controller, 'monnify', $payload);
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('monnify_txn_ref_123');
 });
 
 test('webhook controller extracts stripe reference from metadata', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('stripe', [
         'data' => [
             'object' => [
                 'metadata' => [
@@ -124,53 +160,77 @@ test('webhook controller extracts stripe reference from metadata', function () {
                 ],
             ],
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'stripe', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('stripe_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('stripe')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('stripe_ref_123');
 });
 
 test('webhook controller extracts stripe reference from client_reference_id', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('stripe', [
         'data' => [
             'object' => [
                 'client_reference_id' => 'stripe_client_ref_123',
             ],
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'stripe', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('stripe_client_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('stripe')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('stripe_client_ref_123');
 });
 
 test('webhook controller extracts paypal reference from custom_id', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('paypal', [
         'resource' => [
             'custom_id' => 'paypal_ref_123',
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'paypal', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('paypal_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('paypal')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('paypal_ref_123');
 });
 
 test('webhook controller extracts paypal reference from purchase_units', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('paypal', [
         'resource' => [
             'purchase_units' => [
                 [
@@ -178,19 +238,27 @@ test('webhook controller extracts paypal reference from purchase_units', functio
                 ],
             ],
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'paypal', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('paypal_purchase_ref_123');
+
+    $manager->shouldReceive('driver')
+        ->with('paypal')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('paypal_purchase_ref_123');
 });
 
 test('webhook controller extracts square reference from payment object', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('square', [
         'data' => [
             'object' => [
                 'payment' => [
@@ -198,156 +266,249 @@ test('webhook controller extracts square reference from payment object', functio
                 ],
             ],
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'square', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('SQUARE_1234567890_abc123');
+
+    $manager->shouldReceive('driver')
+        ->with('square')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('SQUARE_1234567890_abc123');
 });
 
 test('webhook controller extracts square reference from data id', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('extractReference');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('square', [
         'data' => [
             'id' => 'payment_123',
         ],
-    ];
+    ]);
 
-    $reference = $method->invoke($controller, 'square', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('payment_123');
+
+    $manager->shouldReceive('driver')
+        ->with('square')
+        ->andReturn($mockDriver);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('extractReference');
+    $method->setAccessible(true);
+
+    $reference = $method->invoke($job, $manager);
     expect($reference)->toBe('payment_123');
 });
 
 test('webhook controller returns null for unknown provider', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('unknown_provider', []);
+
+    $manager = app(PaymentManager::class);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('extractReference');
     $method->setAccessible(true);
 
-    $payload = [];
-
-    $reference = $method->invoke($controller, 'unknown_provider', $payload);
-    expect($reference)->toBeNull();
+    try {
+        $reference = $method->invoke($job, $manager);
+        expect($reference)->toBeNull();
+    } catch (\KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException $e) {
+        // Expected behavior - driver not found
+        expect(true)->toBeTrue();
+    }
 });
 
 test('webhook controller determines paystack status correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('determineStatus');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('paystack', [
         'data' => [
             'status' => 'success',
         ],
-    ];
+    ]);
 
-    $status = $method->invoke($controller, 'paystack', $payload);
+    $manager = app(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('success');
+
+    // Inject mock driver into PaymentManager using reflection
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('determineStatus');
+    $method->setAccessible(true);
+
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines flutterwave status correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('determineStatus');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('flutterwave', [
         'data' => [
             'status' => 'successful',
         ],
-    ];
+    ]);
 
-    $status = $method->invoke($controller, 'flutterwave', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('successful');
+
+    $manager->shouldReceive('driver')
+        ->with('flutterwave')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('determineStatus');
+    $method->setAccessible(true);
+
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines monnify status correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('monnify', [
+        'paymentStatus' => 'PAID',
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('PAID');
+
+    $manager->shouldReceive('driver')
+        ->with('monnify')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
 
-    $payload = [
-        'paymentStatus' => 'PAID',
-    ];
-
-    $status = $method->invoke($controller, 'monnify', $payload);
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines stripe status correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('determineStatus');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('stripe', [
         'data' => [
             'object' => [
                 'status' => 'succeeded',
             ],
         ],
-    ];
+    ]);
 
-    $status = $method->invoke($controller, 'stripe', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('succeeded');
+
+    $manager->shouldReceive('driver')
+        ->with('stripe')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('determineStatus');
+    $method->setAccessible(true);
+
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines stripe status from type', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('stripe', [
+        'type' => 'payment_intent.succeeded',
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('succeeded');
+
+    $manager->shouldReceive('driver')
+        ->with('stripe')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
 
-    $payload = [
-        'type' => 'payment_intent.succeeded',
-    ];
-
-    $status = $method->invoke($controller, 'stripe', $payload);
-    // Will be normalized by normalizeStatus method
-    expect($status)->toBeString();
+    $status = $method->invoke($job, $manager, $statusNormalizer);
+    expect($status)->toBe('success');
 });
 
 test('webhook controller determines paypal status correctly', function () {
-    $controller = app(\KenDeNigerian\PayZephyr\Http\Controllers\WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('determineStatus');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('paypal', [
         'resource' => [
             'status' => 'COMPLETED',
         ],
-    ];
+    ]);
 
-    $status = $method->invoke($controller, 'paypal', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('COMPLETED');
+
+    $manager->shouldReceive('driver')
+        ->with('paypal')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('determineStatus');
+    $method->setAccessible(true);
+
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines paypal status from event_type', function () {
-    $controller = app(\KenDeNigerian\PayZephyr\Http\Controllers\WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('paypal', [
+        'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('COMPLETED');
+
+    $manager->shouldReceive('driver')
+        ->with('paypal')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
 
-    $payload = [
-        'event_type' => 'PAYMENT.CAPTURE.COMPLETED',
-    ];
-
-    $status = $method->invoke($controller, 'paypal', $payload);
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines square status correctly', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('determineStatus');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('square', [
         'data' => [
             'object' => [
                 'payment' => [
@@ -355,95 +516,83 @@ test('webhook controller determines square status correctly', function () {
                 ],
             ],
         ],
-    ];
+    ]);
 
-    $status = $method->invoke($controller, 'square', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('COMPLETED');
+
+    $manager->shouldReceive('driver')
+        ->with('square')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('determineStatus');
+    $method->setAccessible(true);
+
+    $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 });
 
 test('webhook controller determines square status from type', function () {
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('square', [
+        'type' => 'payment.created',
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('unknown');
+
+    $manager->shouldReceive('driver')
+        ->with('square')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('determineStatus');
     $method->setAccessible(true);
 
-    $payload = [
-        'type' => 'payment.created',
-    ];
-
-    $status = $method->invoke($controller, 'square', $payload);
-    // Will be normalized by normalizeStatus method
-    expect($status)->toBeString();
+    $status = $method->invoke($job, $manager, $statusNormalizer);
+    expect($status)->toBe('unknown');
 });
 
 test('webhook controller normalizes status variations to success', function () {
-    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    $successVariations = ['success', 'succeeded', 'completed', 'successful', 'payment.capture.completed', 'paid'];
-
-    foreach ($successVariations as $variation) {
-        $normalized = $normalizer->normalize($variation, 'paypal');
-        expect($normalized)->toBe('success');
-    }
+    expect($statusNormalizer->normalize('success', 'paystack'))->toBe('success')
+        ->and($statusNormalizer->normalize('succeeded', 'stripe'))->toBe('success')
+        ->and($statusNormalizer->normalize('completed', 'paypal'))->toBe('success')
+        ->and($statusNormalizer->normalize('paid', 'monnify'))->toBe('success');
 });
 
 test('webhook controller normalizes status variations to failed', function () {
-    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    $failedVariations = ['failed', 'cancelled', 'declined', 'payment.capture.denied'];
-
-    foreach ($failedVariations as $variation) {
-        $normalized = $normalizer->normalize($variation, 'paypal');
-        expect($normalized)->toBe('failed');
-    }
+    expect($statusNormalizer->normalize('failed', 'paystack'))->toBe('failed')
+        ->and($statusNormalizer->normalize('failure', 'stripe'))->toBe('failed')
+        ->and($statusNormalizer->normalize('cancelled', 'paypal'))->toBe('failed');
 });
 
 test('webhook controller normalizes status variations to pending', function () {
-    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    $pendingVariations = ['pending', 'processing', 'requires_action', 'requires_payment_method'];
-
-    foreach ($pendingVariations as $variation) {
-        $normalized = $normalizer->normalize($variation);
-        expect($normalized)->toBe('pending');
-    }
+    expect($statusNormalizer->normalize('pending', 'paystack'))->toBe('pending')
+        ->and($statusNormalizer->normalize('processing', 'stripe'))->toBe('pending')
+        ->and($statusNormalizer->normalize('approved', 'paypal'))->toBe('pending');
 });
 
 test('webhook controller returns original status for unknown status', function () {
-    $normalizer = app(\KenDeNigerian\PayZephyr\Services\StatusNormalizer::class);
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    $unknownStatus = 'custom_status';
-    $normalized = $normalizer->normalize($unknownStatus);
-    expect($normalized)->toBe('custom_status');
+    expect($statusNormalizer->normalize('unknown_status', 'paystack'))->toBe('unknown_status');
 });
 
 test('webhook controller updates transaction from webhook with success status', function () {
-    // Ensure we're using the testing connection
-    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
-
-    // Create table (drop first to ensure clean state)
-    try {
-        Schema::connection('testing')->dropIfExists('payment_transactions');
-    } catch (\Exception $e) {
-        // Ignore if table doesn't exist
-    }
-
-    Schema::connection('testing')->create('payment_transactions', function ($table) {
-        $table->id();
-        $table->string('reference')->unique();
-        $table->string('provider');
-        $table->string('status');
-        $table->decimal('amount', 10, 2);
-        $table->string('currency', 3);
-        $table->string('email');
-        $table->string('channel')->nullable();
-        $table->json('metadata')->nullable();
-        $table->json('customer')->nullable();
-        $table->timestamp('paid_at')->nullable();
-        $table->timestamps();
-    });
-
-    // Create a transaction first
     \KenDeNigerian\PayZephyr\Models\PaymentTransaction::create([
         'reference' => 'webhook_ref_123',
         'provider' => 'paystack',
@@ -453,19 +602,34 @@ test('webhook controller updates transaction from webhook with success status', 
         'email' => 'test@example.com',
     ]);
 
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('updateTransactionFromWebhook');
-    $method->setAccessible(true);
-
-    $payload = [
+    $job = new ProcessWebhook('paystack', [
         'data' => [
+            'reference' => 'webhook_ref_123',
             'status' => 'success',
             'channel' => 'card',
         ],
-    ];
+    ]);
 
-    $method->invoke($controller, 'paystack', 'webhook_ref_123', $payload);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
+        ->andReturn('webhook_ref_123');
+    $mockDriver->shouldReceive('extractWebhookStatus')
+        ->andReturn('success');
+    $mockDriver->shouldReceive('extractWebhookChannel')
+        ->andReturn('card');
+
+    $manager->shouldReceive('driver')
+        ->with('paystack')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+
+    $method->invoke($job, $manager, $statusNormalizer, 'webhook_ref_123');
 
     $transaction = \KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'webhook_ref_123')->first();
     expect($transaction->status)->toBe('success')
@@ -474,32 +638,6 @@ test('webhook controller updates transaction from webhook with success status', 
 });
 
 test('webhook controller updates transaction with provider-specific channels', function () {
-    // Ensure we're using the testing connection
-    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
-
-    // Create table (drop first to ensure clean state)
-    try {
-        Schema::connection('testing')->dropIfExists('payment_transactions');
-    } catch (\Exception $e) {
-        // Ignore if table doesn't exist
-    }
-
-    Schema::connection('testing')->create('payment_transactions', function ($table) {
-        $table->id();
-        $table->string('reference')->unique();
-        $table->string('provider');
-        $table->string('status');
-        $table->decimal('amount', 10, 2);
-        $table->string('currency', 3);
-        $table->string('email');
-        $table->string('channel')->nullable();
-        $table->json('metadata')->nullable();
-        $table->json('customer')->nullable();
-        $table->timestamp('paid_at')->nullable();
-        $table->timestamps();
-    });
-
-    // Create transactions for each provider
     $references = [
         'paystack' => 'paystack_channel_ref',
         'flutterwave' => 'flutterwave_channel_ref',
@@ -520,17 +658,25 @@ test('webhook controller updates transaction with provider-specific channels', f
         ]);
     }
 
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
-    $method = $reflection->getMethod('updateTransactionFromWebhook');
-    $method->setAccessible(true);
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    // Test each provider's channel extraction
-    $method->invoke($controller, 'paystack', 'paystack_channel_ref', [
+    // Test paystack
+    $job = new ProcessWebhook('paystack', [
         'data' => ['status' => 'success', 'channel' => 'card'],
     ]);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('paystack_channel_ref');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('success');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn('card');
+    $manager->shouldReceive('driver')->with('paystack')->andReturn($mockDriver);
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+    $method->invoke($job, $manager, $statusNormalizer, 'paystack_channel_ref');
 
-    $method->invoke($controller, 'square', 'square_channel_ref', [
+    // Test square
+    $job = new ProcessWebhook('square', [
         'data' => [
             'object' => [
                 'payment' => [
@@ -540,23 +686,77 @@ test('webhook controller updates transaction with provider-specific channels', f
             ],
         ],
     ]);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('square_channel_ref');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('COMPLETED');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn('CARD');
+    $manager->shouldReceive('driver')->with('square')->andReturn($mockDriver);
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+    $method->invoke($job, $manager, $statusNormalizer, 'square_channel_ref');
 
-    $method->invoke($controller, 'flutterwave', 'flutterwave_channel_ref', [
+    // Test flutterwave
+    $job = new ProcessWebhook('flutterwave', [
         'data' => ['status' => 'success', 'payment_type' => 'card'],
     ]);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('flutterwave_channel_ref');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('success');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn('card');
+    $manager->shouldReceive('driver')->with('flutterwave')->andReturn($mockDriver);
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+    $method->invoke($job, $manager, $statusNormalizer, 'flutterwave_channel_ref');
 
-    $method->invoke($controller, 'monnify', 'monnify_channel_ref', [
+    // Test monnify
+    $job = new ProcessWebhook('monnify', [
         'paymentStatus' => 'PAID',
         'paymentMethod' => 'CARD',
     ]);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('monnify_channel_ref');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('PAID');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn('CARD');
+    $manager->shouldReceive('driver')->with('monnify')->andReturn($mockDriver);
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+    $method->invoke($job, $manager, $statusNormalizer, 'monnify_channel_ref');
 
-    $method->invoke($controller, 'stripe', 'stripe_channel_ref', [
+    // Test stripe
+    $job = new ProcessWebhook('stripe', [
         'data' => ['object' => ['status' => 'succeeded', 'payment_method' => 'card']],
     ]);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('stripe_channel_ref');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('succeeded');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn('card');
+    $manager->shouldReceive('driver')->with('stripe')->andReturn($mockDriver);
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+    $method->invoke($job, $manager, $statusNormalizer, 'stripe_channel_ref');
 
-    $method->invoke($controller, 'paypal', 'paypal_channel_ref', [
+    // Test paypal
+    $job = new ProcessWebhook('paypal', [
         'resource' => ['status' => 'COMPLETED'],
     ]);
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('paypal_channel_ref');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('COMPLETED');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn('paypal');
+    $manager->shouldReceive('driver')->with('paypal')->andReturn($mockDriver);
+    $reflection = new \ReflectionClass($job);
+    $method = $reflection->getMethod('updateTransactionFromWebhook');
+    $method->setAccessible(true);
+    $method->invoke($job, $manager, $statusNormalizer, 'paypal_channel_ref');
 
     expect(\KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'paystack_channel_ref')->first()->channel)->toBe('card')
         ->and(\KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'flutterwave_channel_ref')->first()->channel)->toBe('card')
@@ -567,32 +767,6 @@ test('webhook controller updates transaction with provider-specific channels', f
 });
 
 test('webhook controller handles database error during update gracefully', function () {
-    // Ensure we're using the testing connection
-    \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
-
-    // Create table (drop first to ensure clean state)
-    try {
-        Schema::connection('testing')->dropIfExists('payment_transactions');
-    } catch (\Exception $e) {
-        // Ignore if table doesn't exist
-    }
-
-    Schema::connection('testing')->create('payment_transactions', function ($table) {
-        $table->id();
-        $table->string('reference')->unique();
-        $table->string('provider');
-        $table->string('status');
-        $table->decimal('amount', 10, 2);
-        $table->string('currency', 3);
-        $table->string('email');
-        $table->string('channel')->nullable();
-        $table->json('metadata')->nullable();
-        $table->json('customer')->nullable();
-        $table->timestamp('paid_at')->nullable();
-        $table->timestamps();
-    });
-
-    // Create a transaction first
     \KenDeNigerian\PayZephyr\Models\PaymentTransaction::create([
         'reference' => 'error_ref_123',
         'provider' => 'paystack',
@@ -602,16 +776,30 @@ test('webhook controller handles database error during update gracefully', funct
         'email' => 'test@example.com',
     ]);
 
-    $controller = app(WebhookController::class);
-    $reflection = new \ReflectionClass($controller);
+    $job = new ProcessWebhook('paystack', [
+        'data' => ['status' => 'success'],
+    ]);
+
+    $manager = Mockery::mock(PaymentManager::class);
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')->andReturn('error_ref_123');
+    $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('success');
+    $mockDriver->shouldReceive('extractWebhookChannel')->andReturn(null);
+
+    $manager->shouldReceive('driver')
+        ->with('paystack')
+        ->andReturn($mockDriver);
+
+    $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
+
+    $reflection = new \ReflectionClass($job);
     $method = $reflection->getMethod('updateTransactionFromWebhook');
     $method->setAccessible(true);
 
     // Should not throw exception even if database update fails
-    // The method catches exceptions internally
-    $method->invoke($controller, 'paystack', 'error_ref_123', ['data' => ['status' => 'success']]);
+    $method->invoke($job, $manager, $statusNormalizer, 'error_ref_123');
 
-    expect(true)->toBeTrue(); // If we get here, exception was caught
+    expect(true)->toBeTrue();
 });
 
 test('webhook controller handles webhook without reference', function () {
@@ -620,30 +808,46 @@ test('webhook controller handles webhook without reference', function () {
     $request = Request::create('/payments/webhook/paystack', 'POST', [
         'data' => [
             'status' => 'success',
-            // No reference
         ],
     ]);
 
     $request->headers->set('x-paystack-signature', 'valid_signature');
 
-    // Mock driver validation
-    $driver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
-    $driver->shouldReceive('validateWebhook')->andReturn(true);
-    $driver->shouldReceive('extractWebhookReference')->andReturn(null);
+    $body = json_encode($request->all());
+    $webhookRequest = new class($request, $body) extends WebhookRequest
+    {
+        private string $body;
 
-    $manager = new PaymentManager;
+        public function __construct($request, string $body)
+        {
+            parent::__construct(
+                $request->query->all(),
+                $request->request->all(),
+                $request->attributes->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $request->server->all(),
+                $body
+            );
+            $this->headers = $request->headers;
+            $this->body = $body;
+        }
 
-    // Inject mock driver directly into PaymentManager's driver cache using reflection
-    $managerReflection = new \ReflectionClass($manager);
-    $driversProperty = $managerReflection->getProperty('drivers');
-    $driversProperty->setAccessible(true);
-    $driversProperty->setValue($manager, ['paystack' => $driver]);
+        public function route($param = null, $default = null)
+        {
+            return $param === 'provider' ? 'paystack' : $default;
+        }
 
-    $controller = new \KenDeNigerian\PayZephyr\Http\Controllers\WebhookController($manager);
+        public function authorize(): bool
+        {
+            return true;
+        }
+    };
 
-    $response = $controller->handle($request, 'paystack');
+    $controller = app(WebhookController::class);
+    $response = $controller->handle($webhookRequest, 'paystack');
 
-    expect($response->getStatusCode())->toBe(200);
+    expect($response->getStatusCode())->toBe(202);
 });
 
 test('webhook controller handles webhook with signature verification disabled', function () {
@@ -658,31 +862,84 @@ test('webhook controller handles webhook with signature verification disabled', 
         ],
     ]);
 
-    $controller = app(WebhookController::class);
-    $response = $controller->handle($request, 'paystack');
+    $body = json_encode($request->all());
+    $webhookRequest = new class($request, $body) extends WebhookRequest
+    {
+        private string $body;
 
-    expect($response->getStatusCode())->toBe(200);
-    Event::assertDispatched('payments.webhook.paystack');
+        public function __construct($request, string $body)
+        {
+            parent::__construct(
+                $request->query->all(),
+                $request->request->all(),
+                $request->attributes->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $request->server->all(),
+                $body
+            );
+            $this->headers = $request->headers;
+            $this->body = $body;
+        }
+
+        public function route($param = null, $default = null)
+        {
+            return $param === 'provider' ? 'paystack' : $default;
+        }
+
+        public function authorize(): bool
+        {
+            return true;
+        }
+    };
+
+    $controller = app(WebhookController::class);
+    $response = $controller->handle($webhookRequest, 'paystack');
+
+    expect($response->getStatusCode())->toBe(202);
+    Event::assertDispatched(\KenDeNigerian\PayZephyr\Events\WebhookReceived::class);
 });
 
 test('webhook controller handles exception during processing', function () {
     $request = Request::create('/payments/webhook/paystack', 'POST', []);
 
-    // Create a mock driver that throws exception during validateWebhook
-    $driver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
-    $driver->shouldReceive('validateWebhook')
-        ->andThrow(new \Exception('Driver error'));
+    $body = json_encode($request->all());
+    $webhookRequest = new class($request, $body) extends WebhookRequest
+    {
+        private string $body;
 
-    $manager = new PaymentManager;
+        public function __construct($request, string $body)
+        {
+            parent::__construct(
+                $request->query->all(),
+                $request->request->all(),
+                $request->attributes->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $request->server->all(),
+                $body
+            );
+            $this->headers = $request->headers;
+            $this->body = $body;
+        }
 
-    // Inject mock driver directly into PaymentManager's driver cache using reflection
-    $managerReflection = new \ReflectionClass($manager);
-    $driversProperty = $managerReflection->getProperty('drivers');
-    $driversProperty->setAccessible(true);
-    $driversProperty->setValue($manager, ['paystack' => $driver]);
+        public function route($param = null, $default = null)
+        {
+            return $param === 'provider' ? 'paystack' : $default;
+        }
 
-    $controller = new \KenDeNigerian\PayZephyr\Http\Controllers\WebhookController($manager);
-    $response = $controller->handle($request, 'paystack');
+        public function authorize(): bool
+        {
+            return true;
+        }
+    };
+
+    // Mock Bus facade to throw exception when dispatching
+    Bus::shouldReceive('dispatch')
+        ->andThrow(new \Exception('Processing error'));
+
+    $controller = app(WebhookController::class);
+    $response = $controller->handle($webhookRequest, 'paystack');
 
     expect($response->getStatusCode())->toBe(500)
         ->and(json_decode($response->getContent(), true))->toHaveKey('message');

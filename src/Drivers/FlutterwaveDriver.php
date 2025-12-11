@@ -4,21 +4,16 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Drivers;
 
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
-use Random\RandomException;
+use Throwable;
 
 /**
  * Driver implementation for the Flutterwave payment gateway.
- *
- * This driver handles standard payments via the Standard Payment Link (v3) API
- * and verifies transactions using the unique transaction reference (tx_ref).
  */
 final class FlutterwaveDriver extends AbstractDriver
 {
@@ -58,15 +53,10 @@ final class FlutterwaveDriver extends AbstractDriver
     /**
      * Initialize a charge using the Flutterwave Standard Payment Link.
      *
-     * Maps the internal ChargeRequestDTO to Flutterwave's payload structure,
-     * specifically mapping 'reference' to 'tx_ref' and 'metadata' to 'meta'.
-     *
      * @throws ChargeException If the API request fails or returns an error status.
-     * @throws RandomException If reference generation fails.
      */
     public function charge(ChargeRequestDTO $request): ChargeResponseDTO
     {
-        // Store request so AbstractDriver can access idempotency key
         $this->setCurrentRequest($request);
 
         try {
@@ -124,15 +114,15 @@ final class FlutterwaveDriver extends AbstractDriver
                 metadata: $request->metadata,
                 provider: $this->getName(),
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (ChargeException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Charge failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException($userMessage, 0, $e);
+            throw new ChargeException('Payment initialization failed: '.$e->getMessage(), 0, $e);
         } finally {
-            // Always clear context to prevent memory leaks
             $this->clearCurrentRequest();
         }
     }
@@ -183,14 +173,15 @@ final class FlutterwaveDriver extends AbstractDriver
                     'name' => $result['customer']['name'] ?? null,
                 ],
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (VerificationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new VerificationException($userMessage, 0, $e);
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -217,7 +208,6 @@ final class FlutterwaveDriver extends AbstractDriver
             return false;
         }
 
-        // Flutterwave allows using either webhook_secret or secret_key as the secret hash
         $secretHash = $this->config['webhook_secret'] ?? $this->config['secret_key'] ?? null;
 
         if (empty($secretHash)) {
@@ -254,11 +244,7 @@ final class FlutterwaveDriver extends AbstractDriver
 
             return $response->getStatusCode() === 200;
 
-        } catch (ClientException) {
-            // 4xx means API is reachable
-            return true;
-
-        } catch (GuzzleException) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -293,7 +279,6 @@ final class FlutterwaveDriver extends AbstractDriver
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // Flutterwave verifies by tx_ref, not the internal access code
         return $reference;
     }
 }

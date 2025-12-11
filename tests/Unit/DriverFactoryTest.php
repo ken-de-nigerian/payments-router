@@ -75,6 +75,9 @@ test('driver factory isRegistered checks if driver is registered', function () {
 test('driver factory uses config driver class if available', function () {
     $factory = new DriverFactory;
 
+    // Clear the config singleton to ensure fresh config is used
+    app()->forgetInstance('payments.config');
+
     config(['payments.providers.custom.driver_class' => PaystackDriver::class]);
 
     $driver = $factory->create('custom', [

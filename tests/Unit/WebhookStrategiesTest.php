@@ -1,16 +1,21 @@
 <?php
 
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use KenDeNigerian\PayZephyr\Http\Controllers\WebhookController;
+use KenDeNigerian\PayZephyr\Http\Requests\WebhookRequest;
 use KenDeNigerian\PayZephyr\PaymentManager;
 
+uses(RefreshDatabase::class);
+
 beforeEach(function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.logging.enabled' => false,
         'payments.webhook.verify_signature' => false,
 
-        // 🟢 FIX: Define configurations so the drivers can be instantiated without errors
         'payments.providers.monnify' => [
             'driver' => 'monnify',
             'api_key' => 'test_key',
@@ -37,14 +42,45 @@ test('webhook controller routes monnify requests correctly', function () {
     $controller = app(WebhookController::class);
 
     $payload = ['event' => 'charge.success', 'transactionReference' => 'ref_monnify'];
-    $request = Request::create('/payments/webhook/monnify', 'POST', $payload);
+    $baseRequest = Request::create('/payments/webhook/monnify', 'POST', $payload);
+
+    $body = json_encode($payload);
+    $request = new class($baseRequest, $body) extends WebhookRequest
+    {
+        private string $body;
+
+        public function __construct($request, string $body)
+        {
+            parent::__construct(
+                $request->query->all(),
+                $request->request->all(),
+                $request->attributes->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $request->server->all(),
+                $body
+            );
+            $this->headers = $request->headers;
+            $this->body = $body;
+        }
+
+        public function route($param = null, $default = null)
+        {
+            return $param === 'provider' ? 'monnify' : $default;
+        }
+
+        public function authorize(): bool
+        {
+            return true;
+        }
+    };
 
     Event::fake();
 
     $response = $controller->handle($request, 'monnify');
 
-    expect($response->getStatusCode())->toBe(200);
-    Event::assertDispatched('payments.webhook.monnify');
+    expect($response->getStatusCode())->toBe(202);
+    Event::assertDispatched(\KenDeNigerian\PayZephyr\Events\WebhookReceived::class);
 });
 
 test('webhook controller routes stripe requests correctly', function () {
@@ -57,14 +93,45 @@ test('webhook controller routes stripe requests correctly', function () {
             'object' => ['id' => 'pi_123'],
         ],
     ];
-    $request = Request::create('/payments/webhook/stripe', 'POST', $payload);
+    $baseRequest = Request::create('/payments/webhook/stripe', 'POST', $payload);
+
+    $body = json_encode($payload);
+    $request = new class($baseRequest, $body) extends WebhookRequest
+    {
+        private string $body;
+
+        public function __construct($request, string $body)
+        {
+            parent::__construct(
+                $request->query->all(),
+                $request->request->all(),
+                $request->attributes->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $request->server->all(),
+                $body
+            );
+            $this->headers = $request->headers;
+            $this->body = $body;
+        }
+
+        public function route($param = null, $default = null)
+        {
+            return $param === 'provider' ? 'stripe' : $default;
+        }
+
+        public function authorize(): bool
+        {
+            return true;
+        }
+    };
 
     Event::fake();
 
     $response = $controller->handle($request, 'stripe');
 
-    expect($response->getStatusCode())->toBe(200);
-    Event::assertDispatched('payments.webhook.stripe');
+    expect($response->getStatusCode())->toBe(202);
+    Event::assertDispatched(\KenDeNigerian\PayZephyr\Events\WebhookReceived::class);
 });
 
 test('webhook controller routes paypal requests correctly', function () {
@@ -72,12 +139,43 @@ test('webhook controller routes paypal requests correctly', function () {
     $controller = app(WebhookController::class);
 
     $payload = ['event_type' => 'PAYMENT.CAPTURE.COMPLETED', 'resource' => ['id' => 'pay_123']];
-    $request = Request::create('/payments/webhook/paypal', 'POST', $payload);
+    $baseRequest = Request::create('/payments/webhook/paypal', 'POST', $payload);
+
+    $body = json_encode($payload);
+    $request = new class($baseRequest, $body) extends WebhookRequest
+    {
+        private string $body;
+
+        public function __construct($request, string $body)
+        {
+            parent::__construct(
+                $request->query->all(),
+                $request->request->all(),
+                $request->attributes->all(),
+                $request->cookies->all(),
+                $request->files->all(),
+                $request->server->all(),
+                $body
+            );
+            $this->headers = $request->headers;
+            $this->body = $body;
+        }
+
+        public function route($param = null, $default = null)
+        {
+            return $param === 'provider' ? 'paypal' : $default;
+        }
+
+        public function authorize(): bool
+        {
+            return true;
+        }
+    };
 
     Event::fake();
 
     $response = $controller->handle($request, 'paypal');
 
-    expect($response->getStatusCode())->toBe(200);
-    Event::assertDispatched('payments.webhook.paypal');
+    expect($response->getStatusCode())->toBe(202);
+    Event::assertDispatched(\KenDeNigerian\PayZephyr\Events\WebhookReceived::class);
 });

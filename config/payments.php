@@ -94,15 +94,6 @@ return [
             'enabled' => env('SQUARE_ENABLED', false),
         ],
 
-        'remita' => [
-            'driver' => 'remita',
-            'public_key' => env('REMITA_PUBLIC_KEY'),
-            'secret_key' => env('REMITA_SECRET_KEY'),
-            'base_url' => env('REMITA_BASE_URL', 'https://api.remita.net'), // Demo: https://remitademo.net | Live: https://api.remita.net
-            'currencies' => ['NGN'],
-            'enabled' => env('REMITA_ENABLED', false),
-        ],
-
         'opay' => [
             'driver' => 'opay',
             'merchant_id' => env('OPAY_MERCHANT_ID'),
@@ -137,6 +128,7 @@ return [
     'webhook' => [
         'path' => env('PAYMENTS_WEBHOOK_PATH', '/payments/webhook'),
         'verify_signature' => env('PAYMENTS_WEBHOOK_VERIFY_SIGNATURE', true),
+        'rate_limit' => env('PAYMENTS_WEBHOOK_RATE_LIMIT', '120,1'), // requests per minute
     ],
 
     /*

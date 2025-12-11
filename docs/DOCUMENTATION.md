@@ -54,20 +54,28 @@ It provides a clean, fluent API for processing payments across different provide
 composer require kendenigerian/payzephyr
 ```
 
-### Publish Configuration
+### Run Install Command
 
 ```bash
-php artisan vendor:publish --tag=payments-config
+php artisan payzephyr:install
 ```
 
-This creates `config/payments.php` where you configure your payment providers.
+This command automatically:
+- Publishes the configuration file (`config/payments.php`)
+- Publishes migration files
+- Optionally runs migrations (you'll be prompted)
 
-### Publish & Run Migrations
-
+**Force overwrite existing files:**
 ```bash
-php artisan vendor:publish --tag=payments-migrations
-php artisan migrate
+php artisan payzephyr:install --force
 ```
+
+> **💡 Alternative Manual Setup:** If you prefer to set up manually:
+> ```bash
+> php artisan vendor:publish --tag=payments-config
+> php artisan vendor:publish --tag=payments-migrations
+> php artisan migrate
+> ```
 
 This creates the `payment_transactions` table for automatic transaction logging.
 
@@ -118,12 +126,6 @@ SQUARE_ACCESS_TOKEN=EAAAxxx
 SQUARE_LOCATION_ID=location_xxx
 SQUARE_WEBHOOK_SIGNATURE_KEY=xxx
 SQUARE_ENABLED=false
-
-# Remita (Required: public_key, secret_key)
-REMITA_PUBLIC_KEY=your_public_key
-REMITA_SECRET_KEY=your_secret_key
-REMITA_BASE_URL=https://api.remita.net
-REMITA_ENABLED=false
 
 # OPay (Required: merchant_id, public_key, secret_key for status API)
 OPAY_MERCHANT_ID=your_merchant_id
@@ -539,68 +541,65 @@ test('payment verification works', function () {
 
 ## API Reference
 
-### Payment Methods
+For complete API documentation, see **[API Reference](API_REFERENCE.md)**.
 
-#### Builder Methods (Chainable)
+The API Reference includes:
+- Complete method signatures and parameters
+- Return types and exceptions
+- All classes, interfaces, and services
+- Data Transfer Objects (DTOs)
+- Enums and constants
+- Examples and usage patterns
 
-```php
-Payment::amount(float $amount)           // Set payment amount
-Payment::currency(string $currency)      // Set currency (default: NGN)
-Payment::email(string $email)            // Set customer email (required)
-Payment::reference(string $reference)    // Set custom reference
-Payment::idempotency(string $key)        // Set unique idempotency key
-Payment::callback(string $url)           // Set callback URL
-Payment::metadata(array $metadata)       // Set custom metadata
-Payment::description(string $description) // Set payment description
-Payment::customer(array $customer)       // Set customer information
-Payment::channels(array $channels)        // Set payment channels (unified names: 'card', 'bank_transfer', 'ussd', 'mobile_money', 'qr_code')
-Payment::with(string|array $providers)    // Set provider(s) for this transaction
-Payment::using(string|array $providers)   // Alias for with()
-```
+### Quick Reference
 
-#### Action Methods
+#### Payment Facade Methods
 
-```php
-Payment::charge()                        // Returns ChargeResponseDTO (no redirect)
-Payment::redirect()                      // Redirects user to payment page
-Payment::verify(string $reference, ?string $provider = null)  // Returns VerificationResponseDTO
-```
+**Builder Methods** (chainable in any order):
+- `amount()`, `currency()`, `email()`, `reference()`, `callback()`, `metadata()`, `idempotency()`, `description()`, `customer()`, `channels()`, `with()`, `using()`
 
-### Response Objects
+**Action Methods** (must be called last):
+- `charge()` - Returns ChargeResponseDTO
+- `redirect()` - Redirects to payment page
 
-#### ChargeResponseDTO
+**Verification Method** (standalone):
+- `verify($reference, $provider)` - Returns VerificationResponseDTO
 
-```php
-$response->reference          // Payment reference
-$response->authorizationUrl   // URL to redirect user
-$response->accessCode         // Access code
-$response->status             // Payment status
-$response->metadata           // Metadata array
-$response->provider           // Provider name
-$response->isSuccessful()     // Boolean
-$response->isPending()        // Boolean
-```
+#### Response Objects
 
-#### VerificationResponseDTO
+**ChargeResponseDTO:**
+- `reference`, `authorizationUrl`, `accessCode`, `status`, `metadata`, `provider`
+- Methods: `isSuccessful()`, `isPending()`
 
-```php
-$verification->reference      // Payment reference
-$verification->status         // Payment status
-$verification->amount         // Amount paid
-$verification->currency       // Currency
-$verification->paidAt         // Payment timestamp
-$verification->channel        // Payment channel
-$verification->customer       // Customer info
-$verification->isSuccessful() // Boolean
-$verification->isFailed()     // Boolean
-$verification->isPending()    // Boolean
-```
+**VerificationResponseDTO:**
+- `reference`, `status`, `amount`, `currency`, `paidAt`, `channel`, `customer`, `metadata`, `provider`
+- Methods: `isSuccessful()`, `isFailed()`, `isPending()`
+
+**📖 See [API Reference](API_REFERENCE.md) for complete documentation.**
 
 ---
 
 ## Architecture
 
-PayZephyr follows clean architecture principles:
+For detailed architecture documentation, see **[Architecture Guide](architecture.md)**.
+
+The architecture guide covers:
+- System design and component relationships
+- Data flow diagrams
+- Design patterns used
+- SOLID principles
+- Extensibility and customization
+- Performance considerations
+
+**Key Components:**
+- **Payment Facade** - Fluent API entry point
+- **PaymentManager** - Coordinates drivers and fallback logic
+- **Drivers** - Provider-specific implementations
+- **Services** - StatusNormalizer, ChannelMapper, ProviderDetector, DriverFactory
+- **DTOs** - Type-safe data objects
+- **Contracts** - Interfaces for dependency injection
+
+**📖 See [Architecture Guide](architecture.md) for complete details.**
 
 ```
 ┌─────────────────────────────────────────────┐

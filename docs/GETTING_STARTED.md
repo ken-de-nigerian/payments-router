@@ -61,51 +61,53 @@ Using version ^1.0 for kendenigerian/payzephyr
 Package manifest generated successfully.
 ```
 
-### Step 2: Publish Configuration
+### Step 2: Run the Install Command
 
 ```bash
-php artisan vendor:publish --tag=payments-config
+php artisan payzephyr:install
 ```
 
-**What this does:** Creates a `config/payments.php` file in your project where you'll configure payment providers.
+**What this does:** This command automatically:
+1. Publishes the configuration file (`config/payments.php`)
+2. Publishes migration files
+3. Optionally runs migrations (you'll be prompted)
 
 **Expected output:**
 ```
-Copied File [/vendor/kendenigerian/payzephyr/config/payments.php] To [/config/payments.php]
-Publishing complete.
-```
+Installing PayZephyr...
+✓ Configuration file published
+✓ Migration files published
+Run migrations now? (yes/no) [yes]:
+> yes
 
-### Step 3: Publish Migrations
-
-```bash
-php artisan vendor:publish --tag=payments-migrations
-```
-
-**What this does:** Copies the migration file to create the `payment_transactions` table.
-
-**Expected output:**
-```
-Copied File [/vendor/.../migrations/..._create_payment_transactions_table.php] To [/database/migrations/...]
-Publishing complete.
-```
-
-### Step 4: Run Migrations
-
-```bash
-php artisan migrate
-```
-
-**What this does:** Creates the `payment_transactions` table in your database to store payment records.
-
-**Expected output:**
-```
 Running migrations...
 2024_01_01_000000_create_payment_transactions_table .......... DONE
+✓ Migrations completed
+
+PayZephyr installed successfully!
+Please configure your providers in .env
+
+Example environment variables:
+  PAYMENTS_DEFAULT_PROVIDER=paystack
+  PAYSTACK_SECRET_KEY=your_secret_key
+  PAYSTACK_PUBLIC_KEY=your_public_key
+```
+
+**💡 Tip:** If you want to overwrite existing files, use the `--force` flag:
+```bash
+php artisan payzephyr:install --force
 ```
 
 **⚠️ Troubleshooting:** If you get an error, make sure:
 - Your database is configured in `.env`
 - Database connection is working (`php artisan migrate:status`)
+
+> **💡 Alternative Manual Setup:** If you prefer to set up manually:
+> ```bash
+> php artisan vendor:publish --tag=payments-config
+> php artisan vendor:publish --tag=payments-migrations
+> php artisan migrate
+> ```
 
 ---
 

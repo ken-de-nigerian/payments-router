@@ -16,8 +16,9 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 
 ### Core Documentation
 1. [Architecture Overview](architecture.md) - System design and components
-2. [Payment Providers](providers.md) - Detailed provider information
-3. [Webhook Integration](webhooks.md) - Complete webhook guide
+2. [API Reference](API_REFERENCE.md) - Complete API documentation
+3. [Payment Providers](providers.md) - Detailed provider information
+4. [Webhook Integration](webhooks.md) - Complete webhook guide
 
 ### Advanced Topics
 1. [Transaction Logging](#transaction-logging)
@@ -28,7 +29,7 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 1. **[Contributing Guide for Beginners](CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** - Step-by-step contribution tutorial
 2. [Contributing Guidelines](CONTRIBUTING.md) - Detailed technical guide
 3. [Changelog](CHANGELOG.md)
-4. [API Reference](#api-reference)
+4. [API Reference](API_REFERENCE.md) - Complete API documentation
 
 ---
 

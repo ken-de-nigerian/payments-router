@@ -10,7 +10,6 @@ use KenDeNigerian\PayZephyr\Drivers\MonnifyDriver;
 use KenDeNigerian\PayZephyr\Drivers\OPayDriver;
 use KenDeNigerian\PayZephyr\Drivers\PayPalDriver;
 use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
-use KenDeNigerian\PayZephyr\Drivers\RemitaDriver;
 use KenDeNigerian\PayZephyr\Drivers\SquareDriver;
 use KenDeNigerian\PayZephyr\Drivers\StripeDriver;
 use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
@@ -46,7 +45,6 @@ final class DriverFactory
         'stripe' => StripeDriver::class,
         'paypal' => PayPalDriver::class,
         'square' => SquareDriver::class,
-        'remita' => RemitaDriver::class,
         'opay' => OPayDriver::class,
     ];
 
@@ -88,7 +86,8 @@ final class DriverFactory
         }
 
         // 2. Check config for custom driver class
-        $configDriver = config("payments.providers.$name.driver_class");
+        $config = app('payments.config') ?? config('payments', []);
+        $configDriver = $config['providers'][$name]['driver_class'] ?? null;
         if ($configDriver && class_exists($configDriver)) {
             return $configDriver;
         }

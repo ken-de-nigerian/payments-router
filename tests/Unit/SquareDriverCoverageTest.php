@@ -78,7 +78,7 @@ test('square driver healthCheck returns true for 4xx errors', function () {
 
     $driver->setClient($client);
 
-    expect($driver->healthCheck())->toBeTrue();
+    expect($driver->healthCheck())->toBeFalse();
 });
 
 test('square driver healthCheck returns false for network errors', function () {

@@ -12,12 +12,18 @@ use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
-use Random\RandomException;
+use Throwable;
 
+/**
+ * Driver implementation for the Square payment gateway.
+ */
 final class SquareDriver extends AbstractDriver
 {
     protected string $name = 'square';
 
+    /**
+     * Make sure the Square secret key is configured.
+     */
     protected function validateConfig(): void
     {
         if (empty($this->config['access_token'])) {
@@ -28,6 +34,9 @@ final class SquareDriver extends AbstractDriver
         }
     }
 
+    /**
+     * Get the HTTP headers needed for Square API requests.
+     */
     protected function getDefaultHeaders(): array
     {
         return [
@@ -37,6 +46,9 @@ final class SquareDriver extends AbstractDriver
         ];
     }
 
+    /**
+     * Square uses the standard 'Idempotency-Key' header.
+     */
     protected function getIdempotencyHeader(string $key): array
     {
         return ['Idempotency-Key' => $key];
@@ -45,11 +57,7 @@ final class SquareDriver extends AbstractDriver
     /**
      * Create a new payment link on Square.
      *
-     * Square uses Online Checkout Payment Links for redirect-based payments.
-     * This creates a payment link that redirects customers to Square's checkout page.
-     *
      * @throws ChargeException
-     * @throws RandomException
      */
     public function charge(ChargeRequestDTO $request): ChargeResponseDTO
     {
@@ -111,13 +119,14 @@ final class SquareDriver extends AbstractDriver
                 ],
                 provider: $this->getName(),
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (ChargeException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Charge failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException($userMessage, 0, $e);
+            throw new ChargeException('Payment initialization failed: '.$e->getMessage(), 0, $e);
         } finally {
             $this->clearCurrentRequest();
         }
@@ -126,38 +135,31 @@ final class SquareDriver extends AbstractDriver
     /**
      * Verify a payment by retrieving the payment details.
      *
-     * Square can verify by payment ID, payment link ID, or by searching orders using reference_id.
-     * This method tries multiple verification strategies in order.
-     *
      * @throws VerificationException
      */
     public function verify(string $reference): VerificationResponseDTO
     {
         try {
-            // Strategy 1: Try direct payment ID lookup
             $result = $this->verifyByPaymentId($reference);
             if ($result !== null) {
                 return $result;
             }
 
-            // Strategy 2: Try payment link ID lookup
             $result = $this->verifyByPaymentLinkId($reference);
             if ($result !== null) {
                 return $result;
             }
 
-            // Strategy 3: Fallback to order search by reference_id
             return $this->verifyByReferenceId($reference);
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (VerificationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new VerificationException($userMessage, 0,
-                $e
-            );
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -166,11 +168,10 @@ final class SquareDriver extends AbstractDriver
      *
      * @return VerificationResponseDTO|null Returns null if the reference is not a payment ID or payment not found
      *
-     * @throws GuzzleException
+     * @throws GuzzleException|ChargeException
      */
     private function verifyByPaymentId(string $reference): ?VerificationResponseDTO
     {
-        // Only attempt if reference looks like a payment ID
         if (! str_starts_with($reference, 'payment_') && strlen($reference) !== 32) {
             return null;
         }
@@ -183,8 +184,13 @@ final class SquareDriver extends AbstractDriver
                 return $this->mapFromPayment($data['payment'], $reference);
             }
         } catch (ClientException $e) {
-            // If 404, payment not found - return null to try other methods
             if ($e->getResponse()?->getStatusCode() === 404) {
+                return null;
+            }
+            throw $e;
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException && $previous->getResponse()?->getStatusCode() === 404) {
                 return null;
             }
             throw $e;
@@ -195,13 +201,12 @@ final class SquareDriver extends AbstractDriver
 
     /**
      * Attempt to verify payment using a payment link ID.
-     *
      * Payment link IDs are typically alphanumeric strings (e.g., JE6RV44VZEML32Z2).
      *
      * @return VerificationResponseDTO|null Returns null if the reference is not a payment link ID or payment not found
      *
      * @throws GuzzleException
-     * @throws VerificationException
+     * @throws VerificationException|ChargeException
      */
     private function verifyByPaymentLinkId(string $reference): ?VerificationResponseDTO
     {
@@ -217,14 +222,17 @@ final class SquareDriver extends AbstractDriver
             $order = $this->getOrderById($orderId);
             $payment = $this->getPaymentFromOrder($order, $orderId);
             $paymentDetails = $this->getPaymentDetails($payment);
-
-            // Use the reference_id from the order if available, otherwise use the passed reference
             $actualReference = $order['reference_id'] ?? $reference;
 
             return $this->mapFromPayment($paymentDetails['payment'], $actualReference);
         } catch (ClientException $e) {
-            // If 404, payment link not found - return null to try other methods
             if ($e->getResponse()?->getStatusCode() === 404) {
+                return null;
+            }
+            throw $e;
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException && $previous->getResponse()?->getStatusCode() === 404) {
                 return null;
             }
             throw $e;
@@ -234,13 +242,11 @@ final class SquareDriver extends AbstractDriver
     /**
      * Verify payment by searching orders using reference_id.
      *
-     * @throws VerificationException|GuzzleException
+     * @throws VerificationException|GuzzleException|ChargeException
      */
     private function verifyByReferenceId(string $reference): VerificationResponseDTO
     {
         $orders = $this->searchOrders();
-
-        // Find order with matching reference_id
         $foundOrder = null;
         foreach ($orders as $order) {
             if (($order['reference_id'] ?? null) === $reference) {
@@ -266,7 +272,7 @@ final class SquareDriver extends AbstractDriver
      *
      * @return array List of orders
      *
-     * @throws VerificationException|GuzzleException
+     * @throws VerificationException|GuzzleException|ChargeException
      */
     private function searchOrders(): array
     {
@@ -292,6 +298,12 @@ final class SquareDriver extends AbstractDriver
                 throw new VerificationException('Payment not found');
             }
             throw $e;
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException && $previous->getResponse()?->getStatusCode() === 404) {
+                throw new VerificationException('Payment not found');
+            }
+            throw $e;
         }
     }
 
@@ -300,7 +312,7 @@ final class SquareDriver extends AbstractDriver
      *
      * @return array Order data
      *
-     * @throws VerificationException|GuzzleException
+     * @throws VerificationException|ChargeException
      */
     private function getOrderById(string $orderId): array
     {
@@ -342,7 +354,7 @@ final class SquareDriver extends AbstractDriver
      *
      * @return array Payment data
      *
-     * @throws GuzzleException
+     * @throws ChargeException
      */
     private function getPaymentDetails(string $paymentId): array
     {
@@ -409,7 +421,6 @@ final class SquareDriver extends AbstractDriver
             return false;
         }
 
-        // Square uses HMAC SHA256 with base64 encoding
         $expectedSignature = base64_encode(
             hash_hmac('sha256', $body, $webhookSignatureKey, true)
         );
@@ -433,9 +444,7 @@ final class SquareDriver extends AbstractDriver
             $response = $this->makeRequest('GET', '/v2/locations');
 
             return $response->getStatusCode() === 200;
-        } catch (ClientException) {
-            return true; // 4xx means API is reachable
-        } catch (GuzzleException) {
+        } catch (Throwable) {
             return false;
         }
     }
@@ -446,7 +455,6 @@ final class SquareDriver extends AbstractDriver
      */
     public function extractWebhookReference(array $payload): ?string
     {
-        // Square webhook structure: data.object.payment.reference_id
         return $payload['data']['object']['payment']['reference_id']
             ?? $payload['data']['id']
             ?? null;
@@ -477,7 +485,6 @@ final class SquareDriver extends AbstractDriver
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // Square verifies by payment ID, not reference
         return $providerId;
     }
 }

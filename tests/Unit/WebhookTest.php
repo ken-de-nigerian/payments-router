@@ -4,6 +4,8 @@ use Illuminate\Support\Facades\Event;
 use KenDeNigerian\PayZephyr\PaymentManager;
 
 beforeEach(function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.webhook.verify_signature' => true,
         'payments.providers' => [

@@ -6,7 +6,6 @@ namespace KenDeNigerian\PayZephyr\Drivers;
 
 use Exception;
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -14,12 +13,10 @@ use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use KenDeNigerian\PayZephyr\Exceptions\WebhookException;
+use Throwable;
 
 /**
  * Driver implementation for the PayPal REST API (V2).
- *
- * This driver utilizes the 'Checkout Orders' API to create and capture payments.
- * It handles the OAuth2 Client Credentials flow for authentication.
  */
 final class PayPalDriver extends AbstractDriver
 {
@@ -123,13 +120,12 @@ final class PayPalDriver extends AbstractDriver
             $this->tokenExpiry = time() + ($data['expires_in'] ?? 3600) - 60;
 
             return $this->accessToken;
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (Throwable $e) {
             $this->log('error', 'PayPal authentication failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException('PayPal authentication failed: '.$userMessage, 0, $e);
+            throw new ChargeException('PayPal authentication failed: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -192,7 +188,6 @@ final class PayPalDriver extends AbstractDriver
                 throw new ChargeException('Failed to create PayPal order');
             }
 
-            // Check for 'approve' OR 'payer-action'
             $approveLink = collect($data['links'] ?? [])->firstWhere('rel', 'approve')
                 ?? collect($data['links'] ?? [])->firstWhere('rel', 'payer-action');
 
@@ -216,13 +211,14 @@ final class PayPalDriver extends AbstractDriver
                 ],
                 provider: $this->getName(),
             );
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (ChargeException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Charge failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new ChargeException($userMessage, 0, $e);
+            throw new ChargeException('Payment initialization failed: '.$e->getMessage(), 0, $e);
         } finally {
             $this->clearCurrentRequest();
         }
@@ -255,17 +251,13 @@ final class PayPalDriver extends AbstractDriver
             $captures = $purchaseUnit['payments']['captures'] ?? [];
             $capture = $captures[0] ?? null;
 
-            // If status is APPROVED and no capture exists, auto-capture the order
             if ($status === 'APPROVED' && empty($capture)) {
                 $capture = $this->captureOrder($reference);
                 $status = 'COMPLETED';
             } elseif ($capture && isset($capture['status'])) {
-                // If capture exists, check its status
                 $captureStatus = strtoupper($capture['status']);
-                // If capture is pending, the order is still pending (APPROVED normalizes to pending)
-                // If capture is completed, the order is completed
                 if ($captureStatus === 'PENDING') {
-                    $status = 'APPROVED'; // Keep as APPROVED (which normalizes to pending)
+                    $status = 'APPROVED';
                 } elseif ($captureStatus === 'COMPLETED') {
                     $status = 'COMPLETED';
                 }
@@ -289,32 +281,22 @@ final class PayPalDriver extends AbstractDriver
                 ],
             );
 
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (VerificationException $e) {
+            throw $e;
+        } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
-            throw new VerificationException($userMessage,
-                0,
-                $e
-            );
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
         }
     }
 
     /**
      * Validate PayPal webhook signature.
-     *
-     * PayPal uses a complex signature verification process involving:
-     * 1. Certificate verification from PayPal's cert URL
-     * 2. CRC32 checksum validation
-     * 3. Signature validation using the public certificate
-     *
-     * @link https://developer.paypal.com/api/rest/webhooks/
      */
     public function validateWebhook(array $headers, string $body): bool
     {
-        // Extract required headers
         $transmissionId = $headers['paypal-transmission-id'][0] ?? null;
         $transmissionTime = $headers['paypal-transmission-time'][0] ?? null;
         $certUrl = $headers['paypal-cert-url'][0] ?? null;
@@ -322,7 +304,6 @@ final class PayPalDriver extends AbstractDriver
         $transmissionSig = $headers['paypal-transmission-sig'][0] ?? null;
         $webhookId = $this->config['webhook_id'] ?? null;
 
-        // Validate all required headers are present
         if (! $transmissionId || ! $transmissionTime || ! $certUrl || ! $authAlgo || ! $transmissionSig || ! $webhookId) {
             $this->log('warning', 'PayPal webhook missing required headers', [
                 'has_transmission_id' => (bool) $transmissionId,
@@ -337,7 +318,6 @@ final class PayPalDriver extends AbstractDriver
         }
 
         try {
-            // Use PayPal's official verification API
             return $this->verifyWebhookSignatureViaAPI(
                 $transmissionId,
                 $transmissionTime,
@@ -361,8 +341,6 @@ final class PayPalDriver extends AbstractDriver
      *
      * This is the recommended approach as it delegates the complex certificate
      * validation to PayPal's servers.
-     *
-     * @link https://developer.paypal.com/docs/api/webhooks/v1/#verify-webhook-signature
      */
     private function verifyWebhookSignatureViaAPI(
         string $transmissionId,
@@ -397,9 +375,7 @@ final class PayPalDriver extends AbstractDriver
             ]);
 
             return $isValid;
-        } catch (GuzzleException $e) {
-            // If API verification fails, log and reject webhook
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (Throwable $e) {
             $this->log('error', 'PayPal webhook verification API failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
@@ -424,7 +400,6 @@ final class PayPalDriver extends AbstractDriver
             return true;
 
         } catch (ClientException) {
-            // 4xx means API is reachable
             return true;
 
         } catch (Exception) {
@@ -443,17 +418,13 @@ final class PayPalDriver extends AbstractDriver
 
             return $data['purchase_units'][0]['payments']['captures'][0] ?? null;
 
-        } catch (GuzzleException $e) {
-            $userMessage = $this->getNetworkErrorMessage($e);
+        } catch (Throwable $e) {
             $this->log('error', 'PayPal capture failed', [
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
 
-            throw new VerificationException($userMessage,
-                0,
-                $e
-            );
+            throw new VerificationException('PayPal capture failed: '.$e->getMessage(), 0, $e);
         }
     }
 

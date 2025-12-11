@@ -11,7 +11,7 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 
 ## 🚀 Features
 
-- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square, Remita, OPay etc.
+- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square, OPay etc.
 - **Automatic Fallback**: Seamlessly switch to back-up providers if primary fails
 - **Fluent API**: Clean, expressive syntax for payment operations
 - **Idempotency Support**: Prevent duplicate charges with unique keys across supported providers
@@ -45,15 +45,18 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 # 1. Install the package
 composer require kendenigerian/payzephyr
 
-# 2. Publish configuration
-php artisan vendor:publish --tag=payments-config
-
-# 3. Publish and run migrations
-php artisan vendor:publish --tag=payments-migrations
-php artisan migrate
+# 2. Run the install command (publishes config, migrations, and optionally runs migrations)
+php artisan payzephyr:install
 ```
 
 **That's it!** You're ready to start accepting payments.
+
+> **💡 Alternative:** If you prefer manual setup, you can still use the traditional approach:
+> ```bash
+> php artisan vendor:publish --tag=payments-config
+> php artisan vendor:publish --tag=payments-migrations
+> php artisan migrate
+> ```
 
 **📖 Need more help?** See the [Getting Started Guide](docs/GETTING_STARTED.md) for detailed instructions with examples.
 
@@ -102,12 +105,6 @@ SQUARE_ACCESS_TOKEN=EAAAxxx
 SQUARE_LOCATION_ID=location_xxx
 SQUARE_WEBHOOK_SIGNATURE_KEY=xxx
 SQUARE_ENABLED=false
-
-# Remita (Required: public_key, secret_key)
-REMITA_PUBLIC_KEY=your_public_key
-REMITA_SECRET_KEY=your_secret_key
-REMITA_BASE_URL=https://api.remita.net
-REMITA_ENABLED=false
 
 # OPay (Required: merchant_id, public_key, secret_key for status API)
 OPAY_MERCHANT_ID=your_merchant_id
@@ -400,6 +397,7 @@ PaymentTransaction::pending()->get();
 
 ### Core Documentation
 - **[Architecture Guide](docs/architecture.md)** - System design and components
+- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
 - **[Provider Details](docs/providers.md)** - Detailed provider information
 - **[Webhook Guide](docs/webhooks.md)** - Complete webhook documentation
 
@@ -589,7 +587,20 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.1.5
+### Latest Release: v1.1.6
+
+### Added
+- **Install Command**: New `payzephyr:install` artisan command for streamlined package setup
+  - Automatically publishes configuration and migration files
+  - Optionally runs migrations with user confirmation
+  - Supports `--force` flag to overwrite existing files
+
+### Changed
+- **Documentation**: Updated installation instructions to use `payzephyr:install` command
+  - Simplified installation from 3 manual steps to 1 command
+  - Improved developer experience and onboarding
+
+### Previous Release: v1.1.5
 
 ### Added
 - **OPay Driver**: New payment driver with dual authentication support
@@ -597,10 +608,6 @@ Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
   - Status API: HMAC-SHA512 signature authentication using Private Key and Merchant ID
   - Support for card payments, bank transfer, USSD, and mobile money
 
-- **Remita Driver**: New payment driver for Remita payment processing
-  - Support for RRR (Remita Retrieval Reference) generation
-  - SHA512 hash-based authentication
-  - Webhook signature validation
 
 ### Changed
 - **OPay Driver**: Improved authentication implementation
@@ -644,20 +651,6 @@ If PayZephyr helped your project:
 - 📝 Write a blog post
 - 💰 Sponsor the project
 - 🤝 Contribute code or documentation
-
----
-
-## 🗺️ Roadmap
-
-### Planned Features
-- [ ] Support for more payment providers (Square, Razorpay)
-- [ ] Subscription management
-- [ ] Refund operations
-- [ ] Multi-tenancy support
-- [ ] Admin dashboard
-- [ ] Payment analytics
-- [ ] Recurring billing
-- [ ] Split payments enhancements
 
 ---
 

@@ -13,6 +13,7 @@ use GuzzleHttp\Exception\TransferException;
 use Illuminate\Support\Facades\Cache;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Services\ChannelMapper;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
@@ -25,9 +26,6 @@ use Random\RandomException;
  * This is the parent class that all payment provider drivers extend.
  * It provides common functionality like HTTP requests, health checks,
  * currency validation, and reference generation.
- *
- * Each provider (Paystack, Stripe, etc.) extends this class and implements
- * the provider-specific logic.
  */
 abstract class AbstractDriver implements DriverInterface
 {
@@ -103,15 +101,13 @@ abstract class AbstractDriver implements DriverInterface
      * Network errors are caught and wrapped with more user-friendly messages
      * to prevent crashes and provide better error context.
      *
-     * @throws GuzzleException If the HTTP request fails.
+     * @throws ChargeException If the HTTP request fails.
      */
     protected function makeRequest(string $method, string $uri, array $options = []): ResponseInterface
     {
-        // Inject idempotency key if available and not already set
         if ($this->currentRequest?->idempotencyKey) {
             $idempotencyHeaders = $this->getIdempotencyHeader($this->currentRequest->idempotencyKey);
 
-            // Check if any of the idempotency headers are already set
             $headersAlreadySet = false;
             foreach (array_keys($idempotencyHeaders) as $headerName) {
                 if (isset($options['headers'][$headerName])) {
@@ -131,10 +127,20 @@ abstract class AbstractDriver implements DriverInterface
         try {
             return $this->client->request($method, $uri, $options);
         } catch (GuzzleException $e) {
-            // Log network errors with context before re-throwing
+
             $this->handleNetworkError($e, $method, $uri);
-            // Re-throw the exception so drivers can handle it appropriately
-            throw $e;
+
+            $context = [
+                'method' => $method,
+                'uri' => $uri,
+                'provider' => $this->getName(),
+            ];
+
+            throw ChargeException::withContext(
+                $this->getNetworkErrorMessage($e),
+                $context,
+                $e
+            );
         }
     }
 
@@ -159,7 +165,6 @@ abstract class AbstractDriver implements DriverInterface
             'error_class' => get_class($exception),
         ];
 
-        // Distinguish between different types of network errors
         if ($exception instanceof ConnectException) {
             $errorType = 'connection_error';
             $userMessage = 'Unable to connect to payment provider. Please check your internet connection and try again.';
@@ -169,15 +174,13 @@ abstract class AbstractDriver implements DriverInterface
             $errorType = 'server_error';
             $userMessage = 'Payment provider server error. Please try again later.';
             $response = $exception->getResponse();
-            if ($response) {
-                $context['status_code'] = $response->getStatusCode();
-                $context['response_body'] = (string) $response->getBody();
-            }
+            $context['status_code'] = $response->getStatusCode();
+            $context['response_body'] = (string) $response->getBody();
         } elseif ($exception instanceof RequestException) {
             $errorType = 'request_error';
             $userMessage = 'Request to payment provider failed. Please check your request and try again.';
             $response = $exception->getResponse();
-            if ($response) {
+            if ($response !== null) {
                 $context['status_code'] = $response->getStatusCode();
             }
         } elseif ($exception instanceof TransferException) {
@@ -185,7 +188,6 @@ abstract class AbstractDriver implements DriverInterface
             $userMessage = 'Data transfer error occurred. Please try again.';
         }
 
-        // Log the error with full context
         $this->log('error', "Network error during $method request to $uri", array_merge($context, [
             'error_message' => $exception->getMessage(),
             'error_type' => $errorType,
@@ -210,7 +212,7 @@ abstract class AbstractDriver implements DriverInterface
 
         if ($exception instanceof ServerException) {
             $response = $exception->getResponse();
-            $statusCode = $response ? $response->getStatusCode() : null;
+            $statusCode = $response->getStatusCode();
             if ($statusCode >= 500) {
                 return 'Payment provider server error. The provider is experiencing issues. Please try again later.';
             }
@@ -218,7 +220,7 @@ abstract class AbstractDriver implements DriverInterface
 
         if ($exception instanceof RequestException) {
             $response = $exception->getResponse();
-            if ($response) {
+            if ($response !== null) {
                 $statusCode = $response->getStatusCode();
                 if ($statusCode === 429) {
                     return 'Too many requests. Please wait a moment and try again.';
@@ -229,7 +231,6 @@ abstract class AbstractDriver implements DriverInterface
             }
         }
 
-        // Default message for other network errors
         return 'Network error occurred while processing payment. Please check your connection and try again.';
     }
 
@@ -318,7 +319,8 @@ abstract class AbstractDriver implements DriverInterface
     public function getCachedHealthCheck(): bool
     {
         $cacheKey = 'payments.health.'.$this->getName();
-        $cacheTtl = config('payments.health_check.cache_ttl', 300);
+        $config = app('payments.config') ?? config('payments', []);
+        $cacheTtl = $config['health_check']['cache_ttl'] ?? 300;
 
         return Cache::remember($cacheKey, $cacheTtl, function () {
             return $this->healthCheck();
@@ -334,7 +336,8 @@ abstract class AbstractDriver implements DriverInterface
      */
     protected function log(string $level, string $message, array $context = []): void
     {
-        if (config('payments.logging.enabled', true)) {
+        $config = app('payments.config') ?? config('payments', []);
+        if ($config['logging']['enabled'] ?? true) {
             logger()->{$level}("[{$this->getName()}] $message", $context);
         }
     }
@@ -445,13 +448,10 @@ abstract class AbstractDriver implements DriverInterface
             return null;
         }
 
-        // Only map if channels are explicitly provided
         if (! empty($request->channels)) {
             return $mapper->mapChannels($request->channels, $this->getName());
         }
 
-        // Return null to let provider use its defaults
-        // Drivers can override this behavior if needed
         return null;
     }
 
@@ -493,7 +493,6 @@ abstract class AbstractDriver implements DriverInterface
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // Default: Use the provider's internal ID (e.g., Stripe Session ID)
         return $providerId;
     }
 }

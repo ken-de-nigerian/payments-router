@@ -53,7 +53,7 @@ test('monnify driver healthCheck returns true for successful authentication', fu
     expect($driver->healthCheck())->toBeTrue();
 });
 
-test('monnify driver healthCheck returns true for 4xx errors', function () {
+test('monnify driver healthCheck returns false for 4xx errors', function () {
     $driver = new MonnifyDriver([
         'api_key' => 'test_key',
         'secret_key' => 'test_secret',
@@ -74,7 +74,7 @@ test('monnify driver healthCheck returns true for 4xx errors', function () {
 
     $driver->setClient($client);
 
-    expect($driver->healthCheck())->toBeTrue();
+    expect($driver->healthCheck())->toBeFalse();
 });
 
 test('monnify driver healthCheck returns false for network errors', function () {

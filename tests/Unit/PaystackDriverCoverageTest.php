@@ -112,5 +112,5 @@ test('paystack driver healthCheck handles ClientException with status code', fun
 
     $driver->setClient($client);
 
-    expect($driver->healthCheck())->toBeTrue();
+    expect($driver->healthCheck())->toBeFalse();
 });

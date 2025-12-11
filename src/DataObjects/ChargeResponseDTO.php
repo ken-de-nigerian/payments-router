@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
-use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
+use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
 /**
  * ChargeResponseDTO - Payment Initialization Response
- *
- * This class holds the response after you initialize a payment.
- * It contains the payment reference, the URL to redirect the customer to,
- * and the current status (usually 'pending' until they pay).
  */
 final readonly class ChargeResponseDTO
 {
@@ -31,7 +27,6 @@ final readonly class ChargeResponseDTO
      */
     protected function getNormalizedStatus(): string
     {
-        // Try to use container if available, otherwise use static method
         try {
             if (function_exists('app')) {
                 $normalizer = app(StatusNormalizer::class);
@@ -39,7 +34,6 @@ final readonly class ChargeResponseDTO
                 return $normalizer->normalize($this->status, $this->provider);
             }
         } catch (Throwable) {
-            // Fall back to static normalization if container unavailable
         }
 
         return StatusNormalizer::normalizeStatic($this->status);

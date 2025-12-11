@@ -1,6 +1,6 @@
 <?php
 
-use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
+use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 
 test('payment status enum has all cases', function () {
     expect(PaymentStatus::cases())->toHaveCount(4)

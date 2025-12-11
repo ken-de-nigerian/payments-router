@@ -4,14 +4,12 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
-use KenDeNigerian\PayZephyr\Constants\PaymentStatus;
+use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
 /**
- * Class VerificationResponseDTO
- *
- * Data transfer object for payment verification responses
+ * VerificationResponseDTO - Payment Verification Responses
  */
 final readonly class VerificationResponseDTO
 {
@@ -34,7 +32,6 @@ final readonly class VerificationResponseDTO
      */
     protected function getNormalizedStatus(): string
     {
-        // Try to use container if available, otherwise use static method
         try {
             if (function_exists('app')) {
                 $normalizer = app(StatusNormalizer::class);
@@ -42,7 +39,6 @@ final readonly class VerificationResponseDTO
                 return $normalizer->normalize($this->status, $this->provider);
             }
         } catch (Throwable) {
-            // Fall back to static normalization if container unavailable
         }
 
         return StatusNormalizer::normalizeStatic($this->status);

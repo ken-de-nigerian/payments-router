@@ -4,36 +4,23 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Services;
 
+use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
+
 /**
- * Status Normalizer Service
- *
- * This service is responsible for converting provider-specific payment statuses
- * to standardized internal status values. It follows the Strategy pattern to
- * allow extensibility without modifying existing code (OCP compliance).
- *
- * Single Responsibility: Only handles status normalization logic.
+ * Status normalizer service.
  */
-final class StatusNormalizer
+final class StatusNormalizer implements StatusNormalizerInterface
 {
-    /**
-     * Provider-specific status mappings.
-     * Drivers can extend this by overriding getProviderMappings().
-     *
-     * @var array<string, array<string, string>>
-     */
+    /** @var array<string, array<string, string>> */
     protected array $providerMappings = [];
 
-    /**
-     * Default status mappings that apply to all providers.
-     *
-     * @var array<string, array<string>>
-     */
+    /** @var array<string, array<string>> */
     protected array $defaultMappings = [
         'success' => [
             'SUCCESS', 'SUCCEEDED', 'COMPLETED', 'SUCCESSFUL', 'PAID', 'OVERPAID', 'CAPTURED',
         ],
         'failed' => [
-            'FAILED', 'REJECTED', 'CANCELLED', 'CANCELED', 'DECLINED', 'DENIED', 'VOIDED', 'EXPIRED',
+            'FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'CANCELED', 'DECLINED', 'DENIED', 'VOIDED', 'EXPIRED',
         ],
         'pending' => [
             'PENDING', 'PROCESSING', 'PARTIALLY_PAID', 'CREATED', 'SAVED', 'APPROVED',
@@ -42,15 +29,7 @@ final class StatusNormalizer
     ];
 
     /**
-     * Normalize a provider-specific status to internal standard status.
-     *
-     * This method first checks for provider-specific mappings, then falls back
-     * to default mappings. This allows drivers to extend behavior without
-     * modifying this class (OCP compliance).
-     *
-     * @param  string  $status  The provider-specific status value
-     * @param  string|null  $provider  Optional provider name for provider-specific mappings
-     * @return string Normalized status value
+     * Normalize status.
      */
     public function normalize(string $status, ?string $provider = null): string
     {
@@ -78,14 +57,9 @@ final class StatusNormalizer
     }
 
     /**
-     * Register-provider-specific status mappings.
+     * Register provider mappings.
      *
-     * This allows drivers to extend the normalization logic without modifying
-     * the core class (OCP compliance).
-     *
-     * @param  string  $provider  Provider name (e.g., 'paystack', 'stripe')
-     * @param  array<string, array<string>>  $mappings  Status mappings ['normalized' => ['PROVIDER_STATUS1', 'PROVIDER_STATUS2']]
-     * @return $this
+     * @param  array<string, array<string>>  $mappings
      */
     public function registerProviderMappings(string $provider, array $mappings): self
     {
@@ -95,7 +69,7 @@ final class StatusNormalizer
     }
 
     /**
-     * Get all registered provider mappings.
+     * Get provider mappings.
      *
      * @return array<string, array<string, array<string>>>
      */
@@ -105,7 +79,7 @@ final class StatusNormalizer
     }
 
     /**
-     * Get default status mappings.
+     * Get default mappings.
      *
      * @return array<string, array<string>>
      */
@@ -115,11 +89,7 @@ final class StatusNormalizer
     }
 
     /**
-     * Static helper to normalize status using default mappings only.
-     * Useful for DTOs that can't access the container.
-     *
-     * @param  string  $status  The status to normalize
-     * @return string Normalized status
+     * Normalize status statically.
      */
     public static function normalizeStatic(string $status): string
     {
@@ -130,7 +100,7 @@ final class StatusNormalizer
                 'SUCCESS', 'SUCCEEDED', 'COMPLETED', 'SUCCESSFUL', 'PAID', 'OVERPAID', 'CAPTURED',
             ],
             'failed' => [
-                'FAILED', 'REJECTED', 'CANCELLED', 'CANCELED', 'DECLINED', 'DENIED', 'VOIDED', 'EXPIRED',
+                'FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'CANCELED', 'DECLINED', 'DENIED', 'VOIDED', 'EXPIRED',
             ],
             'pending' => [
                 'PENDING', 'PROCESSING', 'PARTIALLY_PAID', 'CREATED', 'SAVED', 'APPROVED',

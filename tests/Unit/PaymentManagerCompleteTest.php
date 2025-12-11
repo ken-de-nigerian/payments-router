@@ -14,7 +14,7 @@ test('payment manager cacheSessionData stores session data', function () {
 
     $method->invoke($manager, 'test_ref_123', 'paystack', 'provider_id_123');
 
-    $cached = Cache::get('payzephyr_session_test_ref_123');
+    $cached = Cache::get('payzephyr:session:test_ref_123');
 
     expect($cached)->toBeArray()
         ->and($cached['provider'])->toBe('paystack')
@@ -23,7 +23,7 @@ test('payment manager cacheSessionData stores session data', function () {
 
 test('payment manager resolveVerificationContext uses cache first', function () {
     Cache::flush();
-    Cache::put('payzephyr_session_test_ref', ['provider' => 'paystack', 'id' => 'provider_id'], now()->addHour());
+    Cache::put('payzephyr:session:test_ref', ['provider' => 'paystack', 'id' => 'provider_id'], now()->addHour());
 
     $manager = app(PaymentManager::class);
     $reflection = new ReflectionClass($manager);

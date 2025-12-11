@@ -87,9 +87,12 @@ test('opay verify returns success for code 00000', function () {
             'message' => 'Success',
             'data' => [
                 'reference' => 'OPAY_123',
-                'amount' => 20000,
-                'currency' => 'NGN',
+                'amount' => [
+                    'total' => 20000,
+                    'currency' => 'NGN',
+                ],
                 'status' => 'SUCCESS',
+                'createTime' => strtotime('2024-01-01T12:00:00Z'),
                 'payTime' => '2024-01-01T12:00:00Z',
                 'customerEmail' => 'test@example.com',
                 'customerName' => 'Test User',

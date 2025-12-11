@@ -95,6 +95,8 @@ test('payment manager getDefaultDriver handles empty providers config', function
 });
 
 test('payment manager getFallbackChain handles empty fallback string', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'paystack',
         'payments.fallback' => '', // Empty string
@@ -114,6 +116,8 @@ test('payment manager getFallbackChain handles empty fallback string', function 
 });
 
 test('payment manager getFallbackChain handles false fallback', function () {
+    app()->forgetInstance('payments.config');
+
     config([
         'payments.default' => 'paystack',
         'payments.fallback' => false,
@@ -388,9 +392,8 @@ test('payment manager logTransaction creates transaction with all fields', funct
         ->and((float) $transaction->amount)->toBe(5000.0) // Cast to float for comparison
         ->and($transaction->currency)->toBe('NGN')
         ->and($transaction->email)->toBe('customer@example.com')
-        ->and($transaction->metadata)->toBe([
-            'order_id' => 123,
-            '_provider_id' => 'access_123',
-        ])
-        ->and($transaction->customer)->toBe(['name' => 'John Doe']);
+        ->and($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
+        ->and($transaction->metadata['order_id'])->toBe(123)
+        ->and($transaction->metadata['_provider_id'])->toBe('access_123')
+        ->and($transaction->customer->toArray())->toBe(['name' => 'John Doe']);
 });

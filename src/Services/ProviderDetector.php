@@ -4,22 +4,14 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Services;
 
+use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
+
 /**
- * Provider Detector Service
- *
- * This service is responsible for detecting payment providers from transaction
- * references. It follows the Strategy pattern to allow extensibility.
- *
- * Single Responsibility: Only handles provider detection logic.
+ * Provider detector service.
  */
-final class ProviderDetector
+final class ProviderDetector implements ProviderDetectorInterface
 {
-    /**
-     * Provider reference prefixes.
-     * Can be extended via registerPrefix() method (OCP compliance).
-     *
-     * @var array<string, string>
-     */
+    /** @var array<string, string> */
     protected array $prefixes = [
         'PAYSTACK' => 'paystack',
         'FLW' => 'flutterwave',
@@ -30,10 +22,7 @@ final class ProviderDetector
     ];
 
     /**
-     * Detect provider from transaction reference.
-     *
-     * @param  string  $reference  Transaction reference
-     * @return string|null Provider name or null if not detected
+     * Detect provider from reference.
      */
     public function detectFromReference(string $reference): ?string
     {
@@ -49,13 +38,7 @@ final class ProviderDetector
     }
 
     /**
-     * Register a new provider prefix mapping.
-     *
-     * This allows extending provider detection without modifying this class (OCP compliance).
-     *
-     * @param  string  $prefix  Reference prefix (e.g., 'SQUARE')
-     * @param  string  $provider  Provider name (e.g., 'square')
-     * @return $this
+     * Register provider prefix.
      */
     public function registerPrefix(string $prefix, string $provider): self
     {
@@ -65,7 +48,7 @@ final class ProviderDetector
     }
 
     /**
-     * Get all registered prefixes.
+     * Get registered prefixes.
      *
      * @return array<string, string>
      */
