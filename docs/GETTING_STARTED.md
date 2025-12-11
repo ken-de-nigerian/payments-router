@@ -422,23 +422,41 @@ SQLSTATE[42S02]: Base table or view not found: payment_transactions
 
 Now that you've made your first payment:
 
-1. **Read the Full Documentation**
-   - [Complete Documentation](DOCUMENTATION.md)
-   - [API Reference](../README.md)
+1. **Set Up Queue Workers** (CRITICAL for Webhooks!)
+   - Webhooks are processed asynchronously via Laravel's queue system
+   - **You MUST run queue workers for webhooks to be processed**
+   - See [Queue Worker Setup](webhooks.md#-queue-worker-setup-required) for complete instructions
+   - Quick start for local development:
+     ```bash
+     # In your .env, set:
+     QUEUE_CONNECTION=sync  # For immediate processing (development)
+     
+     # Or for production:
+     QUEUE_CONNECTION=database
+     php artisan queue:table
+     php artisan migrate
+     php artisan queue:work
+     ```
 
 2. **Learn About Webhooks**
    - [Webhook Guide](webhooks.md)
    - Webhooks are more reliable than callbacks
+   - **Remember: Queue workers must be running for webhooks to work!**
 
-3. **Explore Advanced Features**
+3. **Read the Full Documentation**
+   - [Complete Documentation](DOCUMENTATION.md)
+   - [API Reference](../README.md)
+
+4. **Explore Advanced Features**
    - Multiple providers with fallback
    - Custom metadata
    - Transaction logging
 
-4. **Production Checklist**
+5. **Production Checklist**
    - Switch to live API keys
    - Enable webhook signature verification
    - Set up proper error handling
+   - **Set up queue workers (Supervisor or Systemd)**
 
 ---
 

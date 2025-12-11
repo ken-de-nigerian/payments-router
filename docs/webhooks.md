@@ -35,6 +35,8 @@ POST /payments/webhook/opay         ← OPay sends webhooks here
 
 ### Step 2: What Happens When a Webhook Arrives
 
+**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system!**
+
 Here's the complete flow when a payment provider sends a webhook:
 
 ```
@@ -45,25 +47,31 @@ Here's the complete flow when a payment provider sends a webhook:
 3. Controller verifies the webhook signature (security check)
    - Makes sure it's really from Paystack, not a hacker
                     ↓
-4. Controller extracts the payment reference from the webhook data
+4. Controller queues the webhook for processing
+   - Dispatches ProcessWebhook job to Laravel's queue
+   - Returns 202 Accepted immediately (fast response to provider)
                     ↓
-5. Controller updates the payment record in your database
-   - Changes status from 'pending' to 'success' or 'failed'
-   - Saves payment method, timestamp, etc.
+5. Queue Worker picks up the job (if running)
                     ↓
-6. Controller fires Laravel events:
-   - 'payments.webhook.paystack' (provider-specific)
-   - 'payments.webhook' (generic, for all providers)
+6. ProcessWebhook job executes:
+   - Extracts payment reference from webhook data
+   - Updates payment record in your database
+     * Changes status from 'pending' to 'success' or 'failed'
+     * Saves payment method, timestamp, etc.
+   - Fires Laravel events:
+     * 'payments.webhook.paystack' (provider-specific)
+     * 'payments.webhook' (generic, for all providers)
                     ↓
 7. Your event listeners handle the webhook
    - Update order status
    - Send confirmation email
    - Process the order
    - Whatever you need!
-                    ↓
-8. Controller returns 200 OK to the provider
-   - This tells the provider "Got it, thanks!"
 ```
+
+**🔴 Critical: You MUST run queue workers for webhooks to be processed!**
+
+If queue workers aren't running, webhooks will be queued but never processed. See the "Queue Worker Setup" section below.
 
 ### Step 3: Configure Webhook URLs in Provider Dashboards
 
@@ -121,6 +129,186 @@ In your `config/payments.php` file:
 - It checks that the webhook is really from the payment provider
 - Prevents hackers from sending fake webhooks
 - **Never set this to false in production!**
+
+---
+
+## ⚙️ Queue Worker Setup (REQUIRED)
+
+**🔴 CRITICAL: Webhooks are processed asynchronously via Laravel's queue system. You MUST run queue workers for webhooks to be processed!**
+
+### Why Queues?
+
+Webhooks are queued to:
+- ✅ Respond quickly to payment providers (202 Accepted)
+- ✅ Handle high webhook volumes without blocking
+- ✅ Retry failed webhooks automatically
+- ✅ Process webhooks in the background
+
+### Step 1: Configure Queue Connection
+
+In your `.env` file, set your queue connection:
+
+```env
+# For local development (synchronous - processes immediately)
+QUEUE_CONNECTION=sync
+
+# For production (use database, redis, or sqs)
+QUEUE_CONNECTION=database
+# OR
+QUEUE_CONNECTION=redis
+# OR
+QUEUE_CONNECTION=sqs
+```
+
+**💡 Recommendation:**
+- **Development:** Use `sync` for immediate processing (easier debugging)
+- **Production:** Use `database`, `redis`, or `sqs` for better performance
+
+### Step 2: Create Jobs Table (If Using Database Queue)
+
+If you're using `QUEUE_CONNECTION=database`, create the jobs table:
+
+```bash
+php artisan queue:table
+php artisan migrate
+```
+
+This creates the `jobs`, `failed_jobs`, and `job_batches` tables.
+
+### Step 3: Run Queue Workers
+
+**For Local Development:**
+
+```bash
+# Run queue worker (processes jobs one at a time)
+php artisan queue:work
+
+# Or run with auto-restart (recommended)
+php artisan queue:work --tries=3 --timeout=60
+```
+
+**For Production (Using Supervisor - Recommended):**
+
+1. **Install Supervisor** (if not already installed):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install supervisor
+   
+   # macOS
+   brew install supervisor
+   ```
+
+2. **Create Supervisor Configuration:**
+
+   Create `/etc/supervisor/conf.d/laravel-worker.conf`:
+   ```ini
+   [program:laravel-worker]
+   process_name=%(program_name)s_%(process_num)02d
+   command=php /path/to/your/project/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+   autostart=true
+   autorestart=true
+   stopasgroup=true
+   killasgroup=true
+   user=www-data
+   numprocs=2
+   redirect_stderr=true
+   stdout_logfile=/path/to/your/project/storage/logs/worker.log
+   stopwaitsecs=3600
+   ```
+
+   **⚠️ Important:** Replace `/path/to/your/project` with your actual project path!
+
+3. **Start Supervisor:**
+   ```bash
+   sudo supervisorctl reread
+   sudo supervisorctl update
+   sudo supervisorctl start laravel-worker:*
+   ```
+
+4. **Check Status:**
+   ```bash
+   sudo supervisorctl status
+   ```
+
+**For Production (Using Systemd):**
+
+Create `/etc/systemd/system/laravel-worker.service`:
+```ini
+[Unit]
+Description=Laravel Queue Worker
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/path/to/your/project
+ExecStart=/usr/bin/php /path/to/your/project/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Then:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable laravel-worker
+sudo systemctl start laravel-worker
+sudo systemctl status laravel-worker
+```
+
+### Step 4: Verify Queue Workers Are Running
+
+**Check if jobs are being processed:**
+
+```bash
+# Check queue status
+php artisan queue:monitor
+
+# Or check failed jobs
+php artisan queue:failed
+```
+
+**Monitor logs:**
+
+```bash
+# Watch queue worker logs
+tail -f storage/logs/laravel.log
+
+# Or if using Supervisor
+tail -f storage/logs/worker.log
+```
+
+### What Happens If Queue Workers Aren't Running?
+
+If queue workers aren't running:
+- ❌ Webhooks will be queued but **never processed**
+- ❌ Payment statuses won't update in your database
+- ❌ Event listeners won't fire
+- ❌ Orders won't be marked as paid
+- ❌ Confirmation emails won't be sent
+
+**The webhook controller returns 202 Accepted immediately**, so payment providers think the webhook was received, but nothing actually happens until a queue worker processes the job.
+
+### Troubleshooting Queue Issues
+
+**Problem: Jobs are queued but not processing**
+
+**Solutions:**
+1. ✅ Check if queue worker is running: `ps aux | grep queue:work`
+2. ✅ Check queue connection in `.env`: `QUEUE_CONNECTION=database`
+3. ✅ Check if jobs table exists: `php artisan migrate:status`
+4. ✅ Check failed jobs: `php artisan queue:failed`
+5. ✅ Restart queue worker: `php artisan queue:restart`
+
+**Problem: Jobs failing repeatedly**
+
+**Solutions:**
+1. ✅ Check logs: `storage/logs/laravel.log`
+2. ✅ Check failed jobs table: `php artisan queue:failed`
+3. ✅ Retry failed jobs: `php artisan queue:retry all`
+4. ✅ Check database connection
+5. ✅ Verify webhook signature validation isn't failing
 
 ---
 

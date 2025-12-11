@@ -47,15 +47,12 @@ final class PaymentTransaction extends Model
 
     /**
      * Get the table associated with the model.
-     *
-     * @return string
      */
-    public function getTable()
+    public function getTable(): string
     {
         $config = app('payments.config') ?? config('payments', []);
-        $tableName = $config['logging']['table'] ?? $this->table;
 
-        return $tableName;
+        return $config['logging']['table'] ?? $this->table;
     }
 
     /**
@@ -65,9 +62,6 @@ final class PaymentTransaction extends Model
      */
     protected function casts(): array
     {
-        // Use 'array' cast for Laravel 10 and below compatibility
-        // AsArrayObject may not properly encode during mass assignment in Laravel 10
-        // Laravel 11+ handles AsArrayObject correctly during mass assignment
         $laravelVersion = (float) app()->version();
         $arrayCast = $laravelVersion >= 11.0 ? AsArrayObject::class : 'array';
 
@@ -87,14 +81,12 @@ final class PaymentTransaction extends Model
      *
      * @param  string  $key
      * @param  mixed  $value
-     * @return mixed
+     * @return $this
      */
-    public function setAttribute($key, $value)
+    public function setAttribute($key, $value): self
     {
         $laravelVersion = (float) app()->version();
-        
-        // For Laravel 10, ensure arrays are JSON-encoded for metadata and customer
-        // Laravel 11+ uses AsArrayObject which handles this automatically
+
         if ($laravelVersion < 11.0 && in_array($key, ['metadata', 'customer'], true)) {
             if ($value === null) {
                 $this->attributes[$key] = null;
@@ -103,11 +95,10 @@ final class PaymentTransaction extends Model
             } else {
                 $this->attributes[$key] = $value;
             }
-            
+
             return $this;
         }
-        
-        // For Laravel 11+ or other attributes, use parent implementation
+
         return parent::setAttribute($key, $value);
     }
 
@@ -116,26 +107,23 @@ final class PaymentTransaction extends Model
      * Override to handle JSON string decoding for Laravel 10 compatibility.
      *
      * @param  string  $key
-     * @return mixed
      */
-    public function getAttribute($key)
+    public function getAttribute($key): mixed
     {
         $value = parent::getAttribute($key);
-        
-        // For Laravel 10, decode JSON strings for metadata and customer if cast didn't apply
+
         $laravelVersion = (float) app()->version();
         if ($laravelVersion < 11.0 && in_array($key, ['metadata', 'customer'], true)) {
-            if (is_string($value) && !empty($value)) {
+            if (is_string($value) && ! empty($value)) {
                 $decoded = json_decode($value, true);
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
                     return $decoded;
                 }
             }
         }
-        
+
         return $value;
     }
-
 
     /**
      * Set table name.

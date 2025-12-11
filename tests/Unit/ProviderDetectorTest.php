@@ -2,6 +2,35 @@
 
 use KenDeNigerian\PayZephyr\Services\ProviderDetector;
 
+// Set up all providers with correct reference prefixes for testing
+beforeEach(function () {
+    config([
+        'payments.providers.paystack' => [
+            'driver' => 'paystack',
+            'enabled' => true,
+        ],
+        'payments.providers.flutterwave' => [
+            'driver' => 'flutterwave',
+            'reference_prefix' => 'FLW',
+            'enabled' => true,
+        ],
+        'payments.providers.monnify' => [
+            'driver' => 'monnify',
+            'reference_prefix' => 'MON',
+            'enabled' => true,
+        ],
+        'payments.providers.stripe' => [
+            'driver' => 'stripe',
+            'enabled' => true,
+        ],
+        'payments.providers.paypal' => [
+            'driver' => 'paypal',
+            'enabled' => true,
+        ],
+    ]);
+    app()->forgetInstance('payments.config');
+});
+
 test('provider detector detects paystack from reference', function () {
     $detector = new ProviderDetector;
 

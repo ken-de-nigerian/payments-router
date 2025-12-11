@@ -274,64 +274,89 @@ final class ChannelMapper implements ChannelMapperInterface
 - Stripe: `['card']` (payment method types)
 
 #### ProviderDetector
-Detects which provider processed a payment based on reference prefix:
+Detects which provider processed a payment based on reference prefix. Uses Convention over Configuration to dynamically build prefix list from enabled providers in config:
 
 ```php
 final class ProviderDetector implements ProviderDetectorInterface
 {
-    protected array $prefixes = [
-        'PAYSTACK' => 'paystack',
-        'FLW' => 'flutterwave',
-        'MON' => 'monnify',
-        'STRIPE' => 'stripe',
-        'PAYPAL' => 'paypal',
-        'SQUARE' => 'square',
-        'OPAY' => 'opay',
-    ];
+    protected array $prefixes = []; // Dynamically loaded from config
+    
+    public function __construct()
+    {
+        $this->prefixes = $this->loadPrefixesFromConfig();
+    }
+    
+    protected function loadPrefixesFromConfig(): array
+    {
+        // Loads all providers from config (not just enabled ones)
+        // Uses reference_prefix from config, or defaults to UPPERCASE(provider_name)
+        // Example: 'flutterwave' → 'FLW' (if reference_prefix set) or 'FLUTTERWAVE'
+    }
     
     public function detectFromReference(string $reference): ?string;
     public function registerPrefix(string $prefix, string $provider): self;
+    public function getPrefixes(): array;
 }
 ```
 
 **How it works:**
-- Checks reference prefix (e.g., `PAYSTACK_123456` → `paystack`)
-- Case-insensitive matching
-- Requires underscore after prefix
-- Supports custom prefix registration
+- **Dynamic Loading**: Automatically loads prefixes from all providers in config
+- **Convention**: Defaults to `UPPERCASE(provider_name)` if `reference_prefix` not set
+- **Configuration**: Respects `reference_prefix` setting in provider config (e.g., `FLW` for Flutterwave, `MON` for Monnify)
+- **Detection**: Checks reference prefix (e.g., `PAYSTACK_123456` → `paystack`)
+- **Case-insensitive**: Matching works regardless of case
+- **Requires underscore**: Prefix must be followed by underscore
+- **Custom registration**: Supports runtime prefix registration via `registerPrefix()`
+
+**Benefits:**
+- **No hardcoded lists**: Automatically detects new providers added to config
+- **Flexible**: Supports custom prefixes via config
+- **Maintainable**: Adding new providers requires no code changes
 
 #### DriverFactory
-Creates driver instances following the Factory pattern:
+Creates driver instances following the Factory pattern. Uses Convention over Configuration to automatically resolve driver classes:
 
 ```php
 final class DriverFactory
 {
     protected array $drivers = []; // Custom registered drivers
-    protected array $defaultDrivers = [
-        'paystack' => PaystackDriver::class,
-        'flutterwave' => FlutterwaveDriver::class,
-        // ... more defaults
-    ];
     
     public function create(string $name, array $config): DriverInterface;
     public function register(string $name, string $class): self;
     public function getRegisteredDrivers(): array;
     public function isRegistered(string $name): bool;
     
-    protected function resolveDriverClass(string $name): string;
-    // Priority: Registered → Config → Default → Direct class name
+    protected function resolveDriverClass(string $name): string
+    {
+        // Priority: Registered → Config → Convention → Direct class name
+        // Convention: 'paystack' → 'KenDeNigerian\PayZephyr\Drivers\PaystackDriver'
+        // Special case: 'paypal' → 'PayPalDriver' (handles case differences)
+    }
 }
 ```
 
 **Resolution Priority:**
-1. **Registered drivers** (custom drivers registered at runtime)
+1. **Registered drivers** (custom drivers registered at runtime via `register()`)
 2. **Config drivers** (from `config['providers'][$name]['driver_class']`)
-3. **Default drivers** (built-in providers)
-4. **Direct class name** (assumes fully qualified class name)
+3. **Convention-based** (automatically resolves `{Provider}Driver` class)
+   - Converts provider name to PascalCase: `'paystack'` → `'Paystack'` → `'PaystackDriver'`
+   - Handles special cases (e.g., `'paypal'` → `'PayPalDriver'`)
+4. **Direct class name** (assumes fully qualified class name if convention fails)
+
+**Convention Examples:**
+- `'paystack'` → `PaystackDriver`
+- `'flutterwave'` → `FlutterwaveDriver`
+- `'monnify'` → `MonnifyDriver`
+- `'stripe'` → `StripeDriver`
+- `'paypal'` → `PayPalDriver` (special case)
+- `'square'` → `SquareDriver`
+- `'opay'` → `OpayDriver`
 
 **Benefits:**
 - **OCP Compliance**: Add drivers without modifying core code
-- **Flexibility**: Support custom driver classes
+- **Convention over Configuration**: No hardcoded provider lists
+- **Flexibility**: Supports custom drivers via registration or config
+- **Extensibility**: New providers automatically work if they follow naming convention
 - **Testability**: Easy to mock and test
 
 ### 4. Drivers

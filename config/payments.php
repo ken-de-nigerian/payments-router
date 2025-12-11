@@ -45,6 +45,7 @@ return [
 
         'flutterwave' => [
             'driver' => 'flutterwave',
+            'reference_prefix' => 'FLW', // Flutterwave uses 'FLW' prefix, not 'FLUTTERWAVE'
             'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
             'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
             'webhook_secret' => env('FLUTTERWAVE_ENCRYPTION_KEY'), // Secret Hash from Flutterwave Dashboard
@@ -55,6 +56,7 @@ return [
 
         'monnify' => [
             'driver' => 'monnify',
+            'reference_prefix' => 'MON', // Monnify uses 'MON' prefix, not 'MONNIFY'
             'api_key' => env('MONNIFY_API_KEY'),
             'secret_key' => env('MONNIFY_SECRET_KEY'),
             'contract_code' => env('MONNIFY_CONTRACT_CODE'),

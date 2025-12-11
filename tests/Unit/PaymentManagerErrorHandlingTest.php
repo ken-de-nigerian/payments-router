@@ -389,7 +389,7 @@ test('payment manager logTransaction creates transaction with all fields', funct
 
     $transaction = \KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'test_ref_log')->first();
     $laravelVersion = (float) app()->version();
-    
+
     expect($transaction)->not->toBeNull()
         ->and((float) $transaction->amount)->toBe(5000.0) // Cast to float for comparison
         ->and($transaction->currency)->toBe('NGN')

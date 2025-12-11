@@ -285,6 +285,8 @@ public function handle(array $payload): void
 
 ## 🔔 Webhooks
 
+**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system. You must run queue workers for webhooks to be processed. See [Queue Worker Setup](docs/webhooks.md#-queue-worker-setup-required) for details.**
+
 ### Webhook URLs
 
 Configure these in your provider dashboards:

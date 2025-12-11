@@ -30,6 +30,9 @@ final class ChannelMapper implements ChannelMapperInterface
     /**
      * Map channels to provider format.
      *
+     * This method is now dynamic, automatically calling `mapTo<Provider>`
+     * if the method exists, or returning raw channels for custom drivers.
+     *
      * @param  array<string>|null  $channels
      */
     public function mapChannels(?array $channels, string $provider): ?array
@@ -38,15 +41,13 @@ final class ChannelMapper implements ChannelMapperInterface
             return null;
         }
 
-        return match ($provider) {
-            'paystack' => $this->mapToPaystack($channels),
-            'monnify' => $this->mapToMonnify($channels),
-            'flutterwave' => $this->mapToFlutterwave($channels),
-            'stripe' => $this->mapToStripe($channels),
-            'paypal' => $this->mapToPayPal(),
-            'square' => $this->mapToSquare($channels),
-            default => $channels,
-        };
+        $method = 'mapTo'.ucfirst($provider);
+
+        if (method_exists($this, $method)) {
+            return $this->{$method}($channels);
+        }
+
+        return $channels;
     }
 
     /**
@@ -150,8 +151,10 @@ final class ChannelMapper implements ChannelMapperInterface
      *
      * PayPal doesn't use channels in the same way, but we can set payment method preference.
      * Returns null as PayPal handles this differently.
+     *
+     * @param  array<string>  $channels
      */
-    protected function mapToPayPal(): ?array
+    protected function mapToPayPal(array $channels): ?array
     {
         // PayPal doesn't support channel filtering in the same way
         // It uses payment_method_preference in experience_context
@@ -183,6 +186,31 @@ final class ChannelMapper implements ChannelMapperInterface
     }
 
     /**
+     * Map channels to OPay format.
+     *
+     * OPay accepts: 'CARD', 'BANK_ACCOUNT', 'OPAY_ACCOUNT', 'OPAY_QRCODE'
+     */
+    protected function mapToOpay(array $channels): array
+    {
+        $mapping = [
+            PaymentChannel::CARD->value => 'CARD',
+            PaymentChannel::BANK_TRANSFER->value => 'BANK_ACCOUNT',
+            PaymentChannel::USSD->value => 'OPAY_ACCOUNT',
+            PaymentChannel::MOBILE_MONEY->value => 'OPAY_ACCOUNT',
+            PaymentChannel::QR_CODE->value => 'OPAY_QRCODE',
+        ];
+
+        $mapped = array_map(
+            fn ($channel) => $mapping[strtolower($channel)] ?? null,
+            $channels
+        );
+
+        $validOptions = ['CARD', 'BANK_ACCOUNT', 'OPAY_ACCOUNT', 'OPAY_QRCODE', 'BALANCE', 'OTHERS'];
+
+        return array_filter($mapped, fn ($option) => in_array($option, $validOptions));
+    }
+
+    /**
      * Get default channels for provider.
      *
      * @return array<string>
@@ -196,6 +224,7 @@ final class ChannelMapper implements ChannelMapperInterface
             'stripe' => ['card'],
             'paypal' => [], // PayPal doesn't use channels
             'square' => ['CARD'],
+            'opay' => [PaymentChannel::CARD->value, PaymentChannel::BANK_TRANSFER->value],
             default => ['card'],
         };
     }
@@ -229,10 +258,14 @@ final class ChannelMapper implements ChannelMapperInterface
      */
     public function supportsChannels(string $provider): bool
     {
-        return match ($provider) {
-            'paystack', 'monnify', 'flutterwave', 'stripe', 'square' => true,
-            'paypal' => false,
-            default => false,
-        };
+        if ($provider === 'paypal') {
+            return false;
+        }
+
+        if (method_exists($this, 'mapTo'.ucfirst($provider))) {
+            return true;
+        }
+
+        return false;
     }
 }

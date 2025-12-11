@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr;
 
+use ArrayObject;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -238,9 +239,9 @@ class PaymentManager
 
                     // Ensure metadata is an array (handle both array and ArrayObject)
                     $metadata = $transaction->metadata;
-                    if ($metadata instanceof \ArrayObject) {
+                    if ($metadata instanceof ArrayObject) {
                         $metadata = $metadata->getArrayCopy();
-                    } elseif (!is_array($metadata)) {
+                    } elseif (! is_array($metadata)) {
                         $metadata = [];
                     }
 
@@ -259,13 +260,13 @@ class PaymentManager
                     // Provider not configured - fall back to using reference
                     // Ensure metadata is an array (handle both array and ArrayObject)
                     $metadata = $transaction->metadata;
-                    if ($metadata instanceof \ArrayObject) {
+                    if ($metadata instanceof ArrayObject) {
                         $metadata = $metadata->getArrayCopy();
                     } elseif (is_string($metadata)) {
                         // Decode JSON string if cast didn't apply
                         $decoded = json_decode($metadata, true);
                         $metadata = is_array($decoded) ? $decoded : [];
-                    } elseif (!is_array($metadata)) {
+                    } elseif (! is_array($metadata)) {
                         $metadata = [];
                     }
 

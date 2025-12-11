@@ -8,18 +8,42 @@ use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
 
 /**
  * Provider detector service.
+ *
+ * This service dynamically builds its list of known reference prefixes
+ * based on the enabled providers defined in the configuration.
  */
 final class ProviderDetector implements ProviderDetectorInterface
 {
     /** @var array<string, string> */
-    protected array $prefixes = [
-        'PAYSTACK' => 'paystack',
-        'FLW' => 'flutterwave',
-        'MON' => 'monnify',
-        'STRIPE' => 'stripe',
-        'PAYPAL' => 'paypal',
-        'SQUARE' => 'square',
-    ];
+    protected array $prefixes = [];
+
+    public function __construct()
+    {
+        $this->prefixes = $this->loadPrefixesFromConfig();
+    }
+
+    /**
+     * Dynamically loads default prefixes based on all providers in config.
+     *
+     * Note: We load all providers (not just enabled ones) because we need to
+     * detect which provider a reference belongs to, regardless of whether
+     * that provider is currently enabled for payments.
+     *
+     * @return array<string, string>
+     */
+    protected function loadPrefixesFromConfig(): array
+    {
+        $config = app('payments.config') ?? config('payments', []);
+        $prefixes = [];
+
+        foreach ($config['providers'] ?? [] as $providerName => $providerConfig) {
+            $driverName = $providerConfig['driver'] ?? $providerName;
+            $prefix = $providerConfig['reference_prefix'] ?? strtoupper($driverName);
+            $prefixes[strtoupper($prefix)] = $providerName;
+        }
+
+        return $prefixes;
+    }
 
     /**
      * Detect provider from reference.

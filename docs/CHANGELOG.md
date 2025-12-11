@@ -6,6 +6,47 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.7] - 2025-12-11
+
+### Changed
+- **Convention over Configuration**: Refactored core services to eliminate hardcoded provider lists
+  - **DriverFactory**: Now uses Convention over Configuration to automatically resolve driver classes
+    - Converts provider name to `{Provider}Driver` class name (e.g., `'paystack'` → `PaystackDriver`)
+    - Handles special cases (e.g., `'paypal'` → `PayPalDriver`)
+    - No longer requires hardcoded provider-to-class mappings
+    - Maintains backward compatibility with registered drivers and config `driver_class` settings
+  - **ProviderDetector**: Dynamically builds prefix list from all providers in configuration
+    - Automatically loads prefixes from `config('payments.providers')`
+    - Uses `reference_prefix` from config if set, otherwise defaults to `UPPERCASE(provider_name)`
+    - Loads all providers (not just enabled ones) for detection purposes
+    - Supports custom prefixes via `reference_prefix` config option
+  - **ChannelMapper**: Uses dynamic method checking instead of hardcoded provider list
+    - Automatically calls `mapTo{Provider}()` methods based on provider name
+    - No hardcoded provider checks required
+    - Easier to extend with new provider mappings
+
+### Improved
+- **Maintainability**: Adding new providers no longer requires updating multiple hardcoded lists
+- **Extensibility**: New providers automatically work if they follow naming conventions
+- **Code Quality**: Reduced code duplication and improved adherence to DRY principles
+
+### Configuration
+- Added `reference_prefix` configuration option for providers that need custom prefixes:
+  - Flutterwave: `'reference_prefix' => 'FLW'` (instead of default `'FLUTTERWAVE'`)
+  - Monnify: `'reference_prefix' => 'MON'` (instead of default `'MONNIFY'`)
+
+### Documentation
+- Updated `docs/architecture.md` to reflect Convention over Configuration approach
+- Documented dynamic prefix loading in ProviderDetector
+- Documented Convention-based driver resolution in DriverFactory
+- Documented dynamic method checking in ChannelMapper
+
+### Tests
+- All 716 tests passing
+- Updated ProviderDetector tests to set up providers with correct `reference_prefix` values
+- Verified backward compatibility with existing functionality
+
+---
 ## [1.1.6] - 2025-12-11
 
 ### Added

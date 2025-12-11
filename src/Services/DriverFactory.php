@@ -5,13 +5,6 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Services;
 
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
-use KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver;
-use KenDeNigerian\PayZephyr\Drivers\MonnifyDriver;
-use KenDeNigerian\PayZephyr\Drivers\OPayDriver;
-use KenDeNigerian\PayZephyr\Drivers\PayPalDriver;
-use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
-use KenDeNigerian\PayZephyr\Drivers\SquareDriver;
-use KenDeNigerian\PayZephyr\Drivers\StripeDriver;
 use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
 
 /**
@@ -32,21 +25,6 @@ final class DriverFactory
      * @var array<string, string>
      */
     protected array $drivers = [];
-
-    /**
-     * Default driver mappings for built-in providers.
-     *
-     * @var array<string, string>
-     */
-    protected array $defaultDrivers = [
-        'paystack' => PaystackDriver::class,
-        'flutterwave' => FlutterwaveDriver::class,
-        'monnify' => MonnifyDriver::class,
-        'stripe' => StripeDriver::class,
-        'paypal' => PayPalDriver::class,
-        'square' => SquareDriver::class,
-        'opay' => OPayDriver::class,
-    ];
 
     /**
      * Create a driver instance.
@@ -73,31 +51,36 @@ final class DriverFactory
 
     /**
      * Resolve driver class name.
-     * Priority: Registered drivers -> Config -> Default drivers -> Direct class name
+     * Priority: Registered drivers -> Config -> Convention -> Direct class name
      *
      * @param  string  $name  Driver name
      * @return string Fully qualified class name
      */
     protected function resolveDriverClass(string $name): string
     {
-        // 1. Check registered drivers (custom drivers)
         if (isset($this->drivers[$name])) {
             return $this->drivers[$name];
         }
 
-        // 2. Check config for custom driver class
         $config = app('payments.config') ?? config('payments', []);
         $configDriver = $config['providers'][$name]['driver_class'] ?? null;
         if ($configDriver && class_exists($configDriver)) {
             return $configDriver;
         }
 
-        // 3. Check default drivers
-        if (isset($this->defaultDrivers[$name])) {
-            return $this->defaultDrivers[$name];
+        $className = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
+        $fqcn = 'KenDeNigerian\PayZephyr\Drivers\\'.$className.'Driver';
+
+        // Try convention-based class name first
+        if (class_exists($fqcn)) {
+            return $fqcn;
         }
 
-        // 4. Assume it's a fully qualified class name
+        // Handle special case: PayPal (Paypal -> PayPal)
+        if (strtolower($name) === 'paypal' && class_exists('KenDeNigerian\PayZephyr\Drivers\PayPalDriver')) {
+            return 'KenDeNigerian\PayZephyr\Drivers\PayPalDriver';
+        }
+
         return $name;
     }
 
