@@ -24,13 +24,15 @@ test('install command description is set', function () {
 });
 
 test('install command publishes config', function () {
-    Artisan::call('payzephyr:install', ['--force' => true]);
+    // Use --no-interaction to skip confirmation prompt
+    Artisan::call('payzephyr:install', ['--force' => true, '--no-interaction' => true]);
 
     expect(config_path('payments.php'))->toBeFile();
 });
 
 test('install command publishes migrations', function () {
-    Artisan::call('payzephyr:install');
+    // Use --no-interaction to skip confirmation prompt
+    Artisan::call('payzephyr:install', ['--no-interaction' => true]);
 
     $migrationsPath = database_path('migrations');
     $migrationFiles = glob($migrationsPath.'/*_create_payment_transactions_table.php');

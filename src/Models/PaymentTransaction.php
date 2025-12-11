@@ -65,10 +65,16 @@ final class PaymentTransaction extends Model
      */
     protected function casts(): array
     {
+        // Use 'array' cast for Laravel 10 and below compatibility
+        // AsArrayObject may not properly encode during mass assignment in Laravel 10
+        // Laravel 11+ handles AsArrayObject correctly during mass assignment
+        $laravelVersion = (float) app()->version();
+        $arrayCast = $laravelVersion >= 11.0 ? AsArrayObject::class : 'array';
+
         return [
             'amount' => 'decimal:2',
-            'metadata' => AsArrayObject::class,
-            'customer' => AsArrayObject::class,
+            'metadata' => $arrayCast,
+            'customer' => $arrayCast,
             'paid_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',

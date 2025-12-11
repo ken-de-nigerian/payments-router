@@ -37,8 +37,10 @@ class InstallCommand extends Command
 
         $this->info('✓ Migration files published');
 
-        // Run migrations
-        if ($this->confirm('Run migrations now?', true)) {
+        // Run migrations (skip confirmation in non-interactive mode)
+        if ($this->option('no-interaction')) {
+            // Skip migration prompt in non-interactive mode
+        } elseif ($this->confirm('Run migrations now?', true)) {
             $this->call('migrate');
             $this->info('✓ Migrations completed');
         }
