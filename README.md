@@ -591,7 +591,17 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.1.11
+### Latest Release: v1.1.12
+
+### Changed
+- **SquareDriver HTTP Implementation**: Refactored SquareDriver to use direct HTTP requests
+  - Removed dependency on Square PHP SDK
+  - All API calls now use Guzzle HTTP client for consistency with other drivers
+  - No external SDK dependency required
+  - Improved error handling with standard HTTP exceptions
+  - Added Square-specific status mapping (APPROVED → success)
+
+### Previous Release: v1.1.11
 
 ### Changed
 - **SquareDriver SDK Integration**: Refactored SquareDriver to use the official Square PHP SDK

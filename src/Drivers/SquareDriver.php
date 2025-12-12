@@ -5,32 +5,13 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ConnectException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
-use KenDeNigerian\PayZephyr\Exceptions\PaymentException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
-use Square\Checkout\PaymentLinks\Requests\CreatePaymentLinkRequest;
-use Square\Checkout\PaymentLinks\Requests\GetPaymentLinksRequest;
-use Square\Environments;
-use Square\Exceptions\SquareApiException;
-use Square\Exceptions\SquareException;
-use Square\Orders\Requests\GetOrdersRequest;
-use Square\Orders\Requests\SearchOrdersRequest;
-use Square\Payments\Requests\GetPaymentsRequest;
-use Square\SquareClient;
-use Square\Types\CheckoutOptions;
-use Square\Types\Money;
-use Square\Types\Order;
-use Square\Types\OrderLineItem;
-use Square\Types\OrderState;
-use Square\Types\Payment;
-use Square\Types\PrePopulatedData;
-use Square\Types\SearchOrdersFilter;
-use Square\Types\SearchOrdersQuery;
-use Square\Types\SearchOrdersStateFilter;
 use Throwable;
 
 /**
@@ -41,12 +22,7 @@ final class SquareDriver extends AbstractDriver
     protected string $name = 'square';
 
     /**
-     * Square SDK client instance.
-     */
-    private ?SquareClient $squareClient = null;
-
-    /**
-     * Make sure the Square secret key is configured.
+     * Make sure the Square secret key and location id is configured.
      */
     protected function validateConfig(): void
     {
@@ -59,35 +35,7 @@ final class SquareDriver extends AbstractDriver
     }
 
     /**
-     * Get or create the Square SDK client instance.
-     */
-    private function getSquareClient(): SquareClient
-    {
-        if ($this->squareClient === null) {
-            $isSandbox = str_contains($this->config['base_url'] ?? '', 'squareupsandbox.com');
-            $environment = $isSandbox ? Environments::Sandbox : Environments::Production;
-
-            $options = [
-                'baseUrl' => $environment->value,
-            ];
-
-            if (isset($this->client)) {
-                $options['client'] = $this->client;
-            }
-
-            $this->squareClient = new SquareClient(
-                token: $this->config['access_token'],
-                version: '2024-10-18',
-                options: $options
-            );
-        }
-
-        return $this->squareClient;
-    }
-
-    /**
      * Get the HTTP headers needed for Square API requests.
-     * Note: This is kept for backward compatibility but may not be used when using SDK.
      */
     protected function getDefaultHeaders(): array
     {
@@ -107,7 +55,7 @@ final class SquareDriver extends AbstractDriver
     }
 
     /**
-     * Create a new payment link on Square using the Square PHP SDK.
+     * Create a new payment link on Square.
      *
      * @throws ChargeException
      */
@@ -118,84 +66,98 @@ final class SquareDriver extends AbstractDriver
         try {
             $reference = $request->reference ?? $this->generateReference('SQUARE');
 
-            $amountMoney = new Money([
-                'amount' => $request->getAmountInMinorUnits(),
-                'currency' => $request->currency,
+            $payload = [
+                'idempotency_key' => $request->idempotencyKey ?? uniqid('square_', true),
+                'order' => [
+                    'location_id' => $this->config['location_id'],
+                    'reference_id' => $reference,
+                    'line_items' => [
+                        [
+                            'name' => $request->description ?? 'Payment',
+                            'quantity' => '1',
+                            'base_price_money' => [
+                                'amount' => $request->getAmountInMinorUnits(),
+                                'currency' => $request->currency,
+                            ],
+                        ],
+                    ],
+                ],
+                'redirect_url' => $this->appendQueryParam(
+                    $request->callbackUrl,
+                    'reference',
+                    $reference
+                ),
+                'buyer_email_address' => $request->email,
+            ];
+
+            $response = $this->makeRequest('POST', '/v2/online-checkout/payment-links', [
+                'json' => $payload,
             ]);
 
-            $lineItem = new OrderLineItem([
-                'quantity' => '1',
-                'name' => $request->description ?? 'Payment',
-                'basePriceMoney' => $amountMoney,
-            ]);
+            $data = $this->parseResponse($response);
 
-            $order = new Order([
-                'locationId' => $this->config['location_id'],
-                'referenceId' => $reference,
-                'lineItems' => [$lineItem],
-            ]);
-
-            $checkoutOptions = new CheckoutOptions([
-                'redirectUrl' => $this->appendQueryParam($request->callbackUrl, 'reference', $reference),
-            ]);
-
-            $prePopulatedData = new PrePopulatedData([
-                'buyerEmail' => $request->email,
-            ]);
-
-            $paymentLinkRequest = new CreatePaymentLinkRequest([
-                'idempotencyKey' => $request->idempotencyKey,
-                'order' => $order,
-                'checkoutOptions' => $checkoutOptions,
-                'prePopulatedData' => $prePopulatedData,
-            ]);
-
-            $client = $this->getSquareClient();
-            try {
-                $response = $client->checkout->paymentLinks->create($paymentLinkRequest);
-            } catch (SquareApiException $e) {
-                $body = json_decode($e->getBody(), true);
-                $errorMessage = $body['errors'][0]['detail'] ?? $e->getMessage();
-                throw new ChargeException($errorMessage, 0, $e);
-            } catch (SquareException $e) {
-                throw new ChargeException('Payment initialization failed: '.$e->getMessage(), 0, $e);
-            }
-
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                $errorMessage = $errors[0]->getDetail() ?? 'Failed to create Square payment link';
+            if (! isset($data['payment_link'])) {
+                $errorMessage = $data['errors'][0]['detail'] ?? $data['errors'][0]['code'] ?? 'Failed to create Square payment link';
+                $this->log('error', 'Failed to create payment link', [
+                    'reference' => $reference,
+                    'errors' => $data['errors'] ?? [],
+                ]);
                 throw new ChargeException($errorMessage);
             }
 
-            $paymentLink = $response->getPaymentLink();
-            if (! $paymentLink) {
-                throw new ChargeException('Failed to create Square payment link');
-            }
-            $paymentLinkUrl = $paymentLink->getUrl();
-            $paymentLinkId = $paymentLink->getId();
-            $orderId = $paymentLink->getOrderId();
-            $isSandbox = str_contains($this->config['base_url'] ?? '', 'squareupsandbox.com');
+            $paymentLinkUrl = $data['payment_link']['url'];
 
             $this->log('info', 'Charge initialized successfully', [
                 'reference' => $reference,
+                'idempotent' => $request->idempotencyKey !== null,
             ]);
 
             return new ChargeResponseDTO(
                 reference: $reference,
                 authorizationUrl: $paymentLinkUrl,
-                accessCode: $paymentLinkId,
+                accessCode: $data['payment_link']['id'],
                 status: 'pending',
                 metadata: [
-                    'payment_link_id' => $paymentLinkId,
-                    'order_id' => $orderId,
-                    'is_sandbox' => $isSandbox,
+                    'payment_link_id' => $data['payment_link']['id'],
+                    'order_id' => $data['payment_link']['order_id'] ?? null,
                 ],
                 provider: $this->getName(),
             );
         } catch (ChargeException $e) {
             throw $e;
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+
+            $statusCode = $response->getStatusCode();
+            $responseData = $this->parseResponse($response);
+            $errorMessage = $responseData['errors'][0]['detail'] ?? $responseData['errors'][0]['code'] ?? $e->getMessage();
+
+            $baseUrl = $this->config['base_url'] ?? '';
+            $isSandboxUrl = str_contains($baseUrl, 'squareupsandbox.com');
+            $isProductionUrl = str_contains($baseUrl, 'squareup.com') && ! $isSandboxUrl;
+
+            if ($statusCode === 401 || $statusCode === 403) {
+                $hint = '';
+                if ($isSandboxUrl) {
+                    $hint = ' Make sure you are using a sandbox access token. Check Square Dashboard → Applications → Your App → Sandbox → Access Tokens.';
+                } elseif ($isProductionUrl) {
+                    $hint = ' Make sure you are using a production access token. Check Square Dashboard → Applications → Your App → Production → Access Tokens.';
+                }
+                $errorMessage .= $hint;
+            }
+
+            $this->log('error', 'Charge failed', [
+                'reference' => $reference ?? null,
+                'status_code' => $statusCode,
+                'error' => $errorMessage,
+                'errors' => $responseData['errors'] ?? [],
+                'error_class' => get_class($e),
+            ]);
+
+            throw new ChargeException('Payment initialization failed: '.$errorMessage, 0, $e);
         } catch (Throwable $e) {
             $this->log('error', 'Charge failed', [
+                'reference' => $reference ?? null,
                 'error' => $e->getMessage(),
                 'error_class' => get_class($e),
             ]);
@@ -207,6 +169,9 @@ final class SquareDriver extends AbstractDriver
 
     /**
      * Verify a payment by retrieving the payment details.
+     *
+     * Square can verify by payment ID, payment link ID, or by searching orders using reference_id.
+     * This method tries multiple verification strategies in order.
      *
      * @throws VerificationException
      */
@@ -226,6 +191,45 @@ final class SquareDriver extends AbstractDriver
             return $this->verifyByReferenceId($reference);
         } catch (VerificationException $e) {
             throw $e;
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException) {
+                $response = $previous->getResponse();
+
+                $statusCode = $response->getStatusCode();
+                $responseData = $this->parseResponse($response);
+
+                $errorMessage = $responseData['errors'][0]['detail'] ?? $responseData['errors'][0]['code'] ?? $previous->getMessage();
+
+                $this->log('error', 'Verification failed', [
+                    'reference' => $reference,
+                    'status_code' => $statusCode,
+                    'error' => $errorMessage,
+                    'errors' => $responseData['errors'] ?? [],
+                    'error_class' => get_class($previous),
+                ]);
+
+                throw new VerificationException('Payment verification failed: '.$errorMessage, 0, $previous);
+            }
+
+            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
+        } catch (ClientException $e) {
+            $response = $e->getResponse();
+
+            $statusCode = $response->getStatusCode();
+            $responseData = $this->parseResponse($response);
+
+            $errorMessage = $responseData['errors'][0]['detail'] ?? $responseData['errors'][0]['code'] ?? $e->getMessage();
+
+            $this->log('error', 'Verification failed', [
+                'reference' => $reference,
+                'status_code' => $statusCode,
+                'error' => $errorMessage,
+                'errors' => $responseData['errors'] ?? [],
+                'error_class' => get_class($e),
+            ]);
+
+            throw new VerificationException('Payment verification failed: '.$errorMessage, 0, $e);
         } catch (Throwable $e) {
             $this->log('error', 'Verification failed', [
                 'reference' => $reference,
@@ -241,7 +245,7 @@ final class SquareDriver extends AbstractDriver
      *
      * @return VerificationResponseDTO|null Returns null if the reference is not a payment ID or payment not found
      *
-     * @throws VerificationException
+     * @throws ChargeException
      */
     private function verifyByPaymentId(string $reference): ?VerificationResponseDTO
     {
@@ -250,64 +254,45 @@ final class SquareDriver extends AbstractDriver
         }
 
         try {
-            $client = $this->getSquareClient();
-            $request = new GetPaymentsRequest(['paymentId' => $reference]);
-            $response = $client->payments->get($request);
+            $response = $this->makeRequest('GET', "/v2/payments/$reference");
+            $data = $this->parseResponse($response);
 
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                $error = $errors[0];
-                if ($error->getCategory() === 'NOT_FOUND_ERROR') {
-                    return null;
-                }
-                throw new VerificationException($error->getDetail() ?? 'Failed to retrieve payment');
+            if (isset($data['payment'])) {
+                return $this->mapFromPayment($data['payment'], $reference);
             }
-
-            $payment = $response->getPayment();
-            if (! $payment) {
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException && $previous->getResponse()?->getStatusCode() === 404) {
                 return null;
             }
-
-            $paymentArray = $this->paymentToArray($payment);
-
-            return $this->mapFromPayment($paymentArray, $reference);
-        } catch (VerificationException $e) {
             throw $e;
-        } catch (Throwable $e) {
-            if (str_contains($e->getMessage(), 'NOT_FOUND') || str_contains($e->getMessage(), '404')) {
+        } catch (ClientException $e) {
+            if ($e->getResponse()?->getStatusCode() === 404) {
                 return null;
             }
-            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
+            throw $e;
         }
+
+        return null;
     }
 
     /**
      * Attempt to verify payment using a payment link ID.
+     *
      * Payment link IDs are typically alphanumeric strings (e.g., JE6RV44VZEML32Z2).
      *
      * @return VerificationResponseDTO|null Returns null if the reference is not a payment link ID or payment not found
      *
+     * @throws ChargeException
      * @throws VerificationException
      */
     private function verifyByPaymentLinkId(string $reference): ?VerificationResponseDTO
     {
         try {
-            $client = $this->getSquareClient();
-            $request = new GetPaymentLinksRequest(['id' => $reference]);
-            $response = $client->checkout->paymentLinks->get($request);
+            $paymentLinkResponse = $this->makeRequest('GET', "/v2/online-checkout/payment-links/$reference");
+            $paymentLinkData = $this->parseResponse($paymentLinkResponse);
 
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                $error = $errors[0];
-                if ($error->getCategory() === 'NOT_FOUND_ERROR') {
-                    return null;
-                }
-                throw new VerificationException($error->getDetail() ?? 'Failed to retrieve payment link');
-            }
-
-            $paymentLink = $response->getPaymentLink();
-            $orderId = $paymentLink->getOrderId();
-
+            $orderId = $paymentLinkData['payment_link']['order_id'] ?? null;
             if (! $orderId) {
                 return null;
             }
@@ -315,40 +300,36 @@ final class SquareDriver extends AbstractDriver
             $order = $this->getOrderById($orderId);
             $payment = $this->getPaymentFromOrder($order, $orderId);
             $paymentDetails = $this->getPaymentDetails($payment);
-            $actualReference = $order->getReferenceId() ?? $reference;
 
-            $paymentArray = $this->paymentToArray($paymentDetails);
+            $actualReference = $order['reference_id'] ?? $reference;
 
-            return $this->mapFromPayment($paymentArray, $actualReference);
-        } catch (VerificationException $e) {
-            throw $e;
-        } catch (Throwable $e) {
-            if (str_contains($e->getMessage(), 'NOT_FOUND') || str_contains($e->getMessage(), '404')) {
+            return $this->mapFromPayment($paymentDetails['payment'], $actualReference);
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException && $previous->getResponse()?->getStatusCode() === 404) {
                 return null;
             }
-            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
+            throw $e;
+        } catch (ClientException $e) {
+            if ($e->getResponse()?->getStatusCode() === 404) {
+                return null;
+            }
+            throw $e;
         }
     }
 
     /**
      * Verify payment by searching orders using reference_id.
      *
-     * @throws VerificationException
+     * @throws VerificationException|ChargeException
      */
     private function verifyByReferenceId(string $reference): VerificationResponseDTO
     {
-        try {
-            $orders = $this->searchOrders();
-        } catch (VerificationException $e) {
-            if (str_contains($e->getMessage(), 'deserialize') || str_contains($e->getMessage(), 'serialize')) {
-                return $this->verifyByReferenceIdHttp($reference);
-            }
-            throw $e;
-        }
+        $orders = $this->searchOrders();
 
         $foundOrder = null;
         foreach ($orders as $order) {
-            if ($order->getReferenceId() === $reference) {
+            if (($order['reference_id'] ?? null) === $reference) {
                 $foundOrder = $order;
                 break;
             }
@@ -358,23 +339,22 @@ final class SquareDriver extends AbstractDriver
             throw new VerificationException("Payment not found for reference [$reference]");
         }
 
-        $orderId = $foundOrder->getId();
+        $orderId = $foundOrder['id'];
         $order = $this->getOrderById($orderId);
         $payment = $this->getPaymentFromOrder($order, $orderId);
         $paymentDetails = $this->getPaymentDetails($payment);
 
-        $paymentArray = $this->paymentToArray($paymentDetails);
-
-        return $this->mapFromPayment($paymentArray, $reference);
+        return $this->mapFromPayment($paymentDetails['payment'], $reference);
     }
 
     /**
-     * Fallback method to verify by reference ID using HTTP requests.
-     * Used when SDK deserialization fails (e.g., in tests with incomplete mocks).
+     * Search orders using Square's order search API.
      *
-     * @throws VerificationException
+     * @return array List of orders
+     *
+     * @throws VerificationException|ChargeException
      */
-    private function verifyByReferenceIdHttp(string $reference): VerificationResponseDTO
+    private function searchOrders(): array
     {
         try {
             $response = $this->makeRequest('POST', '/v2/orders/search', [
@@ -391,137 +371,40 @@ final class SquareDriver extends AbstractDriver
             ]);
 
             $data = $this->parseResponse($response);
-            $orders = $data['orders'] ?? [];
 
-            $foundOrder = null;
-            foreach ($orders as $order) {
-                if (($order['reference_id'] ?? null) === $reference) {
-                    $foundOrder = $order;
-                    break;
-                }
-            }
-
-            if (! $foundOrder) {
-                throw new VerificationException("Payment not found for reference [$reference]");
-            }
-
-            $orderId = $foundOrder['id'];
-            $orderResponse = $this->makeRequest('GET', "/v2/orders/$orderId");
-            $orderData = $this->parseResponse($orderResponse);
-            $order = $orderData['order'] ?? null;
-
-            if (! $order) {
-                throw new VerificationException("Order not found for ID [$orderId]");
-            }
-
-            $tenders = $order['tenders'] ?? [];
-            if (empty($tenders)) {
-                throw new VerificationException("No payment found for order [$orderId]");
-            }
-
-            $paymentId = $tenders[0]['payment_id'] ?? null;
-            if (! $paymentId) {
-                throw new VerificationException("Payment ID not found for order [$orderId]");
-            }
-
-            $paymentResponse = $this->makeRequest('GET', "/v2/payments/$paymentId");
-            $paymentData = $this->parseResponse($paymentResponse);
-
-            return $this->mapFromPayment($paymentData['payment'], $reference);
-        } catch (ClientException $e) {
-            if ($e->getResponse()?->getStatusCode() === 404) {
-                throw new VerificationException('Payment not found');
-            }
-            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
+            return $data['orders'] ?? [];
         } catch (ChargeException $e) {
             $previous = $e->getPrevious();
             if ($previous instanceof ClientException && $previous->getResponse()?->getStatusCode() === 404) {
                 throw new VerificationException('Payment not found');
             }
-            throw new VerificationException('Payment verification failed: '.$e->getMessage(), 0, $e);
-        }
-    }
-
-    /**
-     * Search orders using Square's order search API.
-     *
-     * @return array List of Order objects
-     *
-     * @throws VerificationException
-     */
-    private function searchOrders(): array
-    {
-        try {
-            $client = $this->getSquareClient();
-
-            $stateFilter = new SearchOrdersStateFilter([
-                'states' => [
-                    OrderState::Open,
-                    OrderState::Completed,
-                    OrderState::Canceled,
-                ],
-            ]);
-
-            $filter = new SearchOrdersFilter([
-                'stateFilter' => $stateFilter,
-            ]);
-
-            $query = new SearchOrdersQuery([
-                'filter' => $filter,
-            ]);
-
-            $searchOrdersRequest = new SearchOrdersRequest([
-                'locationIds' => [$this->config['location_id']],
-                'query' => $query,
-            ]);
-
-            $response = $client->orders->search($searchOrdersRequest);
-
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                throw new VerificationException($errors[0]->getDetail() ?? 'Failed to search orders');
-            }
-
-            return $response->getOrders() ?? [];
-        } catch (SquareException $e) {
-            throw new VerificationException('Order search failed: '.$e->getMessage(), 0, $e);
-        } catch (VerificationException $e) {
             throw $e;
-        } catch (Throwable $e) {
-            throw new VerificationException('Order search failed: '.$e->getMessage(), 0, $e);
+        } catch (ClientException $e) {
+            if ($e->getResponse()?->getStatusCode() === 404) {
+                throw new VerificationException('Payment not found');
+            }
+            throw $e;
         }
     }
 
     /**
      * Retrieve an order by ID.
      *
-     * @return Order Order object
+     * @return array Order data
      *
-     * @throws VerificationException
+     * @throws VerificationException|ChargeException
      */
-    private function getOrderById(string $orderId): Order
+    private function getOrderById(string $orderId): array
     {
-        try {
-            $client = $this->getSquareClient();
-            $request = new GetOrdersRequest(['orderId' => $orderId]);
-            $response = $client->orders->get($request);
+        $response = $this->makeRequest('GET', "/v2/orders/$orderId");
+        $data = $this->parseResponse($response);
 
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                throw new VerificationException($errors[0]->getDetail() ?? "Order not found for ID [$orderId]");
-            }
-
-            $order = $response->getOrder();
-            if (! $order) {
-                throw new VerificationException("Order not found for ID [$orderId]");
-            }
-
-            return $order;
-        } catch (VerificationException $e) {
-            throw $e;
-        } catch (Throwable $e) {
-            throw new VerificationException("Failed to retrieve order: {$e->getMessage()}", 0, $e);
+        $order = $data['order'] ?? null;
+        if (! $order) {
+            throw new VerificationException("Order not found for ID [$orderId]");
         }
+
+        return $order;
     }
 
     /**
@@ -531,14 +414,14 @@ final class SquareDriver extends AbstractDriver
      *
      * @throws VerificationException
      */
-    private function getPaymentFromOrder(Order $order, string $orderId): string
+    private function getPaymentFromOrder(array $order, string $orderId): string
     {
-        $tenders = $order->getTenders();
+        $tenders = $order['tenders'] ?? [];
         if (empty($tenders)) {
             throw new VerificationException("No payment found for order [$orderId]");
         }
 
-        $paymentId = $tenders[0]->getPaymentId();
+        $paymentId = $tenders[0]['payment_id'] ?? null;
         if (! $paymentId) {
             throw new VerificationException("Payment ID not found for order [$orderId]");
         }
@@ -549,66 +432,30 @@ final class SquareDriver extends AbstractDriver
     /**
      * Retrieve payment details by payment ID.
      *
-     * @return Payment Payment object
+     * @return array Payment data
      *
-     * @throws VerificationException
+     * @throws ChargeException
      */
-    private function getPaymentDetails(string $paymentId): Payment
+    private function getPaymentDetails(string $paymentId): array
     {
-        try {
-            $client = $this->getSquareClient();
-            $request = new GetPaymentsRequest(['paymentId' => $paymentId]);
-            $response = $client->payments->get($request);
+        $response = $this->makeRequest('GET', "/v2/payments/$paymentId");
 
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                throw new VerificationException($errors[0]->getDetail() ?? "Payment not found for ID [$paymentId]");
-            }
-
-            $payment = $response->getPayment();
-            if (! $payment) {
-                throw new VerificationException("Payment not found for ID [$paymentId]");
-            }
-
-            return $payment;
-        } catch (VerificationException $e) {
-            throw $e;
-        } catch (Throwable $e) {
-            throw new VerificationException("Failed to retrieve payment: {$e->getMessage()}", 0, $e);
-        }
+        return $this->parseResponse($response);
     }
 
     /**
-     * Convert Square Payment object to array format for mapping.
+     * Normalize Square-specific status values.
+     * Square's APPROVED status means the payment was successful.
      */
-    private function paymentToArray($payment): array
+    protected function normalizeStatus(string $status): string
     {
-        if (is_array($payment)) {
-            return $payment;
+        $statusUpper = strtoupper(trim($status));
+
+        if ($statusUpper === 'APPROVED') {
+            return 'success';
         }
 
-        $amountMoney = $payment->getAmountMoney();
-        $cardDetails = $payment->getCardDetails();
-
-        return [
-            'id' => $payment->getId(),
-            'status' => $payment->getStatus(),
-            'amount_money' => [
-                'amount' => $amountMoney?->getAmount() ?? 0,
-                'currency' => $amountMoney?->getCurrency() ?? 'USD',
-            ],
-            'reference_id' => $payment->getReferenceId(),
-            'order_id' => $payment->getOrderId(),
-            'source_type' => $payment->getSourceType(),
-            'updated_at' => $payment->getUpdatedAt(),
-            'created_at' => $payment->getCreatedAt(),
-            'buyer_email_address' => $payment->getBuyerEmailAddress(),
-            'card_details' => $cardDetails ? [
-                'card' => [
-                    'card_brand' => $cardDetails->getCard()?->getCardBrand(),
-                ],
-            ] : null,
-        ];
+        return parent::normalizeStatus($status);
     }
 
     /**
@@ -616,17 +463,7 @@ final class SquareDriver extends AbstractDriver
      */
     private function mapFromPayment(array $payment, string $reference): VerificationResponseDTO
     {
-        $status = match (strtoupper($payment['status'] ?? '')) {
-            'COMPLETED', 'APPROVED' => 'success',
-            'FAILED', 'CANCELED' => 'failed',
-            default => 'pending',
-        };
-
-        $cardDetails = $payment['card_details'] ?? null;
-        $cardBrand = null;
-        if ($cardDetails && isset($cardDetails['card']['card_brand'])) {
-            $cardBrand = $cardDetails['card']['card_brand'];
-        }
+        $status = $this->normalizeStatus($payment['status'] ?? 'pending');
 
         return new VerificationResponseDTO(
             reference: $payment['reference_id'] ?? $reference,
@@ -640,7 +477,7 @@ final class SquareDriver extends AbstractDriver
             ],
             provider: $this->getName(),
             channel: $payment['source_type'] ?? 'card',
-            cardType: $cardBrand,
+            cardType: $payment['card_details']['card']['card_brand'] ?? null,
             customer: [
                 'email' => $payment['buyer_email_address'] ?? null,
             ],
@@ -692,75 +529,25 @@ final class SquareDriver extends AbstractDriver
         return $isValid;
     }
 
-    /**
-     * Check if Square's API is working.
-     *
-     * Uses the locations API to test connectivity.
-     * A successful response or
-     * a 4xx error indicates the API is working correctly.
-     */
     public function healthCheck(): bool
     {
         try {
-            $client = $this->getSquareClient();
-            $response = $client->locations->list();
+            $response = $this->makeRequest('GET', '/v2/locations');
 
-            $errors = $response->getErrors();
-            if (! empty($errors)) {
-                $error = $errors[0];
-                if (in_array($error->getCategory(), ['INVALID_REQUEST_ERROR', 'NOT_FOUND_ERROR'])) {
-                    $this->log('info', 'Health check successful (expected 4xx response)');
-
-                    return true;
-                }
+            return $response->getStatusCode() === 200;
+        } catch (ChargeException $e) {
+            $previous = $e->getPrevious();
+            if ($previous instanceof ClientException) {
+                return true;
+            }
+            if ($previous instanceof ConnectException) {
+                return false;
             }
 
             return true;
-        } catch (SquareApiException $e) {
-            if ($e->getStatusCode() >= 400 && $e->getStatusCode() < 500) {
-                $this->log('info', 'Health check successful (expected 4xx response)');
-
-                return true;
-            }
-            $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
-
-            return false;
-        } catch (SquareException $e) {
-            $previous = $e->getPrevious();
-            if (
-                ($previous instanceof ClientException)
-                && in_array($previous->getResponse()?->getStatusCode(), [400, 404])
-            ) {
-                $this->log('info', 'Health check successful (expected 400/404 response)');
-
-                return true;
-            }
-            $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
-
-            return false;
-        } catch (Throwable $e) {
-            $previous = $e->getPrevious();
-            if (
-                ($e instanceof PaymentException)
-                && ($previous instanceof ClientException)
-                && in_array($previous->getResponse()?->getStatusCode(), [400, 404])
-            ) {
-                $this->log('info', 'Health check successful (expected 400/404 response)');
-
-                return true;
-            }
-
-            if (str_contains($e->getMessage(), 'NOT_FOUND') || str_contains($e->getMessage(), '404')) {
-                $this->log('info', 'Health check successful (expected 4xx response)');
-
-                return true;
-            }
-
-            $this->log('error', 'Health check failed', [
-                'error' => $e->getMessage(),
-                'exception_class' => get_class($e),
-            ]);
-
+        } catch (ClientException) {
+            return true;
+        } catch (ConnectException) {
             return false;
         }
     }

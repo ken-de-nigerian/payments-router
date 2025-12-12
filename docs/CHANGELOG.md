@@ -6,6 +6,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.12] - 2025-01-XX
+
+### Changed
+- **SquareDriver HTTP Implementation**: Refactored SquareDriver to use direct HTTP requests instead of SDK
+  - Removed dependency on Square PHP SDK
+  - All API calls now use Guzzle HTTP client via `AbstractDriver::makeRequest()`
+  - `charge()` method uses direct POST to `/v2/online-checkout/payment-links`
+  - `verify()` methods use direct HTTP requests:
+    - `verifyByPaymentId()` uses GET `/v2/payments/{id}`
+    - `verifyByPaymentLinkId()` uses GET `/v2/online-checkout/payment-links/{id}`
+    - `verifyByReferenceId()` uses POST `/v2/orders/search`
+    - `getOrderById()` uses GET `/v2/orders/{id}`
+    - `getPaymentDetails()` uses GET `/v2/payments/{id}`
+  - `healthCheck()` uses GET `/v2/locations` for API connectivity testing
+  - **Benefits**:
+    - No external SDK dependency required
+    - Consistent HTTP client usage across all drivers
+    - Better control over request/response handling
+    - Simplified error handling with standard HTTP exceptions
+    - Reduced package size and dependencies
+
+### Improved
+- **SquareDriver Status Normalization**: Added Square-specific status mapping
+  - `APPROVED` status now correctly maps to `success` (Square-specific behavior)
+  - Overrides default normalization to handle Square's payment status semantics
+- **SquareDriver Error Handling**: Enhanced exception handling for verification
+  - Proper handling of `ChargeException` wrapping from `makeRequest()`
+  - Preserves original error messages from Square API
+  - Better exception chain traversal for health checks
+
+### Fixed
+- **SquareDriver Health Check**: Fixed exception handling for network errors
+  - Now properly distinguishes between `ClientException` (API responding) and `ConnectException` (network error)
+  - Returns `false` only for actual network connectivity issues
+  - Returns `true` for API errors (indicates API is operational)
+
+### Tests
+- Updated SquareDriver tests to work with direct HTTP requests
+  - All mocks updated to use `request()` instead of SDK methods
+  - Test responses updated to match Square API format
+  - All 41 Square driver tests passing (68 assertions)
+  - All integration tests passing (14 tests)
+
+---
 ## [1.1.11] - 2025-12-12
 
 ### Changed

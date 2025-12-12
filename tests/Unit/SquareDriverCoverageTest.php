@@ -49,13 +49,11 @@ test('square driver healthCheck returns true for 2xx responses', function () {
 
     $client = Mockery::mock(Client::class);
     $response = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
-    $stream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
-    $stream->shouldReceive('getContents')->andReturn(json_encode(['locations' => []]));
     $response->shouldReceive('getStatusCode')->andReturn(200);
-    $response->shouldReceive('getBody')->andReturn($stream);
 
-    $client->shouldReceive('send')
+    $client->shouldReceive('request')
         ->once()
+        ->with('GET', '/v2/locations', Mockery::any())
         ->andReturn($response);
 
     $driver->setClient($client);
@@ -74,12 +72,10 @@ test('square driver healthCheck returns true for 4xx errors', function () {
     $request = Mockery::mock(\Psr\Http\Message\RequestInterface::class);
     $response = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $response->shouldReceive('getStatusCode')->andReturn(404);
-    $stream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
-    $stream->shouldReceive('getContents')->andReturn(json_encode(['errors' => [['category' => 'NOT_FOUND_ERROR', 'code' => 'NOT_FOUND', 'detail' => 'Not found']]]));
-    $response->shouldReceive('getBody')->andReturn($stream);
 
-    $client->shouldReceive('send')
+    $client->shouldReceive('request')
         ->once()
+        ->with('GET', '/v2/locations', Mockery::any())
         ->andThrow(new ClientException('Not Found', $request, $response));
 
     $driver->setClient($client);
@@ -98,8 +94,9 @@ test('square driver healthCheck returns false for network errors', function () {
 
     $client = Mockery::mock(Client::class);
     $request = Mockery::mock(\Psr\Http\Message\RequestInterface::class);
-    $client->shouldReceive('send')
+    $client->shouldReceive('request')
         ->once()
+        ->with('GET', '/v2/locations', Mockery::any())
         ->andThrow(new ConnectException('Connection timeout', $request));
 
     $driver->setClient($client);
