@@ -497,6 +497,6 @@ We take security seriously and will respond promptly to all reports.
 
 ---
 
-**Last Updated:** 2025-01-27  
+**Last Updated:** 2025-12-12  
 **Version:** 1.2.0
 
