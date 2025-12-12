@@ -31,10 +31,11 @@
     },
     "require": {
         "php": "^8.2",
-        "illuminate/support": "^10.0|^11.0|^12.0",
+        "guzzlehttp/guzzle": "^7.8",
         "illuminate/database": "^10.0|^11.0|^12.0",
         "illuminate/http": "^10.0|^11.0|^12.0",
-        "guzzlehttp/guzzle": "^7.8",
+        "illuminate/support": "^10.0|^11.0|^12.0",
+        "square/square": "^43.2",
         "stripe/stripe-php": "^13.0"
     },
     "require-dev": {

@@ -209,6 +209,7 @@ final class PaystackDriver extends AbstractDriver
         try {
             $response = $this->makeRequest('GET', '/transaction/verify/invalid_ref_test');
             $statusCode = $response->getStatusCode();
+
             return $statusCode < 500;
         } catch (Throwable $e) {
             $previous = $e->getPrevious();

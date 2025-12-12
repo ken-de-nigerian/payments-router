@@ -469,6 +469,7 @@ Each provider has a concrete driver class:
 - Supports: Online Checkout, Card Payments
 - Currencies: USD, CAD, GBP, AUD
 - Webhook validation: HMAC SHA256
+- Uses official Square PHP SDK for type-safe API interactions
 
 **OPayDriver:**
 - Dual authentication support

@@ -3,7 +3,6 @@
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
-use GuzzleHttp\Psr7\Request;
 use KenDeNigerian\PayZephyr\Drivers\SquareDriver;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 
@@ -50,9 +49,12 @@ test('square driver healthCheck returns true for 2xx responses', function () {
 
     $client = Mockery::mock(Client::class);
     $response = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
+    $stream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
+    $stream->shouldReceive('getContents')->andReturn(json_encode(['locations' => []]));
     $response->shouldReceive('getStatusCode')->andReturn(200);
+    $response->shouldReceive('getBody')->andReturn($stream);
 
-    $client->shouldReceive('request')
+    $client->shouldReceive('send')
         ->once()
         ->andReturn($response);
 
@@ -69,17 +71,21 @@ test('square driver healthCheck returns true for 4xx errors', function () {
     ]);
 
     $client = Mockery::mock(Client::class);
+    $request = Mockery::mock(\Psr\Http\Message\RequestInterface::class);
     $response = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $response->shouldReceive('getStatusCode')->andReturn(404);
+    $stream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
+    $stream->shouldReceive('getContents')->andReturn(json_encode(['errors' => [['category' => 'NOT_FOUND_ERROR', 'code' => 'NOT_FOUND', 'detail' => 'Not found']]]));
+    $response->shouldReceive('getBody')->andReturn($stream);
 
-    $client->shouldReceive('request')
+    $client->shouldReceive('send')
         ->once()
-        ->andThrow(new ClientException('Not Found', new Request('GET', '/v2/payments/invalid_ref_test'), $response));
+        ->andThrow(new ClientException('Not Found', $request, $response));
 
     $driver->setClient($client);
 
-    // A 404 Not Found from Square when checking invalid_ref_test means the API is working correctly
-    // The API is responding as expected (payment not found), which indicates it's operational
+    // A 404 Not Found from Square means the API is working correctly
+    // The API is responding as expected, which indicates it's operational
     expect($driver->healthCheck())->toBeTrue();
 });
 
@@ -91,9 +97,10 @@ test('square driver healthCheck returns false for network errors', function () {
     ]);
 
     $client = Mockery::mock(Client::class);
-    $client->shouldReceive('request')
+    $request = Mockery::mock(\Psr\Http\Message\RequestInterface::class);
+    $client->shouldReceive('send')
         ->once()
-        ->andThrow(new ConnectException('Connection timeout', new Request('GET', '/v2/payments/invalid_ref_test')));
+        ->andThrow(new ConnectException('Connection timeout', $request));
 
     $driver->setClient($client);
 

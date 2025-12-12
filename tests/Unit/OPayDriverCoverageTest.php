@@ -1,7 +1,6 @@
 <?php
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
 use KenDeNigerian\PayZephyr\Drivers\OPayDriver;
 use Psr\Http\Message\RequestInterface;

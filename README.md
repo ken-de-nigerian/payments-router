@@ -591,7 +591,15 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.1.9
+### Latest Release: v1.1.11
+
+### Changed
+- **SquareDriver SDK Integration**: Refactored SquareDriver to use the official Square PHP SDK
+  - Replaced raw HTTP requests with Square SDK client for better type safety and maintainability
+  - All payment operations now use official SDK models and methods
+  - Improved error handling with SDK exceptions
+
+### Previous Release: v1.1.9
 
 ### Fixed
 - **PaystackDriver & SquareDriver Health Checks**: Fixed incorrect interpretation of 4xx responses

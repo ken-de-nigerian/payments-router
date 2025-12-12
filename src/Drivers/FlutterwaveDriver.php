@@ -254,8 +254,10 @@ final class FlutterwaveDriver extends AbstractDriver
                 && in_array($e->getPrevious()->getResponse()?->getStatusCode(), [400, 404])
             ) {
                 $this->log('info', 'Health check successful (expected 400/404 response)');
+
                 return true;
             }
+
             return false;
         }
     }

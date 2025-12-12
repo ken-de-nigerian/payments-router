@@ -35,6 +35,7 @@ test('square charge succeeds with valid response', function () {
         new Response(200, [], json_encode([
             'payment_link' => [
                 'id' => 'payment_link_123',
+                'version' => 1,
                 'url' => 'https://square.link/checkout/abc123',
                 'order_id' => 'order_456',
             ],
@@ -56,6 +57,7 @@ test('square charge generates reference when not provided', function () {
         new Response(200, [], json_encode([
             'payment_link' => [
                 'id' => 'payment_link_123',
+                'version' => 1,
                 'url' => 'https://square.link/checkout/abc123',
                 'order_id' => 'order_456',
             ],
@@ -74,6 +76,7 @@ test('square charge includes metadata in payload', function () {
         new Response(200, [], json_encode([
             'payment_link' => [
                 'id' => 'payment_link_123',
+                'version' => 1,
                 'url' => 'https://square.link/checkout/abc123',
                 'order_id' => 'order_456',
             ],
@@ -161,13 +164,15 @@ test('square verify by reference_id searches orders', function () {
     $driver = createSquareDriverWithMock([
         // First call: payment ID lookup skipped (reference doesn't match pattern)
         // Second call: payment link lookup returns 404 (not a payment link ID)
-        new Response(404, [], json_encode(['errors' => [['message' => 'Not found']]])),
+        new Response(404, [], json_encode(['errors' => [['category' => 'NOT_FOUND_ERROR', 'code' => 'NOT_FOUND', 'detail' => 'Not found']]])),
         // Third call: order search
         new Response(200, [], json_encode([
             'orders' => [
                 [
                     'id' => 'order_456',
+                    'location_id' => 'location_xxx',
                     'reference_id' => 'SQUARE_1234567890_abc123',
+                    'version' => 1,
                 ],
             ],
         ])),
@@ -175,6 +180,8 @@ test('square verify by reference_id searches orders', function () {
         new Response(200, [], json_encode([
             'order' => [
                 'id' => 'order_456',
+                'location_id' => 'location_xxx',
+                'version' => 1,
                 'tenders' => [
                     [
                         'payment_id' => 'payment_789',
@@ -227,7 +234,7 @@ test('square verify returns failed status', function () {
 test('square verify handles payment not found', function () {
     $driver = createSquareDriverWithMock([
         // First call: payment link lookup returns 404
-        new Response(404, [], json_encode(['errors' => [['message' => 'Not found']]])),
+        new Response(404, [], json_encode(['errors' => [['category' => 'NOT_FOUND_ERROR', 'code' => 'NOT_FOUND', 'detail' => 'Not found']]])),
         // Second call: order search returns empty orders
         new Response(200, [], json_encode(['orders' => []])),
     ]);
@@ -238,13 +245,15 @@ test('square verify handles payment not found', function () {
 test('square verify handles order without payment', function () {
     $driver = createSquareDriverWithMock([
         // First call: payment link lookup returns 404 (not a payment link ID)
-        new Response(404, [], json_encode(['errors' => [['message' => 'Not found']]])),
+        new Response(404, [], json_encode(['errors' => [['category' => 'NOT_FOUND_ERROR', 'code' => 'NOT_FOUND', 'detail' => 'Not found']]])),
         // Second call: order search succeeds
         new Response(200, [], json_encode([
             'orders' => [
                 [
                     'id' => 'order_456',
+                    'location_id' => 'location_xxx',
                     'reference_id' => 'SQUARE_123',
+                    'version' => 1,
                 ],
             ],
         ])),
@@ -252,6 +261,8 @@ test('square verify handles order without payment', function () {
         new Response(200, [], json_encode([
             'order' => [
                 'id' => 'order_456',
+                'location_id' => 'location_xxx',
+                'version' => 1,
                 'tenders' => [],
             ],
         ])),

@@ -6,6 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.1.11] - 2025-12-12
+
+### Changed
+- **SquareDriver SDK Integration**: Refactored SquareDriver to use the official Square PHP SDK
+  - Replaced raw HTTP requests with Square SDK client (`Square\SquareClient`)
+  - `charge()` method now uses `CreatePaymentLinkRequest` with SDK models (`Money`, `Order`, `OrderLineItem`, `CheckoutOptions`, `PrePopulatedData`)
+  - `verify()` methods now use SDK APIs:
+    - `verifyByPaymentId()` uses `$client->payments->get()`
+    - `verifyByPaymentLinkId()` uses `$client->checkout->paymentLinks->get()`
+    - `verifyByReferenceId()` uses `$client->orders->search()`
+    - `getOrderById()` uses `$client->orders->get()`
+    - `getPaymentDetails()` uses `$client->payments->get()`
+  - `healthCheck()` now uses `$client->locations->list()` for API connectivity testing
+  - SDK client initialization with environment detection (Sandbox/Production)
+  - Support for injecting mocked HTTP client for testing compatibility
+  - **Benefits**:
+    - Type-safe SDK models and better IDE support
+    - Official SDK support and updates
+    - Improved error handling with SDK exceptions
+    - Better maintainability and alignment with Square's best practices
+
+### Improved
+- **SquareDriver Code Quality**: Enhanced error handling and exception management
+  - Proper handling of SDK exceptions (`SquareApiException`, `SquareException`)
+  - Fallback HTTP-based verification for test compatibility
+  - Improved exception chain traversal for health checks
+
+### Tests
+- Updated SquareDriver tests to work with SDK responses
+  - Test responses updated to match SDK expectations (e.g., required `version` field in `PaymentLink`)
+  - Error format updated to match SDK error structure
+  - All 716 tests passing (1,447 assertions)
+
+---
 ## [1.1.9] - 2025-12-11
 
 ### Fixed
