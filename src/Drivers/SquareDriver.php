@@ -440,7 +440,7 @@ final class SquareDriver extends AbstractDriver
 
     /**
      * Check if Square's API is working.
-     * 
+     *
      * Uses an invalid payment ID to test the API. A 404 Not Found response
      * indicates the API is working correctly (it's responding as expected).
      */
@@ -450,14 +450,10 @@ final class SquareDriver extends AbstractDriver
             $response = $this->makeRequest('GET', '/v2/payments/invalid_ref_test');
             $statusCode = $response->getStatusCode();
 
-            // Any response < 500 means the API is working
             return $statusCode < 500;
-
         } catch (Throwable $e) {
-            // Check if this is a ChargeException (or PaymentException) wrapping a ClientException
             $previous = $e->getPrevious();
-            
-            // Traverse exception chain to find ClientException
+
             $clientException = null;
             $current = $e;
             while ($current !== null) {
@@ -467,24 +463,24 @@ final class SquareDriver extends AbstractDriver
                 }
                 $current = $current->getPrevious();
             }
-            
-            // If we found a ClientException with 400/404 status, API is working correctly
+
             if ($clientException !== null) {
                 $statusCode = $clientException->getResponse()?->getStatusCode();
                 if (in_array($statusCode, [400, 404], true)) {
                     $this->log('info', 'Health check successful (expected 400/404 response)', [
                         'status_code' => $statusCode,
                     ]);
+
                     return true;
                 }
             }
 
-            // For any other exception, log and return false
             $this->log('error', 'Health check failed', [
                 'error' => $e->getMessage(),
                 'exception_class' => get_class($e),
                 'previous_class' => $previous ? get_class($previous) : null,
             ]);
+
             return false;
         }
     }

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Drivers;
 
+use GuzzleHttp\Exception\ClientException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
+use KenDeNigerian\PayZephyr\Exceptions\PaymentException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use Throwable;
 
@@ -241,10 +243,19 @@ final class FlutterwaveDriver extends AbstractDriver
     {
         try {
             $response = $this->makeRequest('GET', 'banks/NG');
+            $statusCode = $response->getStatusCode();
 
-            return $response->getStatusCode() === 200;
+            return $statusCode < 500;
 
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            if (
+                ($e instanceof PaymentException)
+                && ($e->getPrevious() instanceof ClientException)
+                && in_array($e->getPrevious()->getResponse()?->getStatusCode(), [400, 404])
+            ) {
+                $this->log('info', 'Health check successful (expected 400/404 response)');
+                return true;
+            }
             return false;
         }
     }

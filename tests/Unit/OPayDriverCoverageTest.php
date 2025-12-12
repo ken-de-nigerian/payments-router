@@ -42,7 +42,7 @@ test('opay driver healthCheck returns true for successful response', function ()
     expect($driver->healthCheck())->toBeTrue();
 });
 
-test('opay driver healthCheck returns false for 4xx errors', function () {
+test('opay driver healthCheck returns true for 4xx errors', function () {
     $driver = new OPayDriver([
         'merchant_id' => 'test_merchant',
         'public_key' => 'test_public',
@@ -50,17 +50,16 @@ test('opay driver healthCheck returns false for 4xx errors', function () {
     ]);
 
     $client = Mockery::mock(Client::class);
-    $request = Mockery::mock(RequestInterface::class);
     $response = Mockery::mock(ResponseInterface::class);
     $response->shouldReceive('getStatusCode')->andReturn(404);
 
     $client->shouldReceive('request')
         ->once()
-        ->andThrow(new ClientException('Not Found', $request, $response));
+        ->andReturn($response);
 
     $driver->setClient($client);
 
-    expect($driver->healthCheck())->toBeFalse();
+    expect($driver->healthCheck())->toBeTrue();
 });
 
 test('opay driver healthCheck returns false for network errors', function () {
