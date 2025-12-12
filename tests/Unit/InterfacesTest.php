@@ -51,6 +51,5 @@ test('interfaces return same instance as concrete classes (singleton)', function
     $interfaceNormalizer = app(StatusNormalizerInterface::class);
     $concreteNormalizer = app(StatusNormalizer::class);
 
-    // They should be the same instance since both are singletons
     expect($interfaceNormalizer)->toBe($concreteNormalizer);
 });

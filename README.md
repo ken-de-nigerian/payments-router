@@ -30,42 +30,6 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 
 ---
 
-## 🔒 Security Considerations
-
-PayZephyr is built with security as a top priority:
-
-### Essential Security Practices
-
-1. **Always use HTTPS in production** for callback URLs
-2. **Never commit `.env` files** containing real API keys to version control
-3. **Webhook signature validation** is enabled by default - never disable in production
-4. **Rate limiting** is automatically applied to prevent abuse
-5. **Multi-tenant isolation** is built-in when using Laravel authentication
-6. **Webhook replay protection** validates timestamps to prevent replay attacks
-7. **Sensitive data sanitization** in logs prevents credential exposure
-
-### Security Features
-
-- ✅ **SQL Injection Protection**: Validated table names and parameterized queries
-- ✅ **CSRF Protection**: Webhook endpoints use signature validation instead
-- ✅ **Rate Limiting**: Prevents payment spam and DoS attacks
-- ✅ **Log Sanitization**: Automatic redaction of sensitive data in logs
-- ✅ **Cache Isolation**: Multi-tenant support with automatic session isolation
-- ✅ **Input Validation**: Comprehensive validation of all payment data
-
-### Production Checklist
-
-Before going live:
-- [ ] All API keys are production keys (not test/sandbox)
-- [ ] Callback URLs use HTTPS
-- [ ] Webhook signature validation is enabled
-- [ ] Queue workers are running for webhook processing
-- [ ] Rate limiting is configured appropriately
-- [ ] Error notifications are set up
-- [ ] Database backups are scheduled
-
----
-
 ## 📦 Installation
 
 > **👋 New to PayZephyr?** Check out our **[Getting Started Guide](docs/GETTING_STARTED.md)** for a complete step-by-step tutorial!
@@ -375,15 +339,15 @@ class HandlePaystackWebhook
 
 ## 🏦 Supported Providers
 
-| Provider        | Charge | Verify | Webhooks | Idempotency | Channels | Currencies |
-|-----------------|:------:|:------:|:--------:|:-----------:|:--------:|------------|
-| **Paystack**    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD |
-| **Flutterwave** |   ✅    |   ✅    |    ✅     |      ✅      |    10+   | NGN, USD, EUR, GBP, KES, UGX, TZS |
-| **Monnify**     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN |
-| **Stripe**      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies |
-| **PayPal**      |   ✅    |   ✅    |    ✅     |      ❌      |    1     | USD, EUR, GBP, CAD, AUD |
-| **Square**      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD |
-| **OPay**        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN |
+| Provider        | Charge | Verify | Webhooks | Idempotency | Channels | Currencies                        |
+|-----------------|:------:|:------:|:--------:|:-----------:|:--------:|-----------------------------------|
+| **Paystack**    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD                |
+| **Flutterwave** |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | NGN, USD, EUR, GBP, KES, UGX, TZS |
+| **Monnify**     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN                               |
+| **Stripe**      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies                   |
+| **PayPal**      |   ✅    |   ✅    |    ✅     |      ❌      |    1     | USD, EUR, GBP, CAD, AUD           |
+| **Square**      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD                |
+| **OPay**        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN                               |
 
 **Notes:**
 - ✅ = Fully supported
@@ -440,26 +404,10 @@ Auth::loginUsingId(2);
 Payment::amount(20000)->charge(); // Cached with user_2 prefix
 ```
 
-### Custom Tenant Resolution
-
-For applications using tenant packages (e.g., Tenancy for Laravel):
-
-```php
-// In a service provider
-use KenDeNigerian\PayZephyr\PaymentManager;
-
-public function boot()
-{
-    // Custom tenant resolver will be added in future version
-    // Current: Uses Laravel auth automatically
-}
-```
-
 **Current Support:**
 - ✅ User-based isolation (via Laravel auth)
 - ✅ Session-based isolation
 - ✅ IP-based rate limiting fallback
-- 🔄 Custom tenant resolver (planned for v1.2)
 
 ---
 
@@ -696,15 +644,14 @@ DB_LOG_QUERIES=true
 LOG_LEVEL=debug
 
 # Check logs
-tail -f storage/logs/laravel.log | grep "payment"
+storage/logs/laravel.log
 ```
 
 ### Still Having Issues?
 
-1. Check the [FAQ](docs/DOCUMENTATION.md#faq)
-2. Review [complete documentation](docs/DOCUMENTATION.md)
-3. Search [GitHub issues](https://github.com/ken-de-nigerian/payzephyr/issues)
-4. Open a [new issue](https://github.com/ken-de-nigerian/payzephyr/issues/new) with:
+1. Review [complete documentation](docs/DOCUMENTATION.md)
+2. Search [GitHub issues](https://github.com/ken-de-nigerian/payzephyr/issues)
+3. Open a [new issue](https://github.com/ken-de-nigerian/payzephyr/issues/new) with:
   - Laravel version
   - PHP version
   - PayZephyr version
@@ -791,7 +738,7 @@ The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.
 
 If PayZephyr helped your project:
 - ⭐ Star the repository on GitHub
-- 🐦 Tweet about it ([@KenDeNigerian](https://twitter.com/KenDeNigerian))
+- 🐦 Tweet about it
 - 📝 Write a blog post
 - 💰 Sponsor the project
 - 🤝 Contribute code or documentation

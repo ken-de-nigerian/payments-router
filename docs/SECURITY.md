@@ -72,7 +72,7 @@ PAYMENTS_WEBHOOK_TIMESTAMP_TOLERANCE=600
 **Implementation:**
 - Cache keys automatically include user/tenant context
 - Each user's payment sessions are isolated
-- Supports Laravel auth, custom tenant resolvers, and session-based identification
+- Supports Laravel auth and session-based identification
 
 **Cache Key Format:**
 ```
@@ -85,9 +85,8 @@ payzephyr:session:REF_ABC
 
 **Automatic Detection:**
 1. Laravel authenticated user (`auth()->id()`)
-2. Custom tenant resolver (`tenant()->id`)
-3. Request-based user (`$request->user()->id`)
-4. Session-based user (`$request->session()->get('user_id')`)
+2. Request-based user (`$request->user()->id`)
+3. Session-based user (`$request->session()->get('user_id')`)
 
 **Configuration:**
 ```env

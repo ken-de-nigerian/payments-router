@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use InvalidArgumentException;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 
 test('it rejects emails with double dots', function () {
@@ -18,7 +17,7 @@ test('it rejects emails with trailing dots', function () {
         'amount' => 10000,
         'currency' => 'NGN',
         'email' => 'user@example.com.',
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it rejects emails with leading dots', function () {
@@ -26,7 +25,7 @@ test('it rejects emails with leading dots', function () {
         'amount' => 10000,
         'currency' => 'NGN',
         'email' => '.user@example.com',
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it rejects emails with dot after at symbol', function () {
@@ -34,7 +33,7 @@ test('it rejects emails with dot after at symbol', function () {
         'amount' => 10000,
         'currency' => 'NGN',
         'email' => 'user@.example.com',
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it rejects emails with local part exceeding 64 characters', function () {
@@ -44,7 +43,7 @@ test('it rejects emails with local part exceeding 64 characters', function () {
         'amount' => 10000,
         'currency' => 'NGN',
         'email' => $longLocal,
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it accepts valid email addresses', function () {
@@ -68,6 +67,8 @@ test('it accepts valid email addresses', function () {
 });
 
 test('it rejects http callback urls in production', function () {
+    $originalEnv = app()->environment();
+
     app()->detectEnvironment(fn () => 'production');
 
     expect(fn () => ChargeRequestDTO::fromArray([
@@ -75,10 +76,14 @@ test('it rejects http callback urls in production', function () {
         'currency' => 'NGN',
         'email' => 'test@example.com',
         'callback_url' => 'http://example.com/callback',
-    ]))->toThrow(InvalidArgumentException::class, 'Invalid callback URL');
+    ]))->toThrow(\InvalidArgumentException::class, 'Invalid callback URL');
+
+    app()->detectEnvironment(fn () => $originalEnv);
 });
 
 test('it accepts https callback urls in production', function () {
+    $originalEnv = app()->environment();
+
     app()->detectEnvironment(fn () => 'production');
 
     $dto = ChargeRequestDTO::fromArray([
@@ -89,6 +94,8 @@ test('it accepts https callback urls in production', function () {
     ]);
 
     expect($dto->callbackUrl)->toBe('https://example.com/callback');
+
+    app()->detectEnvironment(fn () => $originalEnv);
 });
 
 test('it accepts http callback urls in non-production', function () {
@@ -110,7 +117,7 @@ test('it rejects invalid urls', function () {
         'currency' => 'NGN',
         'email' => 'test@example.com',
         'callback_url' => 'not-a-valid-url',
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it rejects references with special characters', function () {
@@ -119,7 +126,7 @@ test('it rejects references with special characters', function () {
         'currency' => 'NGN',
         'email' => 'test@example.com',
         'reference' => 'ORDER_123; DROP TABLE users--',
-    ]))->toThrow(InvalidArgumentException::class, 'Invalid reference format');
+    ]))->toThrow(\InvalidArgumentException::class, 'Invalid reference format');
 });
 
 test('it rejects references with spaces', function () {
@@ -128,7 +135,7 @@ test('it rejects references with spaces', function () {
         'currency' => 'NGN',
         'email' => 'test@example.com',
         'reference' => 'ORDER 123',
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it rejects references with at symbols', function () {
@@ -137,7 +144,7 @@ test('it rejects references with at symbols', function () {
         'currency' => 'NGN',
         'email' => 'test@example.com',
         'reference' => 'ORDER@123',
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it accepts valid reference formats', function () {
@@ -169,7 +176,7 @@ test('it rejects references exceeding 255 characters', function () {
         'currency' => 'NGN',
         'email' => 'test@example.com',
         'reference' => $longReference,
-    ]))->toThrow(InvalidArgumentException::class);
+    ]))->toThrow(\InvalidArgumentException::class);
 });
 
 test('it accepts valid international currencies', function () {
@@ -191,7 +198,7 @@ test('it rejects numeric currency codes', function () {
         'amount' => 10000,
         'currency' => '566',
         'email' => 'test@example.com',
-    ]))->toThrow(InvalidArgumentException::class, 'Currency must contain only letters');
+    ]))->toThrow(\InvalidArgumentException::class, 'Currency must contain only letters');
 });
 
 test('it rejects currency codes with wrong length', function () {
@@ -199,7 +206,7 @@ test('it rejects currency codes with wrong length', function () {
         'amount' => 10000,
         'currency' => 'US',
         'email' => 'test@example.com',
-    ]))->toThrow(InvalidArgumentException::class, 'Currency must be a 3-letter ISO code');
+    ]))->toThrow(\InvalidArgumentException::class, 'Currency must be a 3-letter ISO code');
 });
 
 test('it rejects negative amounts', function () {
@@ -207,7 +214,7 @@ test('it rejects negative amounts', function () {
         'amount' => -1000,
         'currency' => 'NGN',
         'email' => 'test@example.com',
-    ]))->toThrow(InvalidArgumentException::class, 'Amount must be greater than zero');
+    ]))->toThrow(\InvalidArgumentException::class, 'Amount must be greater than zero');
 });
 
 test('it rejects zero amounts', function () {
@@ -215,7 +222,7 @@ test('it rejects zero amounts', function () {
         'amount' => 0,
         'currency' => 'NGN',
         'email' => 'test@example.com',
-    ]))->toThrow(InvalidArgumentException::class, 'Amount must be greater than zero');
+    ]))->toThrow(\InvalidArgumentException::class, 'Amount must be greater than zero');
 });
 
 test('it rejects amounts exceeding maximum', function () {
@@ -223,5 +230,5 @@ test('it rejects amounts exceeding maximum', function () {
         'amount' => 1000000000.00,
         'currency' => 'NGN',
         'email' => 'test@example.com',
-    ]))->toThrow(InvalidArgumentException::class, 'Amount exceeds maximum allowed value');
+    ]))->toThrow(\InvalidArgumentException::class, 'Amount exceeds maximum allowed value');
 });

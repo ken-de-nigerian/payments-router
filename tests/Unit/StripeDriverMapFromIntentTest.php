@@ -108,7 +108,6 @@ test('stripe driver mapFromPaymentIntent handles default status', function () {
 
     $result = $method->invoke($driver, $intent);
 
-    // Unknown status normalizes to lowercase
     expect($result->status)->toBe('unknown_status')
         ->and($result->paidAt)->toBeNull();
 });

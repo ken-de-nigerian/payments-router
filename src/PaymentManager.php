@@ -86,7 +86,6 @@ class PaymentManager
             try {
                 $driver = $this->driver($providerName);
 
-                // Health check if enabled
                 if ($this->config['health_check']['enabled'] ?? true) {
                     if (! $driver->getCachedHealthCheck()) {
                         logger()->warning("Provider [$providerName] failed health check, skipping");
@@ -95,7 +94,6 @@ class PaymentManager
                     }
                 }
 
-                // Check currency support
                 if (! $driver->isCurrencySupported($request->currency)) {
                     logger()->info("Provider [$providerName] does not support currency $request->currency");
 
@@ -105,10 +103,8 @@ class PaymentManager
                 $response = $driver->charge($request);
                 $this->cacheSessionData($response->reference, $providerName, $response->accessCode);
 
-                // Log transaction to database
                 $this->logTransaction($request, $response, $providerName);
 
-                // Dispatch payment initiated event
                 PaymentInitiated::dispatch($request, $response, $providerName);
 
                 logger()->info("Payment charged successfully via [$providerName]", [
@@ -184,14 +180,12 @@ class PaymentManager
                 $response = $driver->verify($verificationId);
                 $this->updateTransactionFromVerification($reference, $response);
 
-                // Dispatch verification events based on status
                 if ($response->isSuccessful()) {
                     PaymentVerificationSuccess::dispatch($reference, $response, $providerName);
                 } elseif ($response->isFailed()) {
                     PaymentVerificationFailed::dispatch($reference, $response, $providerName);
                 }
 
-                // Clean up cache entry after successful verification
                 Cache::forget($this->cacheKey('session', $reference));
 
                 return $response;
@@ -239,36 +233,26 @@ class PaymentManager
     /**
      * Get cache context for multi-tenant isolation
      *
-     * Checks multiple sources for user/tenant identification:
+     * Checks multiple sources for user identification:
      * 1. Laravel's authenticated user
-     * 2. Custom tenant resolver
-     * 3. Request context
+     * 2. Request-based user (API token, session)
      *
-     * @return string|null Context identifier (user ID, tenant ID, etc.)
+     * @return string|null Context identifier (user ID, etc.)
      */
     protected function getCacheContext(): ?string
     {
         try {
-            // Try Laravel auth
             if (function_exists('auth') && auth()->check()) {
                 return 'user_'.auth()->id();
             }
 
-            // Try custom tenant resolver
-            if (function_exists('tenant') && tenant() !== null) {
-                return 'tenant_'.tenant()->id;
-            }
-
-            // Try request-based identification
             if (app()->bound('request')) {
                 $request = app('request');
 
-                // Check for API token user
                 if ($request->user()) {
                     return 'user_'.$request->user()->id;
                 }
 
-                // Check for session-based user
                 if ($request->session() && $request->session()->has('user_id')) {
                     return 'user_'.$request->session()->get('user_id');
                 }
@@ -279,7 +263,6 @@ class PaymentManager
             ]);
         }
 
-        // Return null for global context (webhooks, CLI, etc.)
         return null;
     }
 
@@ -288,7 +271,6 @@ class PaymentManager
      */
     protected function resolveVerificationContext(string $reference, ?string $explicitProvider): array
     {
-        // 1. Check Cache (Fastest & Works without DB)
         $cached = Cache::get($this->cacheKey('session', $reference));
         if ($cached) {
             $driver = $this->driver($cached['provider']);
@@ -300,14 +282,12 @@ class PaymentManager
             ];
         }
 
-        // 2. Check Database (If logging is enabled)
         if ($this->config['logging']['enabled'] ?? true) {
             $transaction = PaymentTransaction::where('reference', $reference)->first();
             if ($transaction) {
                 try {
                     $driver = $this->driver($transaction->provider);
 
-                    // Ensure metadata is an array (handle both array and ArrayObject)
                     $metadata = $transaction->metadata;
                     if ($metadata instanceof ArrayObject) {
                         $metadata = $metadata->getArrayCopy();
@@ -327,13 +307,10 @@ class PaymentManager
                         'id' => $verificationId,
                     ];
                 } catch (DriverNotFoundException) {
-                    // Provider not configured - fall back to using reference
-                    // Ensure metadata is an array (handle both array and ArrayObject)
                     $metadata = $transaction->metadata;
                     if ($metadata instanceof ArrayObject) {
                         $metadata = $metadata->getArrayCopy();
                     } elseif (is_string($metadata)) {
-                        // Decode JSON string if cast didn't apply
                         $decoded = json_decode($metadata, true);
                         $metadata = is_array($decoded) ? $decoded : [];
                     } elseif (! is_array($metadata)) {
@@ -353,7 +330,6 @@ class PaymentManager
             }
         }
 
-        // 3. Heuristic / Explicit Fallback
         $provider = $explicitProvider ?? $this->detectProviderFromReference($reference);
 
         return [
@@ -382,7 +358,7 @@ class PaymentManager
         try {
             DB::transaction(function () use ($reference, $response) {
                 $transaction = PaymentTransaction::where('reference', $reference)
-                    ->lockForUpdate() // Prevent race conditions
+                    ->lockForUpdate()
                     ->first();
 
                 if ($transaction && ! $transaction->isSuccessful()) {

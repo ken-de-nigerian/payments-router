@@ -1,16 +1,17 @@
 <?php
 
+use KenDeNigerian\PayZephyr\Enums\PaymentChannel;
 use KenDeNigerian\PayZephyr\Services\ChannelMapper;
 
 test('channel mapper maps all unified channels to paystack', function () {
     $mapper = new ChannelMapper;
 
     $result = $mapper->mapChannels([
-        ChannelMapper::CHANNEL_CARD,
-        ChannelMapper::CHANNEL_BANK_TRANSFER,
-        ChannelMapper::CHANNEL_USSD,
-        ChannelMapper::CHANNEL_MOBILE_MONEY,
-        ChannelMapper::CHANNEL_QR_CODE,
+        PaymentChannel::CARD->value,
+        PaymentChannel::BANK_TRANSFER->value,
+        PaymentChannel::USSD->value,
+        PaymentChannel::MOBILE_MONEY->value,
+        PaymentChannel::QR_CODE->value,
     ], 'paystack');
 
     expect($result)->toBe(['card', 'bank_transfer', 'ussd', 'mobile_money', 'qr']);
@@ -20,10 +21,10 @@ test('channel mapper maps all unified channels to monnify', function () {
     $mapper = new ChannelMapper;
 
     $result = $mapper->mapChannels([
-        ChannelMapper::CHANNEL_CARD,
-        ChannelMapper::CHANNEL_BANK_TRANSFER,
-        ChannelMapper::CHANNEL_USSD,
-        ChannelMapper::CHANNEL_MOBILE_MONEY,
+        PaymentChannel::CARD->value,
+        PaymentChannel::BANK_TRANSFER->value,
+        PaymentChannel::USSD->value,
+        PaymentChannel::MOBILE_MONEY->value,
     ], 'monnify');
 
     expect($result)->toBe(['CARD', 'ACCOUNT_TRANSFER', 'USSD', 'PHONE_NUMBER']);
@@ -33,11 +34,11 @@ test('channel mapper maps all unified channels to flutterwave', function () {
     $mapper = new ChannelMapper;
 
     $result = $mapper->mapChannels([
-        ChannelMapper::CHANNEL_CARD,
-        ChannelMapper::CHANNEL_BANK_TRANSFER,
-        ChannelMapper::CHANNEL_USSD,
-        ChannelMapper::CHANNEL_MOBILE_MONEY,
-        ChannelMapper::CHANNEL_QR_CODE,
+        PaymentChannel::CARD->value,
+        PaymentChannel::BANK_TRANSFER->value,
+        PaymentChannel::USSD->value,
+        PaymentChannel::MOBILE_MONEY->value,
+        PaymentChannel::QR_CODE->value,
     ], 'flutterwave');
 
     expect($result)->toContain('card', 'banktransfer', 'ussd', 'mobilemoneyghana', 'nqr');
@@ -47,8 +48,8 @@ test('channel mapper maps all unified channels to stripe', function () {
     $mapper = new ChannelMapper;
 
     $result = $mapper->mapChannels([
-        ChannelMapper::CHANNEL_CARD,
-        ChannelMapper::CHANNEL_BANK_TRANSFER,
+        PaymentChannel::CARD->value,
+        PaymentChannel::BANK_TRANSFER->value,
     ], 'stripe');
 
     expect($result)->toBe(['card', 'us_bank_account']);
@@ -159,15 +160,15 @@ test('channel mapper shouldIncludeChannels returns false for paypal even with ch
     expect($mapper->shouldIncludeChannels('paypal', ['card']))->toBeFalse();
 });
 
-test('channel mapper getUnifiedChannels returns all constants', function () {
+test('channel mapper getUnifiedChannels returns all enum values', function () {
     $channels = ChannelMapper::getUnifiedChannels();
 
     expect($channels)->toContain(
-        ChannelMapper::CHANNEL_CARD,
-        ChannelMapper::CHANNEL_BANK_TRANSFER,
-        ChannelMapper::CHANNEL_USSD,
-        ChannelMapper::CHANNEL_MOBILE_MONEY,
-        ChannelMapper::CHANNEL_QR_CODE
+        PaymentChannel::CARD->value,
+        PaymentChannel::BANK_TRANSFER->value,
+        PaymentChannel::USSD->value,
+        PaymentChannel::MOBILE_MONEY->value,
+        PaymentChannel::QR_CODE->value
     )->and($channels)->toHaveCount(5);
 });
 

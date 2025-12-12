@@ -15,7 +15,6 @@ beforeEach(function () {
     try {
         \Illuminate\Support\Facades\Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (\Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     \Illuminate\Support\Facades\Schema::connection('testing')->create('payment_transactions', function ($table) {
@@ -37,13 +36,11 @@ beforeEach(function () {
 test('webhook controller determineStatus handles all provider status formats', function () {
     $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    // Test Paystack
     $job = new ProcessWebhook('paystack', ['data' => ['status' => 'success']]);
     $manager = app(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('success');
 
-    // Inject mock driver into PaymentManager using reflection
     $managerReflection = new \ReflectionClass($manager);
     $driversProperty = $managerReflection->getProperty('drivers');
     $driversProperty->setAccessible(true);
@@ -54,7 +51,6 @@ test('webhook controller determineStatus handles all provider status formats', f
     $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 
-    // Test Flutterwave
     $job = new ProcessWebhook('flutterwave', ['data' => ['status' => 'successful']]);
     $manager = Mockery::mock(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
@@ -66,7 +62,6 @@ test('webhook controller determineStatus handles all provider status formats', f
     $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 
-    // Test Monnify
     $job = new ProcessWebhook('monnify', ['paymentStatus' => 'PAID']);
     $manager = Mockery::mock(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
@@ -78,7 +73,6 @@ test('webhook controller determineStatus handles all provider status formats', f
     $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 
-    // Test Stripe
     $job = new ProcessWebhook('stripe', ['data' => ['object' => ['status' => 'succeeded']]]);
     $manager = Mockery::mock(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
@@ -90,7 +84,6 @@ test('webhook controller determineStatus handles all provider status formats', f
     $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 
-    // Test PayPal
     $job = new ProcessWebhook('paypal', ['resource' => ['status' => 'COMPLETED']]);
     $manager = Mockery::mock(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
@@ -102,7 +95,6 @@ test('webhook controller determineStatus handles all provider status formats', f
     $status = $method->invoke($job, $manager, $statusNormalizer);
     expect($status)->toBe('success');
 
-    // Test unknown provider
     $job = new ProcessWebhook('unknown', []);
     $manager = Mockery::mock(PaymentManager::class);
     $manager->shouldReceive('driver')
@@ -171,7 +163,6 @@ test('webhook controller updateTransactionFromWebhook handles database error gra
     $method = $reflection->getMethod('updateTransactionFromWebhook');
     $method->setAccessible(true);
 
-    // Should not throw exception even if transaction doesn't exist
     $method->invoke($job, $manager, $statusNormalizer, 'nonexistent_ref');
 
     expect(true)->toBeTrue();

@@ -85,7 +85,6 @@ test('driver factory isRegistered checks if driver is registered', function () {
 test('driver factory uses config driver class if available', function () {
     $factory = new DriverFactory;
 
-    // Clear the config singleton to ensure fresh config is used
     app()->forgetInstance('payments.config');
 
     config(['payments.providers.custom.driver_class' => PaystackDriver::class]);
@@ -100,7 +99,6 @@ test('driver factory uses config driver class if available', function () {
 });
 
 test('driver factory uses registered driver over config driver class', function () {
-    // Test the actual behavior: registered -> config -> defaults
     $factory = new DriverFactory;
 
     $factory->register('paystack', FlutterwaveDriver::class);
@@ -112,7 +110,6 @@ test('driver factory uses registered driver over config driver class', function 
         'currencies' => ['NGN'],
     ]);
 
-    // Registered drivers take precedence over config
     expect($driver)->toBeInstanceOf(FlutterwaveDriver::class);
 });
 
@@ -151,7 +148,6 @@ test('driver factory create throws exception if class does not exist', function 
 test('driver factory register throws exception if class does not implement DriverInterface', function () {
     $factory = new DriverFactory;
 
-    // Try to register a class that doesn't implement DriverInterface
     expect(fn () => $factory->register('test', stdClass::class))
         ->toThrow(DriverNotFoundException::class, 'must implement DriverInterface');
 });

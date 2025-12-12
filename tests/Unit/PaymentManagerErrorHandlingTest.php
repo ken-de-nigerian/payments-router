@@ -26,12 +26,9 @@ test('payment manager handles database error during transaction logging graceful
         'email' => 'test@example.com',
     ]);
 
-    // Should not throw exception even if logging fails
-    // The logTransaction method catches exceptions internally
     try {
         $manager->chargeWithFallback($request, ['paystack']);
     } catch (Exception $e) {
-        // Expected to fail due to no actual API, but logging error should be caught
         expect($e)->not->toBeInstanceOf(PDOException::class);
     }
 });
@@ -49,11 +46,9 @@ test('payment manager handles database error during verification update graceful
 
     $manager = new PaymentManager;
 
-    // Should not throw exception even if database update fails
     try {
         $manager->verify('test_ref', 'paystack');
     } catch (Exception $e) {
-        // Expected to fail due to no actual API, but database error should be caught
         expect($e)->not->toBeInstanceOf(PDOException::class);
     }
 });
@@ -64,32 +59,24 @@ test('payment manager getDefaultDriver returns first provider when default not s
             'stripe' => ['driver' => 'stripe', 'secret_key' => 'test', 'enabled' => true],
             'paystack' => ['driver' => 'paystack', 'secret_key' => 'test', 'enabled' => true],
         ],
-        // No default set
     ]);
 
     $manager = new PaymentManager;
     $default = $manager->getDefaultDriver();
 
-    // Should return first key from providers array
     expect($default)->toBeString();
 });
 
 test('payment manager getDefaultDriver handles empty providers config', function () {
-    // Clear all config to ensure empty providers
     config()->set('payments.providers', []);
     config()->set('payments.default');
 
     $manager = new PaymentManager;
 
-    // When no providers and no default, array_key_first returns null
-    // but the method return type is string, so it will cause a type error
-    // This tests that the method handles edge cases
     try {
         $default = $manager->getDefaultDriver();
-        // If it doesn't throw, it should return a string (even if empty)
         expect($default)->toBeString();
     } catch (TypeError $e) {
-        // Type error is expected when array_key_first returns null
         expect($e)->toBeInstanceOf(TypeError::class);
     }
 });
@@ -110,7 +97,6 @@ test('payment manager getFallbackChain handles empty fallback string', function 
     $manager = new PaymentManager;
     $chain = $manager->getFallbackChain();
 
-    // Should filter out empty strings
     expect($chain)->toBe(['paystack'])
         ->and($chain)->toHaveCount(1);
 });
@@ -131,7 +117,6 @@ test('payment manager getFallbackChain handles false fallback', function () {
     $manager = new PaymentManager;
     $chain = $manager->getFallbackChain();
 
-    // Should filter out false values
     expect($chain)->toBe(['paystack'])
         ->and($chain)->toHaveCount(1);
 });
@@ -147,7 +132,6 @@ test('payment manager resolveDriverClass returns original string for unknown dri
 
     $manager = new PaymentManager;
 
-    // Should throw DriverNotFoundException when class doesn't exist
     expect(fn () => $manager->driver('custom'))
         ->toThrow(DriverNotFoundException::class);
 });
@@ -170,11 +154,9 @@ test('payment manager handles logging disabled during charge', function () {
         'email' => 'test@example.com',
     ]);
 
-    // Should not attempt to log when logging is disabled
     try {
         $manager->chargeWithFallback($request, ['paystack']);
     } catch (Exception $e) {
-        // Expected to fail due to no actual API
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });
@@ -192,11 +174,9 @@ test('payment manager handles logging disabled during verification', function ()
 
     $manager = new PaymentManager;
 
-    // Should not attempt to update when logging is disabled
     try {
         $manager->verify('test_ref', 'paystack');
     } catch (Exception $e) {
-        // Expected to fail due to no actual API
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });
@@ -206,14 +186,11 @@ test('payment manager updateTransactionFromVerification handles successful payme
         'payments.logging.enabled' => true,
     ]);
 
-    // Ensure we're using the testing connection
     DB::setDefaultConnection('testing');
 
-    // Create table (drop first to ensure clean state)
     try {
         Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     Schema::connection('testing')->create('payment_transactions', function ($table) {
@@ -231,7 +208,6 @@ test('payment manager updateTransactionFromVerification handles successful payme
         $table->timestamps();
     });
 
-    // Create a transaction first
     \KenDeNigerian\PayZephyr\Models\PaymentTransaction::create([
         'reference' => 'test_ref_123',
         'provider' => 'paystack',
@@ -254,11 +230,9 @@ test('payment manager updateTransactionFromVerification handles successful payme
         customer: null
     );
 
-    // Use reflection to call protected method
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('updateTransactionFromVerification');
 
-    // Should not throw exception
     $method->invoke($manager, 'test_ref_123', $response);
 
     $transaction = \KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'test_ref_123')->first();
@@ -271,14 +245,11 @@ test('payment manager updateTransactionFromVerification handles failed payment',
         'payments.logging.enabled' => true,
     ]);
 
-    // Ensure we're using the testing connection
     DB::setDefaultConnection('testing');
 
-    // Create table (drop first to ensure clean state)
     try {
         Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     Schema::connection('testing')->create('payment_transactions', function ($table) {
@@ -296,7 +267,6 @@ test('payment manager updateTransactionFromVerification handles failed payment',
         $table->timestamps();
     });
 
-    // Create a transaction first
     \KenDeNigerian\PayZephyr\Models\PaymentTransaction::create([
         'reference' => 'test_ref_failed',
         'provider' => 'paystack',
@@ -319,11 +289,9 @@ test('payment manager updateTransactionFromVerification handles failed payment',
         customer: null
     );
 
-    // Use reflection to call protected method
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('updateTransactionFromVerification');
 
-    // Should not throw exception
     $method->invoke($manager, 'test_ref_failed', $response);
 
     $transaction = \KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'test_ref_failed')->first();
@@ -336,14 +304,11 @@ test('payment manager logTransaction creates transaction with all fields', funct
         'payments.logging.enabled' => true,
     ]);
 
-    // Ensure we're using the testing connection
     DB::setDefaultConnection('testing');
 
-    // Create table (drop first to ensure clean state)
     try {
         Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     Schema::connection('testing')->create('payment_transactions', function ($table) {
@@ -380,11 +345,9 @@ test('payment manager logTransaction creates transaction with all fields', funct
         provider: 'paystack'
     );
 
-    // Use reflection to call protected method
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('logTransaction');
 
-    // Should not throw exception
     $method->invoke($manager, $request, $response, 'paystack');
 
     $transaction = \KenDeNigerian\PayZephyr\Models\PaymentTransaction::where('reference', 'test_ref_log')->first();
@@ -395,7 +358,6 @@ test('payment manager logTransaction creates transaction with all fields', funct
         ->and($transaction->currency)->toBe('NGN')
         ->and($transaction->email)->toBe('customer@example.com');
 
-    // Laravel 10 uses 'array' cast, Laravel 11+ uses AsArrayObject
     if ($laravelVersion >= 11.0) {
         expect($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
             ->and($transaction->metadata['order_id'])->toBe(123)

@@ -8,13 +8,11 @@ test('abstract driver handles missing base url gracefully', function () {
             'driver' => 'paystack',
             'secret_key' => 'sk_test_xxx',
             'enabled' => true,
-            // No base_url
         ],
     ]);
 
     $driver = new PaystackDriver(config('payments.providers.paystack'));
 
-    // Should use default base URL
     expect($driver->getName())->toBe('paystack');
 });
 
@@ -30,7 +28,6 @@ test('abstract driver handles empty currency list', function () {
 
     $driver = new PaystackDriver(config('payments.providers.paystack'));
 
-    // Should handle empty currency list
     expect($driver->isCurrencySupported('NGN'))->toBeFalse();
 });
 
@@ -46,7 +43,6 @@ test('abstract driver handles null currency check', function () {
 
     $driver = new PaystackDriver(config('payments.providers.paystack'));
 
-    // Should throw TypeError for null currency (type safety)
     expect(fn () => $driver->isCurrencySupported(null))
         ->toThrow(TypeError::class);
 });
@@ -68,7 +64,6 @@ test('abstract driver reference generation handles custom prefix', function () {
 
     $reference = $method->invoke($driver);
 
-    // Check if prefix is used (may be in config or default)
     expect($reference)->toBeString()
         ->and(strlen($reference))->toBeGreaterThan(0);
 });
@@ -85,12 +80,10 @@ test('abstract driver handles ssl verification in testing mode', function () {
 
     $driver = new PaystackDriver(config('payments.providers.paystack'));
 
-    // Should disable SSL verification in testing mode
     $reflection = new ReflectionClass($driver);
     $property = $reflection->getProperty('client');
     $client = $property->getValue($driver);
 
-    // Client should be initialized
     expect($client)->not->toBeNull();
 });
 
@@ -106,13 +99,10 @@ test('abstract driver health check caching respects ttl', function () {
 
     $driver = new PaystackDriver(config('payments.providers.paystack'));
 
-    // First call should check health
     $result1 = $driver->getCachedHealthCheck();
 
-    // Second call should use cache
     $result2 = $driver->getCachedHealthCheck();
 
-    // Results should be the same (cached)
     expect($result1)->toBe($result2);
 });
 
@@ -128,7 +118,6 @@ test('abstract driver handles logging disabled config', function () {
 
     $driver = new PaystackDriver(config('payments.providers.paystack'));
 
-    // Should not throw exception when logging is disabled
     $result = $driver->isCurrencySupported('NGN');
 
     expect($result)->toBeBool();
@@ -149,7 +138,6 @@ test('abstract driver handles different log levels', function () {
     $reflection = new ReflectionClass($driver);
     $method = $reflection->getMethod('log');
 
-    // Should handle different log levels
     $method->invoke($driver, 'info', 'Test message');
     $method->invoke($driver, 'warning', 'Test warning');
     $method->invoke($driver, 'error', 'Test error');

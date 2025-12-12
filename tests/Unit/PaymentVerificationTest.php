@@ -93,14 +93,11 @@ test('payment verify with disabled provider skips that provider', function () {
     try {
         Payment::verify('ref_123');
     } catch (ProviderException $e) {
-        // Should only try enabled providers
         expect($e)->toBeInstanceOf(ProviderException::class);
     }
 });
 
 test('payment verify returns verification response on success', function () {
-    // This would need mocked responses to actually succeed
-    // Testing that the return type is correct
     expect(true)->toBeTrue();
 });
 
@@ -125,7 +122,6 @@ test('payment manager verify method without provider', function () {
 });
 
 test('payment verify handles network errors gracefully', function () {
-    // Network errors should be caught and wrapped
     try {
         Payment::verify('ref_network_error');
     } catch (ProviderException $e) {
@@ -155,13 +151,11 @@ test('payment verify logs verification attempts', function () {
     try {
         Payment::verify('ref_logged');
     } catch (Exception $e) {
-        // Logging should not interfere
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });
 
 test('payment verify respects provider order', function () {
-    // When no provider specified, should try in configured order
     try {
         Payment::verify('ref_order_test');
     } catch (ProviderException $e) {
@@ -170,7 +164,6 @@ test('payment verify respects provider order', function () {
 });
 
 test('payment verify skips providers without currency support', function () {
-    // This is already tested in fallback, but verify it applies to verify too
     $manager = app(PaymentManager::class);
 
     try {
@@ -192,7 +185,6 @@ test('payment verify preserves previous exceptions', function () {
     try {
         Payment::verify('ref_previous_exception');
     } catch (ProviderException $e) {
-        // Should be able to trace back to original exceptions
         expect($e)->toBeInstanceOf(ProviderException::class);
     }
 });
@@ -207,7 +199,6 @@ test('payment verify with multiple enabled providers', function () {
     try {
         Payment::verify('ref_multi_provider');
     } catch (ProviderException $e) {
-        // Should have tried all three
         expect($e->getContext()['exceptions'])->toBeArray();
     }
 });

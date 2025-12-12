@@ -29,11 +29,8 @@ test('stripe driver handles webhook with metadata reference', function () {
         ],
     ]);
 
-    // Use real driver - validation will fail with test data but we can test the method exists
-    // For actual validation testing, we'd need proper Stripe webhook setup
     $result = $driver->validateWebhook($headers, $payload);
 
-    // Should return a boolean (validation result)
     expect($result)->toBeBool();
 });
 
@@ -64,7 +61,6 @@ test('stripe driver handles webhook with client_reference_id', function () {
 
     $result = $driver->validateWebhook($headers, $payload);
 
-    // Should return a boolean (validation result)
     expect($result)->toBeBool();
 });
 
@@ -80,7 +76,6 @@ test('stripe driver handles charge with zero decimal currency', function () {
 
     $driver = new StripeDriver(config('payments.providers.stripe'));
 
-    // Should handle zero decimal currencies
     expect($driver->isCurrencySupported('JPY'))->toBeTrue();
 });
 
@@ -95,11 +90,9 @@ test('stripe driver handles verify with different status formats', function () {
 
     $driver = new StripeDriver(config('payments.providers.stripe'));
 
-    // Should handle various status formats
     $statuses = ['succeeded', 'pending', 'failed', 'canceled', 'requires_action'];
 
     foreach ($statuses as $status) {
-        // Just verify the driver can handle these statuses
         expect($driver->isCurrencySupported('USD'))->toBeBool();
     }
 });

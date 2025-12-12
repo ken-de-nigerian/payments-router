@@ -70,7 +70,6 @@ test('webhook request authorizes valid signature', function () {
     $request->headers->set('x-paystack-signature', $signature);
     $request->headers->set('Content-Type', 'application/json');
 
-    // Mock getContent to return the body
     $request = new class($request, $body) extends WebhookRequest
     {
         private string $body;
@@ -245,6 +244,5 @@ test('webhook request handles missing provider gracefully', function () {
         }
     };
 
-    // Should return false when provider doesn't exist
     expect($request->authorize())->toBeFalse();
 });

@@ -137,7 +137,6 @@ test('payment fluent api uses default currency from config', function () {
     $manager = new PaymentManager;
     $payment = new Payment($manager);
 
-    // Don't set currency, should use default
     $payment->amount(10000)->email('test@example.com');
 
     expect(true)->toBeTrue(); // If no exception, default was used
@@ -180,8 +179,6 @@ test('payment fluent api builds charge request correctly', function () {
     $manager = new PaymentManager;
     $payment = new Payment($manager);
 
-    // This will attempt to charge but fail due to no API access
-    // We're just testing that the fluent API builds correctly
     try {
         $payment
             ->amount(10000)
@@ -189,7 +186,6 @@ test('payment fluent api builds charge request correctly', function () {
             ->email('test@example.com')
             ->charge();
     } catch (Exception $e) {
-        // Expected to fail, we're just checking the API works
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });

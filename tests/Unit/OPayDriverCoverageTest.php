@@ -97,7 +97,6 @@ test('opay driver validateWebhook returns false when secret key missing', functi
         'currencies' => ['NGN'],
     ]);
 
-    // Use reflection to set secret_key and public_key to empty for testing
     $reflection = new ReflectionClass($driver);
     $configProperty = $reflection->getProperty('config');
     $configProperty->setAccessible(true);
@@ -118,10 +117,8 @@ test('opay driver validateWebhook handles case-insensitive header', function () 
         'currencies' => ['NGN'],
     ]);
 
-    // Note: Actual RSA validation would require valid keys, so we just test header extraction
     $result = $driver->validateWebhook(['X-OPay-Signature' => ['signature']], 'test body');
 
-    // Should return false due to invalid signature, but header was found
     expect($result)->toBeFalse();
 });
 

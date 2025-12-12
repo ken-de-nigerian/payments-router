@@ -75,7 +75,6 @@ test('driver factory isRegistered checks if driver is registered', function () {
 test('driver factory uses config driver class if available', function () {
     $factory = new DriverFactory;
 
-    // Clear the config singleton to ensure fresh config is used
     app()->forgetInstance('payments.config');
 
     config(['payments.providers.custom.driver_class' => PaystackDriver::class]);
@@ -102,10 +101,8 @@ test('driver factory uses fully qualified class name as fallback', function () {
 });
 
 test('driver factory register throws exception if class does not implement DriverInterface', function () {
-    // Test that register() validates the class implements DriverInterface
     $factory = new DriverFactory;
 
-    // Try to register a class that doesn't implement DriverInterface
     expect(fn () => $factory->register('bad', stdClass::class))
         ->toThrow(DriverNotFoundException::class, 'must implement DriverInterface');
 });

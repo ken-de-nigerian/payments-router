@@ -2,7 +2,6 @@
 
 use KenDeNigerian\PayZephyr\Services\ProviderDetector;
 
-// Set up all providers with correct reference prefixes for testing
 beforeEach(function () {
     config([
         'payments.providers.paystack' => [

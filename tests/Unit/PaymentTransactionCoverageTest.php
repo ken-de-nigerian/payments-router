@@ -9,7 +9,6 @@ beforeEach(function () {
     try {
         \Illuminate\Support\Facades\Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (\Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     \Illuminate\Support\Facades\Schema::connection('testing')->create('payment_transactions', function ($table) {

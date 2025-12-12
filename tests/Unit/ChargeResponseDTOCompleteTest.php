@@ -11,12 +11,10 @@ test('charge response getNormalizedStatus uses container when available', functi
         provider: 'paystack',
     );
 
-    // Should normalize 'succeeded' to 'success'
     expect($response->isSuccessful())->toBeTrue();
 });
 
 test('charge response getNormalizedStatus falls back to static when container unavailable', function () {
-    // Create response without container context
     $response = ChargeResponseDTO::fromArray([
         'reference' => 'ref_123',
         'authorization_url' => 'https://example.com',
@@ -25,7 +23,6 @@ test('charge response getNormalizedStatus falls back to static when container un
         'provider' => 'paystack',
     ]);
 
-    // Should still normalize 'completed' to 'success'
     expect($response->isSuccessful())->toBeTrue();
 });
 

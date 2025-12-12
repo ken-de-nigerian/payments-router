@@ -32,7 +32,6 @@ test('webhook controller handles paypal status from event_type', function () {
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookStatus')->andReturn('PAYMENT.CAPTURE.COMPLETED');
 
-    // Inject mock driver into PaymentManager using reflection
     $managerReflection = new \ReflectionClass($manager);
     $driversProperty = $managerReflection->getProperty('drivers');
     $driversProperty->setAccessible(true);
@@ -45,7 +44,6 @@ test('webhook controller handles paypal status from event_type', function () {
     $method->setAccessible(true);
     $status = $method->invoke($job, $manager, $statusNormalizer);
 
-    // Status normalizer maps 'COMPLETED' to 'success' in default mappings
     expect($status)->toBe('success');
 });
 
@@ -157,7 +155,6 @@ test('webhook controller handles database error in updateTransactionFromWebhook'
     $controller = app(WebhookController::class);
     $response = $controller->handle($webhookRequest, 'paystack');
 
-    // Should still return 202 even if transaction update fails
     expect($response->getStatusCode())->toBe(202);
 });
 

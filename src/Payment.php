@@ -157,7 +157,6 @@ final class Payment
      */
     public function charge(): ChargeResponseDTO
     {
-        // Rate limiting
         $key = $this->getRateLimitKey();
 
         if (RateLimiter::tooManyAttempts($key, 10)) {
@@ -192,17 +191,14 @@ final class Payment
      */
     protected function getRateLimitKey(): string
     {
-        // Rate limit per user if authenticated
         if (function_exists('auth') && auth()->check()) {
             return 'payment_charge:user_'.auth()->id();
         }
 
-        // Rate limit per email for guest checkouts
         if (! empty($this->data['email'])) {
             return 'payment_charge:email_'.hash('sha256', $this->data['email']);
         }
 
-        // Rate limit per IP as last resort
         if (app()->bound('request')) {
             return 'payment_charge:ip_'.app('request')->ip();
         }
@@ -214,7 +210,7 @@ final class Payment
      * Process payment and redirect to payment page.
      *
      * @throws ProviderException
-     * @throws InvalidConfigurationException
+     * @throws InvalidConfigurationException|ChargeException
      */
     public function redirect(): RedirectResponse
     {

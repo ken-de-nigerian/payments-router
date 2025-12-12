@@ -62,8 +62,6 @@ test('skips providers that do not support currency', function () {
         'email' => 'test@example.com',
     ]);
 
-    // This will fail because we're not actually calling APIs,
-    // But it tests that Paystack is skipped for EUR
     try {
         $manager->chargeWithFallback($request, ['paystack', 'stripe']);
     } catch (Exception $e) {
@@ -114,7 +112,6 @@ test('verification tries all providers when provider not specified', function ()
     $manager = new PaymentManager;
 
     try {
-        // This will fail because no API is available
         $manager->verify('ref_123');
     } catch (ProviderException $e) {
         expect($e->getMessage())->toContain('Unable to verify payment reference');
@@ -133,7 +130,6 @@ test('verification uses specific provider when specified', function () {
     $manager = new PaymentManager;
 
     try {
-        // This will fail because no API is available
         $manager->verify('ref_123', 'paystack');
     } catch (Exception $e) {
         expect($e)->toBeInstanceOf(Exception::class);
@@ -198,12 +194,9 @@ test('custom provider list overrides config fallback', function () {
         'email' => 'test@example.com',
     ]);
 
-    // Custom providers: ['flutterwave', 'monnify']
-    // Should use these instead of default fallback chain
     try {
         $manager->chargeWithFallback($request, ['flutterwave', 'monnify']);
     } catch (Exception $e) {
-        // Will fail due to no API, but tests custom provider list
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });

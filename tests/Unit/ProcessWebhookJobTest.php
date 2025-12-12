@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\Events\WebhookReceived;
@@ -38,7 +37,6 @@ test('process webhook job dispatches webhook received event', function () {
 
     $manager = app(PaymentManager::class);
 
-    // Mock the driver to avoid actual API calls
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookReference')
         ->andReturn('ref_123');
@@ -47,7 +45,6 @@ test('process webhook job dispatches webhook received event', function () {
     $mockDriver->shouldReceive('extractWebhookChannel')
         ->andReturn('card');
 
-    // Inject mock driver into PaymentManager using reflection
     $managerReflection = new \ReflectionClass($manager);
     $driversProperty = $managerReflection->getProperty('drivers');
     $driversProperty->setAccessible(true);
@@ -117,7 +114,6 @@ test('process webhook job handles missing reference gracefully', function () {
 
     app()->instance(PaymentManager::class, $manager);
 
-    // Should not throw exception
     $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class));
 
     Event::assertDispatched(WebhookReceived::class);
@@ -151,11 +147,9 @@ test('process webhook job logs processing', function () {
 
     app()->instance(PaymentManager::class, $manager);
 
-    // Verify the job executes without throwing exceptions
     expect(fn () => $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class)))
         ->not->toThrow(\Exception::class);
 
-    // Verify the webhook received event was dispatched
     Event::assertDispatched(WebhookReceived::class, function ($event) {
         return $event->provider === 'paystack'
             && $event->reference === 'ref_123';
@@ -192,8 +186,6 @@ test('process webhook job uses database transactions', function () {
 
     app()->instance(PaymentManager::class, $manager);
 
-    // The job uses DB::transaction internally, which will be handled by RefreshDatabase
-    // We just verify the transaction is updated successfully
     $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class));
 
     $transaction->refresh();

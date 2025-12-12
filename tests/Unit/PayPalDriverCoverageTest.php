@@ -52,7 +52,6 @@ test('paypal driver captureOrder throws verification exception on error', functi
     $response = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $response->shouldReceive('getStatusCode')->andReturn(400);
 
-    // Mock getAccessToken first (it's called by captureOrder)
     $tokenResponse = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $tokenStream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
     $tokenStream->shouldReceive('__toString')->andReturn(json_encode([
@@ -65,7 +64,6 @@ test('paypal driver captureOrder throws verification exception on error', functi
         ->with('POST', '/v1/oauth2/token', Mockery::any())
         ->andReturn($tokenResponse);
 
-    // Then mock the capture request to throw exception
     $client->shouldReceive('request')
         ->with('POST', '/v2/checkout/orders/ORDER_123/capture', Mockery::any())
         ->andThrow(new \GuzzleHttp\Exception\ClientException('Error', $request, $response));
@@ -76,12 +74,6 @@ test('paypal driver captureOrder throws verification exception on error', functi
     $method = $reflection->getMethod('captureOrder');
     $method->setAccessible(true);
 
-    // getAccessToken() will throw ChargeException (wrapping ClientException)
-    // which will be caught and rethrown as VerificationException by captureOrder
-    // But if getAccessToken fails, it throws ChargeException first
-    // Let's check what actually happens - captureOrder calls getAccessToken first
-    // If getAccessToken throws ChargeException, it won't reach the capture request
-    // So we need to mock getAccessToken to succeed, then capture to fail
     $tokenResponse = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $tokenStream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
     $tokenStream->shouldReceive('__toString')->andReturn(json_encode([
@@ -94,7 +86,6 @@ test('paypal driver captureOrder throws verification exception on error', functi
         ->with('POST', '/v1/oauth2/token', Mockery::any())
         ->andReturn($tokenResponse);
 
-    // Now the capture request should throw
     $client->shouldReceive('request')
         ->with('POST', '/v2/checkout/orders/ORDER_123/capture', Mockery::any())
         ->andThrow(new \GuzzleHttp\Exception\ClientException('Error', $request, $response));
@@ -113,7 +104,6 @@ test('paypal driver verify handles capture with pending status', function () {
 
     $client = Mockery::mock(\GuzzleHttp\Client::class);
 
-    // Mock getAccessToken response
     $tokenResponse = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $tokenStream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
     $tokenStream->shouldReceive('__toString')->andReturn(json_encode([
@@ -122,7 +112,6 @@ test('paypal driver verify handles capture with pending status', function () {
     ]));
     $tokenResponse->shouldReceive('getBody')->andReturn($tokenStream);
 
-    // Mock order retrieval response
     $orderResponse = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $orderStream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
     $orderStream->shouldReceive('__toString')->andReturn(json_encode([
@@ -172,7 +161,6 @@ test('paypal driver verify handles capture with completed status', function () {
 
     $client = Mockery::mock(\GuzzleHttp\Client::class);
 
-    // Mock getAccessToken response
     $tokenResponse = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $tokenStream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
     $tokenStream->shouldReceive('__toString')->andReturn(json_encode([
@@ -181,7 +169,6 @@ test('paypal driver verify handles capture with completed status', function () {
     ]));
     $tokenResponse->shouldReceive('getBody')->andReturn($tokenStream);
 
-    // Mock order retrieval response
     $orderResponse = Mockery::mock(\Psr\Http\Message\ResponseInterface::class);
     $orderStream = Mockery::mock(\Psr\Http\Message\StreamInterface::class);
     $orderStream->shouldReceive('__toString')->andReturn(json_encode([

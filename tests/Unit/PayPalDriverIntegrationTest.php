@@ -33,13 +33,11 @@ function createPayPalDriverWithMock(array $responses): PayPalDriver
 
 test('paypal authenticates and charges successfully', function () {
     $driver = createPayPalDriverWithMock([
-        // Auth
         new Response(200, [], json_encode([
             'access_token' => 'A21AAxx',
             'expires_in' => 32400,
             'token_type' => 'Bearer',
         ])),
-        // Create order
         new Response(201, [], json_encode([
             'id' => 'ORDER_ID_123',
             'status' => 'CREATED',
@@ -80,7 +78,6 @@ test('paypal charge handles api error', function () {
         ])),
     ]);
 
-    // This throws InvalidArgumentException because ChargeRequestDTO validation runs first
     $driver->charge(new ChargeRequestDTO(10000, 'INVALID', 'test@example.com', null, 'https://example.com/callback'));
 })->throws(InvalidArgumentException::class);
 
@@ -123,7 +120,6 @@ test('paypal verify returns pending', function () {
                 'amount' => ['value' => '100.00', 'currency_code' => 'USD'],
                 'payments' => [
                     'captures' => [
-                        // Has a capture but it's still pending
                         [
                             'id' => 'CAPTURE_123',
                             'status' => 'PENDING',
@@ -140,7 +136,6 @@ test('paypal verify returns pending', function () {
     ]);
 
     $result = $driver->verify('pp_pending');
-    // Status is APPROVED with a PENDING capture, which should normalize to pending
     expect($result->isPending())->toBeTrue();
 });
 
@@ -162,7 +157,6 @@ test('paypal handles network error', function () {
     ]);
 
     $client = new Client(['handler' => HandlerStack::create($mock)]);
-    // We add callback_url to config to avoid crash during network error test
     $driver = new PayPalDriver(['client_id' => 'test', 'client_secret' => 'test', 'mode' => 'sandbox', 'currencies' => ['USD'], 'callback_url' => 'http://test']);
     $driver->setClient($client);
 

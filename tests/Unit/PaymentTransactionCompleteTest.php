@@ -30,7 +30,6 @@ test('payment transaction isSuccessful handles all success status variations', f
 });
 
 test('payment transaction methods handle normalization when container unavailable', function () {
-    // Test that methods work even without container
     $model = new PaymentTransaction(['status' => 'completed']);
 
     expect($model->isSuccessful())->toBeTrue();

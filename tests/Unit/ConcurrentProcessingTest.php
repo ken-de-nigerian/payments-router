@@ -12,7 +12,6 @@ beforeEach(function () {
     try {
         \Illuminate\Support\Facades\Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (\Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     \Illuminate\Support\Facades\Schema::connection('testing')->create('payment_transactions', function ($table) {
@@ -41,8 +40,7 @@ test('it prevents race conditions in transaction updates', function () {
         'email' => 'test@example.com',
     ]);
 
-    // Simulate concurrent updates using database locks
-    DB::transaction(function () use ($transaction) {
+    DB::transaction(function () {
         $t = PaymentTransaction::where('reference', 'TEST_123')
             ->lockForUpdate()
             ->first();
@@ -51,7 +49,6 @@ test('it prevents race conditions in transaction updates', function () {
         $t->update(['status' => 'success']);
     });
 
-    // Verify update succeeded
     $transaction->refresh();
     expect($transaction->status)->toBe('success');
 });
@@ -66,7 +63,6 @@ test('it handles concurrent webhook and verification updates', function () {
         'email' => 'test2@example.com',
     ]);
 
-    // Simulate webhook update
     DB::transaction(function () {
         $t = PaymentTransaction::where('reference', 'TEST_456')
             ->lockForUpdate()
@@ -77,7 +73,6 @@ test('it handles concurrent webhook and verification updates', function () {
         }
     });
 
-    // Simulate verification update (should be idempotent)
     DB::transaction(function () {
         $t = PaymentTransaction::where('reference', 'TEST_456')
             ->lockForUpdate()
@@ -88,7 +83,6 @@ test('it handles concurrent webhook and verification updates', function () {
         }
     });
 
-    // Verify final state
     $transaction->refresh();
     expect($transaction->status)->toBe('success')
         ->and($transaction->paid_at)->not->toBeNull();
@@ -106,14 +100,12 @@ test('it prevents duplicate webhook processing', function () {
 
     $updateCount = 0;
 
-    // Simulate same webhook arriving twice
     for ($i = 0; $i < 2; $i++) {
         DB::transaction(function () use (&$updateCount) {
             $t = PaymentTransaction::where('reference', 'TEST_789')
                 ->lockForUpdate()
                 ->first();
 
-            // Only update if still pending (idempotent check)
             if ($t && $t->status === 'pending') {
                 $t->update(['status' => 'success']);
                 $updateCount++;
@@ -121,7 +113,6 @@ test('it prevents duplicate webhook processing', function () {
         });
     }
 
-    // Should only update once
     expect($updateCount)->toBe(1);
 
     $transaction->refresh();
@@ -134,7 +125,6 @@ test('it handles concurrent cache writes safely', function () {
 
     Cache::flush();
 
-    // Simulate concurrent cache writes
     for ($i = 0; $i < 5; $i++) {
         Cache::put($key, [
             'provider' => 'paystack',
@@ -142,7 +132,6 @@ test('it handles concurrent cache writes safely', function () {
         ], now()->addHour());
     }
 
-    // Cache should have final value (last write wins)
     $cached = Cache::get($key);
     expect($cached)->toBeArray()
         ->and($cached['provider'])->toBe('paystack');
@@ -160,7 +149,6 @@ test('it handles concurrent verification requests', function () {
 
     $verifyCount = 0;
 
-    // Simulate multiple verification requests
     for ($i = 0; $i < 3; $i++) {
         DB::transaction(function () use (&$verifyCount) {
             $t = PaymentTransaction::where('reference', 'VERIFY_TEST')
@@ -174,7 +162,6 @@ test('it handles concurrent verification requests', function () {
         });
     }
 
-    // Should only update once (idempotent)
     expect($verifyCount)->toBe(1);
 
     $transaction->refresh();

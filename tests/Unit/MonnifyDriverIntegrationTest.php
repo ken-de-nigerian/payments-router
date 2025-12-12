@@ -33,7 +33,6 @@ function createMonnifyDriverWithMock(array $responses): MonnifyDriver
 
 test('monnify authenticates and charges successfully', function () {
     $driver = createMonnifyDriverWithMock([
-        // First call: authentication
         new Response(200, [], json_encode([
             'requestSuccessful' => true,
             'responseBody' => [
@@ -41,7 +40,6 @@ test('monnify authenticates and charges successfully', function () {
                 'expiresIn' => 3600,
             ],
         ])),
-        // Second call: charge
         new Response(200, [], json_encode([
             'requestSuccessful' => true,
             'responseBody' => [
@@ -72,12 +70,10 @@ test('monnify charge handles authentication failure', function () {
 
 test('monnify charge handles api error', function () {
     $driver = createMonnifyDriverWithMock([
-        // Auth succeeds
         new Response(200, [], json_encode([
             'requestSuccessful' => true,
             'responseBody' => ['accessToken' => 'token', 'expiresIn' => 3600],
         ])),
-        // Charge fails
         new Response(400, [], json_encode([
             'requestSuccessful' => false,
             'responseMessage' => 'Invalid amount',
@@ -89,12 +85,10 @@ test('monnify charge handles api error', function () {
 
 test('monnify verify returns success', function () {
     $driver = createMonnifyDriverWithMock([
-        // Auth
         new Response(200, [], json_encode([
             'requestSuccessful' => true,
             'responseBody' => ['accessToken' => 'token', 'expiresIn' => 3600],
         ])),
-        // Verify
         new Response(200, [], json_encode([
             'requestSuccessful' => true,
             'responseBody' => [

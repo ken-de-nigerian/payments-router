@@ -1,5 +1,6 @@
 <?php
 
+use KenDeNigerian\PayZephyr\Enums\PaymentChannel;
 use KenDeNigerian\PayZephyr\Services\ChannelMapper;
 
 test('channel mapper maps channels to paystack format', function () {
@@ -116,11 +117,11 @@ test('channel mapper getUnifiedChannels returns all unified channels', function 
     $channels = ChannelMapper::getUnifiedChannels();
 
     expect($channels)->toContain(
-        ChannelMapper::CHANNEL_CARD,
-        ChannelMapper::CHANNEL_BANK_TRANSFER,
-        ChannelMapper::CHANNEL_USSD,
-        ChannelMapper::CHANNEL_MOBILE_MONEY,
-        ChannelMapper::CHANNEL_QR_CODE
+        PaymentChannel::CARD->value,
+        PaymentChannel::BANK_TRANSFER->value,
+        PaymentChannel::USSD->value,
+        PaymentChannel::MOBILE_MONEY->value,
+        PaymentChannel::QR_CODE->value
     )->and($channels)->toHaveCount(5);
 });
 
@@ -153,7 +154,6 @@ test('channel mapper mapToPaystack filters out invalid channels', function () {
 
     $result = $mapper->mapChannels(['card', 'invalid_channel', 'ussd'], 'paystack');
 
-    // Paystack mapper doesn't filter, it just maps - invalid_channel stays as-is
     expect($result)->toContain('card', 'ussd', 'invalid_channel');
 });
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 use KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver;
 use KenDeNigerian\PayZephyr\Drivers\MonnifyDriver;
 use KenDeNigerian\PayZephyr\Drivers\OPayDriver;
-use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
 use KenDeNigerian\PayZephyr\Drivers\SquareDriver;
 use KenDeNigerian\PayZephyr\PaymentManager;
 
@@ -156,7 +155,6 @@ test('it rejects webhook with wrong signature algorithm', function () {
     ];
 
     $body = json_encode($payload);
-    // Wrong algorithm (sha256 instead of sha512)
     $signature = hash_hmac('sha256', $body, config('payments.providers.paystack.secret_key'));
 
     $isValid = $driver->validateWebhook(
@@ -179,13 +177,11 @@ test('it handles case-insensitive webhook headers', function () {
     $body = json_encode($payload);
     $signature = hash_hmac('sha512', $body, config('payments.providers.paystack.secret_key'));
 
-    // Test uppercase header
     $isValid1 = $driver->validateWebhook(
         ['X-Paystack-Signature' => [$signature]],
         $body
     );
 
-    // Test lowercase header
     $isValid2 = $driver->validateWebhook(
         ['x-paystack-signature' => [$signature]],
         $body

@@ -71,12 +71,10 @@ final class DriverFactory
         $className = str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
         $fqcn = 'KenDeNigerian\PayZephyr\Drivers\\'.$className.'Driver';
 
-        // Try convention-based class name first
         if (class_exists($fqcn)) {
             return $fqcn;
         }
 
-        // Handle special case: PayPal (Paypal -> PayPal)
         if (strtolower($name) === 'paypal' && class_exists('KenDeNigerian\PayZephyr\Drivers\PayPalDriver')) {
             return 'KenDeNigerian\PayZephyr\Drivers\PayPalDriver';
         }

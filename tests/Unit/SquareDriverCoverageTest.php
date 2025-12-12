@@ -80,8 +80,6 @@ test('square driver healthCheck returns true for 4xx errors', function () {
 
     $driver->setClient($client);
 
-    // A 404 Not Found from Square means the API is working correctly
-    // The API is responding as expected, which indicates it's operational
     expect($driver->healthCheck())->toBeTrue();
 });
 

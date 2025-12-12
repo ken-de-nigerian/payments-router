@@ -359,7 +359,6 @@ abstract class AbstractDriver implements DriverInterface
             return;
         }
 
-        // Sanitize context before logging
         $sanitizedContext = $this->sanitizeLogContext($context);
 
         logger()->{$level}("[{$this->getName()}] $message", $sanitizedContext);
@@ -384,7 +383,6 @@ abstract class AbstractDriver implements DriverInterface
         }
 
         if (is_object($data)) {
-            // Handle objects by converting to array first
             $array = method_exists($data, 'toArray')
                 ? $data->toArray()
                 : (array) $data;
@@ -392,7 +390,6 @@ abstract class AbstractDriver implements DriverInterface
             return $this->sanitizeLogContext($array);
         }
 
-        // Sanitize strings that look like API keys or tokens
         if (is_string($data) && strlen($data) > 20) {
             if (preg_match('/^(sk_|pk_|whsec_|Bearer\s+)/i', $data)) {
                 return '[REDACTED_TOKEN]';

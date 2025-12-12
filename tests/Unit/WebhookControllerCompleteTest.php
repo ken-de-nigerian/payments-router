@@ -69,7 +69,6 @@ test('webhook controller extracts paystack reference correctly', function () {
     $mockDriver->shouldReceive('extractWebhookReference')
         ->andReturn('paystack_ref_123');
 
-    // Inject mock driver into PaymentManager using reflection
     $managerReflection = new \ReflectionClass($manager);
     $driversProperty = $managerReflection->getProperty('drivers');
     $driversProperty->setAccessible(true);
@@ -322,7 +321,6 @@ test('webhook controller returns null for unknown provider', function () {
         $reference = $method->invoke($job, $manager);
         expect($reference)->toBeNull();
     } catch (\KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException $e) {
-        // Expected behavior - driver not found
         expect(true)->toBeTrue();
     }
 });
@@ -339,7 +337,6 @@ test('webhook controller determines paystack status correctly', function () {
     $mockDriver->shouldReceive('extractWebhookStatus')
         ->andReturn('success');
 
-    // Inject mock driver into PaymentManager using reflection
     $managerReflection = new \ReflectionClass($manager);
     $driversProperty = $managerReflection->getProperty('drivers');
     $driversProperty->setAccessible(true);
@@ -660,7 +657,6 @@ test('webhook controller updates transaction with provider-specific channels', f
 
     $statusNormalizer = app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class);
 
-    // Test paystack
     $job = new ProcessWebhook('paystack', [
         'data' => ['status' => 'success', 'channel' => 'card'],
     ]);
@@ -675,7 +671,6 @@ test('webhook controller updates transaction with provider-specific channels', f
     $method->setAccessible(true);
     $method->invoke($job, $manager, $statusNormalizer, 'paystack_channel_ref');
 
-    // Test square
     $job = new ProcessWebhook('square', [
         'data' => [
             'object' => [
@@ -697,7 +692,6 @@ test('webhook controller updates transaction with provider-specific channels', f
     $method->setAccessible(true);
     $method->invoke($job, $manager, $statusNormalizer, 'square_channel_ref');
 
-    // Test flutterwave
     $job = new ProcessWebhook('flutterwave', [
         'data' => ['status' => 'success', 'payment_type' => 'card'],
     ]);
@@ -712,7 +706,6 @@ test('webhook controller updates transaction with provider-specific channels', f
     $method->setAccessible(true);
     $method->invoke($job, $manager, $statusNormalizer, 'flutterwave_channel_ref');
 
-    // Test monnify
     $job = new ProcessWebhook('monnify', [
         'paymentStatus' => 'PAID',
         'paymentMethod' => 'CARD',
@@ -728,7 +721,6 @@ test('webhook controller updates transaction with provider-specific channels', f
     $method->setAccessible(true);
     $method->invoke($job, $manager, $statusNormalizer, 'monnify_channel_ref');
 
-    // Test stripe
     $job = new ProcessWebhook('stripe', [
         'data' => ['object' => ['status' => 'succeeded', 'payment_method' => 'card']],
     ]);
@@ -743,7 +735,6 @@ test('webhook controller updates transaction with provider-specific channels', f
     $method->setAccessible(true);
     $method->invoke($job, $manager, $statusNormalizer, 'stripe_channel_ref');
 
-    // Test paypal
     $job = new ProcessWebhook('paypal', [
         'resource' => ['status' => 'COMPLETED'],
     ]);
@@ -796,7 +787,6 @@ test('webhook controller handles database error during update gracefully', funct
     $method = $reflection->getMethod('updateTransactionFromWebhook');
     $method->setAccessible(true);
 
-    // Should not throw exception even if database update fails
     $method->invoke($job, $manager, $statusNormalizer, 'error_ref_123');
 
     expect(true)->toBeTrue();
@@ -934,7 +924,6 @@ test('webhook controller handles exception during processing', function () {
         }
     };
 
-    // Mock Bus facade to throw exception when dispatching
     Bus::shouldReceive('dispatch')
         ->andThrow(new \Exception('Processing error'));
 

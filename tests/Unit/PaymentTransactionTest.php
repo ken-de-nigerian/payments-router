@@ -12,14 +12,11 @@ use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
  * This ensures we don't rely on external migrations.
  */
 beforeEach(function () {
-    // Ensure we're using the testing connection
     \Illuminate\Support\Facades\DB::setDefaultConnection('testing');
 
-    // Always create the table (RefreshDatabase will handle cleanup)
     try {
         Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (\Exception $e) {
-        // Ignore if table doesn't exist
     }
 
     Schema::connection('testing')->create('payment_transactions', function (Blueprint $table) {
@@ -39,27 +36,22 @@ beforeEach(function () {
 });
 
 test('it uses the configured table name', function () {
-    // Clear the cached config instance
     app()->forgetInstance('payments.config');
 
     config(['payments.logging.table' => 'custom_transactions_table']);
 
-    // Configure the table name from config
     $provider = new \KenDeNigerian\PayZephyr\PaymentServiceProvider(app());
     $reflection = new \ReflectionClass($provider);
     $method = $reflection->getMethod('configureModel');
     $method->setAccessible(true);
     $method->invoke($provider);
 
-    // Create a new instance to get the updated table name
     $model = new PaymentTransaction;
 
-    // The table name should be set from config
     expect($model->getTable())->toBe('custom_transactions_table');
 });
 
 test('it defaults to payment_transactions table if config is missing', function () {
-    // Ensure config is null/default for this key
     config(['payments.logging.table' => null]);
 
     $model = new PaymentTransaction;
@@ -83,13 +75,10 @@ test('it casts attributes correctly', function () {
         'paid_at' => $now,
     ]);
 
-    // specific to decimal:2 cast, it returns a string to preserve precision
-    // Note: In some Laravel versions, decimal cast may return float
     $amount = $transaction->amount;
     expect(is_string($amount) ? $amount : (string) number_format((float) $amount, 2, '.', ''))->toBe('5000.50')
         ->and($transaction->paid_at)->toBeInstanceOf(Carbon::class);
 
-    // Laravel 10 uses 'array' cast, Laravel 11+ uses AsArrayObject
     if ($laravelVersion >= 11.0) {
         expect($transaction->metadata)->toBeInstanceOf(\ArrayObject::class)
             ->and($transaction->metadata['order_id'])->toBe(1)

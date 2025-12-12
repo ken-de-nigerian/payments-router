@@ -35,7 +35,6 @@ final class StatusNormalizer implements StatusNormalizerInterface
     {
         $status = strtoupper(trim($status));
 
-        // Check provider-specific mappings first
         if ($provider && isset($this->providerMappings[$provider])) {
             $mapping = $this->providerMappings[$provider];
             foreach ($mapping as $normalizedStatus => $providerStatuses) {
@@ -45,14 +44,12 @@ final class StatusNormalizer implements StatusNormalizerInterface
             }
         }
 
-        // Fall back to default mappings
         foreach ($this->defaultMappings as $normalizedStatus => $providerStatuses) {
             if (in_array($status, $providerStatuses, true)) {
                 return $normalizedStatus;
             }
         }
 
-        // Return lowercase version if no mapping found
         return strtolower($status);
     }
 

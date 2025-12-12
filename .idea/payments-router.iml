@@ -138,12 +138,6 @@
       <excludeFolder url="file://$MODULE_DIR$/vendor/webmozart/assert" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/pestphp/pest-plugin-mutate" />
       <excludeFolder url="file://$MODULE_DIR$/vendor/staabm/side-effects-detector" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/apimatic/core" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/apimatic/core-interfaces" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/apimatic/jsonmapper" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/apimatic/unirest-php" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/php-jsonpointer/php-jsonpointer" />
-      <excludeFolder url="file://$MODULE_DIR$/vendor/square/square" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

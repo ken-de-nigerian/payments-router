@@ -207,7 +207,6 @@ test('payment manager updateTransactionFromVerification skips when logging disab
         currency: 'NGN',
     );
 
-    // Should not throw
     $method->invoke($manager, 'skip_ref', $response);
 
     expect(true)->toBeTrue(); // Verify it doesn't throw

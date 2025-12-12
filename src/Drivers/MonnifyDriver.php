@@ -218,7 +218,6 @@ final class MonnifyDriver extends AbstractDriver
             return false;
         }
 
-        // Validate timestamp to prevent replay attacks
         $payload = json_decode($body, true) ?? [];
         if (! $this->validateWebhookTimestamp($payload)) {
             $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');

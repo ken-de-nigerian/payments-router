@@ -9,7 +9,6 @@ use KenDeNigerian\PayZephyr\Http\Controllers\WebhookController;
 use KenDeNigerian\PayZephyr\Jobs\ProcessWebhook;
 
 beforeEach(function () {
-    // Disable logging to prevent "Table not found" errors during unit tests
     config([
         'payments.logging.enabled' => false,
 
@@ -50,7 +49,6 @@ test('webhook controller queues webhook processing', function () {
     $signature = hash_hmac('sha512', $body, 'test_secret_key');
     $request->headers->set('x-paystack-signature', $signature);
 
-    // Mock the request content and route
     $request = new class($request, $body) extends \KenDeNigerian\PayZephyr\Http\Requests\WebhookRequest
     {
         private string $body;
@@ -128,7 +126,6 @@ test('webhook controller rejects invalid signature via form request', function (
         }
     };
 
-    // Form Request validation will fail authorization
     expect($request->authorize())->toBeFalse();
 });
 
@@ -214,7 +211,6 @@ test('webhook controller handles invalid provider gracefully', function () {
         }
     };
 
-    // Controller queues the job and returns 202, error will occur when job is processed
     $response = $controller->handle($request, 'invalid_provider');
 
     expect($response->getStatusCode())->toBe(202);
@@ -226,7 +222,6 @@ test('webhook controller handles exceptions during processing', function () {
 
     $controller = app(WebhookController::class);
 
-    // Create a request that might cause issues
     $baseRequest = Request::create('/payments/webhook/paystack', 'POST', [
         'malformed' => 'data',
     ]);
@@ -266,7 +261,6 @@ test('webhook controller handles exceptions during processing', function () {
 
     $response = $controller->handle($request, 'paystack');
 
-    // Should handle gracefully
     expect($response->getStatusCode())->toBeIn([202, 500]);
 });
 
@@ -420,7 +414,6 @@ test('webhook controller logs webhook processing', function () {
 
     Event::fake();
 
-    // Should not throw errors during logging
     $response = $controller->handle($request, 'paystack');
 
     expect($response->getStatusCode())->toBe(202);

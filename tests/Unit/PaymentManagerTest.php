@@ -209,7 +209,6 @@ test('payment manager handles missing enabled flag as true', function () {
         'payments.providers.paystack' => [
             'driver' => 'paystack',
             'secret_key' => 'test',
-            // No 'enabled' flag
         ],
     ]);
 

@@ -20,9 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Old webhooks outside tolerance are automatically rejected
   - Backward compatible: webhooks without timestamps still accepted (with warning)
 - **CRITICAL:** Added multi-tenant cache isolation
-  - Cache keys automatically include user/tenant context
+  - Cache keys automatically include user context
   - Prevents cache poisoning in multi-tenant scenarios
-  - Supports Laravel auth, custom tenant resolvers, and session-based identification
+  - Supports Laravel auth and session-based identification
 - **HIGH:** Implemented automatic log sanitization for sensitive data
   - Automatic redaction of sensitive keys (password, secret, token, api_key, etc.)
   - Pattern-based detection of API keys and tokens
@@ -100,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 🔄 Changed
 
 - All webhook validation methods now include timestamp validation
-- Cache keys now include user/tenant context when available
+- Cache keys now include user context when available
 - Log context is automatically sanitized before logging
 - Rate limiting is automatically applied to payment initialization
 - Enhanced email validation rejects malformed emails

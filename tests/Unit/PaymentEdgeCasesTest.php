@@ -64,7 +64,6 @@ test('payment charge uses channels from data', function () {
         ->email('test@example.com')
         ->channels(['card', 'bank_transfer']);
 
-    // Use reflection to check data
     $reflection = new ReflectionClass($payment);
     $property = $reflection->getProperty('data');
     $data = $property->getValue($payment);
@@ -92,8 +91,6 @@ test('payment charge merges channels with default currency', function () {
             ->channels(['card'])
             ->charge();
     } catch (Exception $e) {
-        // Expected to fail due to no actual API
-        // Just verifying the method doesn't throw on channels
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });
@@ -117,7 +114,6 @@ test('payment redirect uses channels from data', function () {
             ->channels(['card'])
             ->redirect();
     } catch (Exception $e) {
-        // Expected to fail due to no actual API
         expect($e)->toBeInstanceOf(Exception::class);
     }
 });

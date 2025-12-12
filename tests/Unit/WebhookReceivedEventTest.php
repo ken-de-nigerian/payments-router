@@ -44,7 +44,6 @@ test('webhook received event is serializable', function () {
         'ref_123'
     );
 
-    // Should be able to serialize for queue
     $serialized = serialize($event);
     $unserialized = unserialize($serialized);
 

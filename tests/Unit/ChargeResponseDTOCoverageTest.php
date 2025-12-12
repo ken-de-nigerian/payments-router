@@ -19,7 +19,6 @@ test('charge response getNormalizedStatus uses container when available', functi
 });
 
 test('charge response getNormalizedStatus falls back to static when container unavailable', function () {
-    // Create response without container
     $response = new ChargeResponseDTO(
         reference: 'ref_123',
         authorizationUrl: 'https://example.com',
@@ -27,7 +26,6 @@ test('charge response getNormalizedStatus falls back to static when container un
         status: 'COMPLETED'
     );
 
-    // Should still work with static normalization
     expect($response->isSuccessful())->toBeTrue();
 });
 

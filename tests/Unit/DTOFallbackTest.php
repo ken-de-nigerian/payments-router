@@ -4,8 +4,6 @@ use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 
 test('charge response dto falls back to static normalization when app function not available', function () {
-    // Create a scenario where app() might not be available
-    // This tests the fallback path in getNormalizedStatus()
     $response = new ChargeResponseDTO(
         reference: 'ref_123',
         authorizationUrl: 'https://example.com',
@@ -14,7 +12,6 @@ test('charge response dto falls back to static normalization when app function n
         provider: 'test'
     );
 
-    // The getNormalizedStatus() method should use static normalization
     expect($response->isSuccessful())->toBeTrue();
 });
 
@@ -27,7 +24,6 @@ test('charge response dto handles exception in normalization gracefully', functi
         provider: 'test'
     );
 
-    // Should still work even if container throws exception
     expect($response->isSuccessful())->toBeTrue();
 });
 

@@ -16,7 +16,6 @@ abstract class TestCase extends Orchestra
 
     protected function getEnvironmentSetUp($app): void
     {
-        // Use SQLite in-memory database for testing
         $app['config']->set('database.default', 'testing');
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
@@ -38,10 +37,8 @@ abstract class TestCase extends Orchestra
     {
         parent::setUp();
 
-        // Load migrations from the package
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
-        // Run migrations on the testing connection
         $this->artisan('migrate', ['--database' => 'testing'])->run();
     }
 }

@@ -2,7 +2,6 @@
 
 use KenDeNigerian\PayZephyr\Services\ProviderDetector;
 
-// Set up all providers with correct reference prefixes for testing
 beforeEach(function () {
     config([
         'payments.providers.paystack' => [
@@ -115,7 +114,6 @@ test('provider detector registerPrefix is case insensitive for prefix', function
 test('provider detector requires underscore after prefix', function () {
     $detector = new ProviderDetector;
 
-    // Should not match if no underscore
     expect($detector->detectFromReference('PAYSTACKref123'))->toBeNull()
         ->and($detector->detectFromReference('PAYSTACK'))->toBeNull();
 });

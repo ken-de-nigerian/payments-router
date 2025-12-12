@@ -163,8 +163,6 @@ return [
     | Security Configuration
     |--------------------------------------------------------------------------
     |
-    | Enable automatic logging of all payment transactions to the database.
-    |
     */
     'security' => [
         'webhook_timestamp_tolerance' => env('PAYMENTS_WEBHOOK_TIMESTAMP_TOLERANCE', 300),

@@ -6,7 +6,6 @@ use KenDeNigerian\PayZephyr\Payment;
 use KenDeNigerian\PayZephyr\PaymentManager;
 
 test('payment redirect method returns redirect response', function () {
-    // Configure test environment
     config([
         'payments.default' => 'paystack',
         'payments.health_check.enabled' => false, // Disable health check for testing
@@ -19,7 +18,6 @@ test('payment redirect method returns redirect response', function () {
         ],
     ]);
 
-    // Create real PaymentManager and inject mock driver directly into cache
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('charge')
         ->once()
@@ -39,7 +37,6 @@ test('payment redirect method returns redirect response', function () {
 
     $manager = new PaymentManager;
 
-    // Inject mock driver directly into PaymentManager's driver cache using reflection
     $managerReflection = new \ReflectionClass($manager);
     $driversProperty = $managerReflection->getProperty('drivers');
     $driversProperty->setAccessible(true);

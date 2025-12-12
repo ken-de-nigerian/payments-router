@@ -332,7 +332,6 @@ final class PayPalDriver extends AbstractDriver
                 return false;
             }
 
-            // Additional timestamp validation for extra security
             $payload = json_decode($body, true) ?? [];
             if (! $this->validateWebhookTimestamp($payload)) {
                 $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
@@ -467,6 +466,4 @@ final class PayPalDriver extends AbstractDriver
     {
         return 'paypal';
     }
-
-    // Inherits resolveVerificationId from AbstractDriver (uses $providerId)
 }

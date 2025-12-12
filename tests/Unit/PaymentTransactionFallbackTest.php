@@ -23,6 +23,5 @@ test('payment transaction isPending falls back to static normalization', functio
 test('payment transaction handles exception in normalization gracefully', function () {
     $transaction = new PaymentTransaction(['status' => 'success']);
 
-    // Should still work even if container throws exception
     expect($transaction->isSuccessful())->toBeTrue();
 });

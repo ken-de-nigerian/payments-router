@@ -11,12 +11,10 @@ test('verification response getNormalizedStatus uses container when available', 
         provider: 'paystack',
     );
 
-    // Should normalize 'succeeded' to 'success'
     expect($response->isSuccessful())->toBeTrue();
 });
 
 test('verification response getNormalizedStatus falls back to static when container unavailable', function () {
-    // Create response without container context
     $response = VerificationResponseDTO::fromArray([
         'reference' => 'ref_123',
         'status' => 'completed',
@@ -25,7 +23,6 @@ test('verification response getNormalizedStatus falls back to static when contai
         'provider' => 'paystack',
     ]);
 
-    // Should still normalize 'completed' to 'success'
     expect($response->isSuccessful())->toBeTrue();
 });
 

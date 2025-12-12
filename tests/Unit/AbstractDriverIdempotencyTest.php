@@ -76,11 +76,8 @@ test('abstract driver does not override existing idempotency header', function (
         idempotencyKey: 'idempotency_key_123'
     );
 
-    // This would normally inject the header, but if it's already set, it shouldn't override
-    // We can't easily test this without modifying the driver, but the code path exists
     $driver->charge($request);
 
-    // Verify the header was set
     $lastRequest = $mock->getLastRequest();
     $headers = $lastRequest->getHeaders();
 

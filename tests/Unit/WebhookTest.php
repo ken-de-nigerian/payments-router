@@ -158,9 +158,7 @@ test('webhook payload can be complex json', function () {
 test('webhook events can have listeners', function () {
     Event::fake();
 
-    Event::listen('payments.webhook.paystack', function ($payload) {
-        // Listener logic
-    });
+    Event::listen('payments.webhook.paystack', function ($payload) {});
 
     event('payments.webhook.paystack', [['event' => 'charge.success']]);
 

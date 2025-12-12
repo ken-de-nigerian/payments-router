@@ -10,7 +10,6 @@ test('payment manager caches session data', function () {
 
     $manager = app(PaymentManager::class);
 
-    // Use reflection to call a protected method
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('cacheSessionData');
 
@@ -64,8 +63,6 @@ test('payment manager resolveVerificationContext uses database when cache miss',
 
     $result = $method->invoke($manager, 'db_ref', null);
 
-    // When Flutterwave is configured, resolveVerificationId returns reference
-    // When not configured, we fall back to provider ID from metadata
     $expectedId = config('payments.providers.flutterwave.enabled', false) ? 'db_ref' : 'flw_id_123';
     expect($result)->toBe([
         'provider' => 'flutterwave',
@@ -145,7 +142,6 @@ test('payment manager resolveVerificationContext uses provider_id for square', f
 
     $result = $method->invoke($manager, 'square_ref', null);
 
-    // Square uses provider ID (payment ID) for verification
     expect($result)->toBe([
         'provider' => 'square',
         'id' => 'payment_123',

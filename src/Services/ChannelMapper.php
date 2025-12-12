@@ -12,21 +12,6 @@ use KenDeNigerian\PayZephyr\Enums\PaymentChannel;
  */
 final class ChannelMapper implements ChannelMapperInterface
 {
-    /** @deprecated Use PaymentChannel enum instead */
-    public const CHANNEL_CARD = 'card';
-
-    /** @deprecated Use PaymentChannel enum instead */
-    public const CHANNEL_BANK_TRANSFER = 'bank_transfer';
-
-    /** @deprecated Use PaymentChannel enum instead */
-    public const CHANNEL_USSD = 'ussd';
-
-    /** @deprecated Use PaymentChannel enum instead */
-    public const CHANNEL_MOBILE_MONEY = 'mobile_money';
-
-    /** @deprecated Use PaymentChannel enum instead */
-    public const CHANNEL_QR_CODE = 'qr_code';
-
     /**
      * Map channels to provider format.
      *
@@ -156,9 +141,6 @@ final class ChannelMapper implements ChannelMapperInterface
      */
     protected function mapToPayPal(array $channels): ?array
     {
-        // PayPal doesn't support channel filtering in the same way
-        // It uses payment_method_preference in experience_context
-        // Return null to use default behavior
         return null;
     }
 

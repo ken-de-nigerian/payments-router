@@ -39,7 +39,6 @@ test('abstract driver setChannelMapper allows custom mapper', function () {
 });
 
 test('abstract driver mapChannels returns null when provider does not support channels', function () {
-    // Use PayPalDriver directly (it already returns 'paypal' as name)
     $paypalDriver = new PayPalDriver([
         'client_id' => 'test',
         'client_secret' => 'test',
@@ -82,7 +81,6 @@ test('abstract driver mapChannels returns null when no channels provided', funct
     ]);
 
     $request = new ChargeRequestDTO(10000, 'NGN', 'test@example.com');
-    // No channels set
 
     $reflection = new ReflectionClass($driver);
     $method = $reflection->getMethod('mapChannels');

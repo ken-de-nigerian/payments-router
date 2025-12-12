@@ -233,7 +233,6 @@ final class FlutterwaveDriver extends AbstractDriver
             return false;
         }
 
-        // Validate timestamp to prevent replay attacks
         $payload = json_decode($body, true) ?? [];
         if (! $this->validateWebhookTimestamp($payload)) {
             $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
@@ -258,14 +257,18 @@ final class FlutterwaveDriver extends AbstractDriver
             return $statusCode < 500;
 
         } catch (Throwable $e) {
+            $previous = $e->getPrevious();
             if (
                 ($e instanceof PaymentException)
-                && ($e->getPrevious() instanceof ClientException)
-                && in_array($e->getPrevious()->getResponse()?->getStatusCode(), [400, 404])
+                && ($previous instanceof ClientException)
             ) {
-                $this->log('info', 'Health check successful (expected 400/404 response)');
+                $response = $previous->getResponse();
+                $statusCode = $response->getStatusCode();
+                if (in_array($statusCode, [400, 404], true)) {
+                    $this->log('info', 'Health check successful (expected 400/404 response)');
 
-                return true;
+                    return true;
+                }
             }
 
             return false;

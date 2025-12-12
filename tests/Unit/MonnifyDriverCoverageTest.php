@@ -66,7 +66,6 @@ test('monnify driver healthCheck returns false for 4xx errors', function () {
     $response = Mockery::mock(ResponseInterface::class);
     $response->shouldReceive('getStatusCode')->andReturn(400);
 
-    // Monnify healthCheck makes a POST request to /api/v1/auth/login
     $client->shouldReceive('request')
         ->once()
         ->with('POST', '/api/v1/auth/login', Mockery::any())
@@ -105,7 +104,6 @@ test('monnify driver verify handles currencyCode field', function () {
 
     $client = Mockery::mock(Client::class);
 
-    // Mock auth response
     $authResponse = Mockery::mock(ResponseInterface::class);
     $authStream = Mockery::mock(StreamInterface::class);
     $authStream->shouldReceive('__toString')->andReturn(json_encode([
@@ -117,7 +115,6 @@ test('monnify driver verify handles currencyCode field', function () {
     ]));
     $authResponse->shouldReceive('getBody')->andReturn($authStream);
 
-    // Mock verify response with currencyCode instead of currency
     $verifyResponse = Mockery::mock(ResponseInterface::class);
     $verifyStream = Mockery::mock(StreamInterface::class);
     $verifyStream->shouldReceive('__toString')->andReturn(json_encode([

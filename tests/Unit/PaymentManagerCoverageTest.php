@@ -15,7 +15,6 @@ beforeEach(function () {
     try {
         Schema::connection('testing')->dropIfExists('payment_transactions');
     } catch (Exception) {
-        // Ignore if table doesn't exist
     }
 
     Schema::connection('testing')->create('payment_transactions', function ($table) {
@@ -225,7 +224,6 @@ test('payment manager updateTransactionFromVerification handles database error g
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('updateTransactionFromVerification');
 
-    // Should not throw exception
     $method->invoke($manager, 'nonexistent_ref', $response);
 
     expect(true)->toBeTrue(); // If we get here, no exception was thrown
@@ -249,7 +247,6 @@ test('payment manager updateTransactionFromVerification skips when logging disab
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('updateTransactionFromVerification');
 
-    // Should not throw exception
     $method->invoke($manager, 'ref_123', $response);
 
     expect(true)->toBeTrue(); // If we get here, no exception was thrown

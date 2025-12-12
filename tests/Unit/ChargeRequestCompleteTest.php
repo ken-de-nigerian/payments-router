@@ -2,7 +2,6 @@
 
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 
-// Amount Validation Tests
 test('charge request validates amount', function () {
     expect(fn () => ChargeRequestDTO::fromArray([
         'amount' => -100,
@@ -39,7 +38,6 @@ test('charge request accepts large amounts', function () {
     expect($request->amount)->toBe(1000000.99);
 });
 
-// Email Validation Tests
 test('charge request validates email', function () {
     expect(fn () => ChargeRequestDTO::fromArray([
         'amount' => 100,
@@ -76,7 +74,6 @@ test('charge request accepts valid email formats', function () {
     }
 });
 
-// Currency Validation Tests
 test('charge request validates currency format', function () {
     expect(fn () => ChargeRequestDTO::fromArray([
         'amount' => 100,
@@ -117,7 +114,6 @@ test('charge request accepts standard currency codes', function () {
     }
 });
 
-// Minor Units Conversion Tests
 test('charge request converts amount to minor units', function () {
     $request = ChargeRequestDTO::fromArray([
         'amount' => 100.50,
@@ -148,7 +144,6 @@ test('charge request rounds minor units correctly', function () {
     expect($request->getAmountInMinorUnits())->toBe(10056); // Rounded
 });
 
-// Array Conversion Tests
 test('charge request creates from array', function () {
     $request = ChargeRequestDTO::fromArray([
         'amount' => 5000,
@@ -186,7 +181,6 @@ test('charge request converts to array', function () {
         ->and($array['callback_url'])->toBe('https://example.com/callback');
 });
 
-// Optional Fields Tests
 test('charge request handles null reference', function () {
     $request = ChargeRequestDTO::fromArray([
         'amount' => 100,

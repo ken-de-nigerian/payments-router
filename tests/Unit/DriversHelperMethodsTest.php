@@ -7,7 +7,6 @@ use KenDeNigerian\PayZephyr\Drivers\PayPalDriver;
 use KenDeNigerian\PayZephyr\Drivers\PaystackDriver;
 use KenDeNigerian\PayZephyr\Drivers\StripeDriver;
 
-// Reference Generation Tests
 test('paystack driver generates unique references', function () {
     $driver = new PaystackDriver(['secret_key' => 'test']);
 
@@ -58,7 +57,6 @@ test('references contain timestamp and random component', function () {
 
     $ref = $method->invoke($driver);
 
-    // Format: PREFIX_timestamp_random
     $parts = explode('_', $ref);
 
     expect($parts)->toHaveCount(3)
@@ -66,7 +64,6 @@ test('references contain timestamp and random component', function () {
         ->and($parts[1])->toBeNumeric(); // timestamp
 });
 
-// Currency Support Tests
 test('driver checks currency support correctly', function () {
     $driver = new PaystackDriver([
         'secret_key' => 'test',
@@ -117,7 +114,6 @@ test('all drivers have currency support method', function () {
     }
 });
 
-// Logging Tests
 test('driver logs info when logging enabled', function () {
     config(['payments.logging.enabled' => true]);
 
@@ -126,7 +122,6 @@ test('driver logs info when logging enabled', function () {
     $reflection = new ReflectionClass($driver);
     $method = $reflection->getMethod('log');
 
-    // Should not throw exception
     $method->invoke($driver, 'info', 'Test log message', ['key' => 'value']);
 
     expect(true)->toBeTrue();
@@ -140,7 +135,6 @@ test('driver respects logging disabled config', function () {
     $reflection = new ReflectionClass($driver);
     $method = $reflection->getMethod('log');
 
-    // Should not throw exception
     $method->invoke($driver, 'info', 'Test log message');
 
     expect(true)->toBeTrue();
@@ -182,7 +176,6 @@ test('driver logs with context data', function () {
     expect(true)->toBeTrue();
 });
 
-// Health Check Caching Tests
 test('driver caches health check results', function () {
     config(['payments.health_check.cache_ttl' => 300]);
 
@@ -220,7 +213,6 @@ test('all drivers have health check method', function () {
     }
 });
 
-// Driver Name Tests
 test('driver returns correct name', function () {
     $drivers = [
         ['driver' => new PaystackDriver(['secret_key' => 'test']), 'name' => 'paystack'],
@@ -235,7 +227,6 @@ test('driver returns correct name', function () {
     }
 });
 
-// HTTP Client Tests
 test('driver initializes http client', function () {
     $driver = new PaystackDriver([
         'secret_key' => 'test',
@@ -292,7 +283,6 @@ test('driver http client disables ssl verification in testing mode', function ()
     expect($client)->toBeInstanceOf(Client::class);
 });
 
-// Configuration Tests
 test('driver stores configuration', function () {
     $config = [
         'secret_key' => 'sk_test_xxx',
@@ -309,11 +299,9 @@ test('driver stores configuration', function () {
 });
 
 test('driver validates required configuration on construction', function () {
-    // Should throw exception for missing config
     expect(true)->toBeTrue(); // Already tested in DriversTest
 });
 
-// Edge Cases
 test('driver handles empty currency list', function () {
     $driver = new PaystackDriver([
         'secret_key' => 'test',
@@ -347,7 +335,6 @@ test('reference generation handles custom prefix', function () {
 test('driver handles missing base url gracefully', function () {
     $driver = new PaystackDriver([
         'secret_key' => 'test',
-        // No base_url provided
     ]);
 
     expect($driver->getName())->toBe('paystack');

@@ -6,7 +6,6 @@ use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use Stripe\Exception\InvalidRequestException;
 
-// Helper to create a fake StripeClient/Service structure
 function createMockStripeDriver(object $stripeMock): StripeDriver
 {
     $config = [
@@ -16,21 +15,18 @@ function createMockStripeDriver(object $stripeMock): StripeDriver
     ];
 
     $driver = new StripeDriver($config);
-    // Inject our mock
     $driver->setStripeClient($stripeMock);
 
     return $driver;
 }
 
 test('stripe charge succeeds', function () {
-    // 1. Mock the Session object (Result of the API call)
     $sessionMock = (object) [
         'id' => 'cs_test_123',
         'url' => 'https://checkout.stripe.com/pay/cs_test_123',
         'status' => 'open',
     ];
 
-    // 2. Mock the Sessions Service (The ->sessions part)
     $sessionsService = new class($sessionMock)
     {
         public function __construct(private readonly object $session) {}
@@ -41,13 +37,11 @@ test('stripe charge succeeds', function () {
         }
     };
 
-    // 3. Mock the Checkout Service (The ->checkout part)
     $checkoutService = new class($sessionsService)
     {
         public function __construct(public object $sessions) {}
     };
 
-    // 4. Mock the Stripe Client (The root object)
     $stripeMock = new class($checkoutService)
     {
         public function __construct(public object $checkout) {}
@@ -58,7 +52,6 @@ test('stripe charge succeeds', function () {
     $request = new ChargeRequestDTO(10000, 'USD', 'test@example.com', 'stripe_ref_123', 'https://example.com/callback');
     $response = $driver->charge($request);
 
-    // Assertions based on the new Checkout Session logic
     expect($response->reference)->toBe('stripe_ref_123')
         ->and($response->authorizationUrl)->toBe('https://checkout.stripe.com/pay/cs_test_123')
         ->and($response->accessCode)->toBe('cs_test_123')
@@ -66,7 +59,6 @@ test('stripe charge succeeds', function () {
 });
 
 test('stripe charge handles api error', function () {
-    // Mock throwing exception from the checkout session creation
     $sessionsService = new class
     {
         public function create()
@@ -87,20 +79,11 @@ test('stripe charge handles api error', function () {
 
     $driver = createMockStripeDriver($stripeMock);
 
-    // This checks that the driver correctly catches the Stripe exception
-    // and rethrows it as a ChargeException (which extends PaymentException)
-    // Note: The previous test checked for InvalidArgumentException from ChargeRequestDTO,
-    // but here we want to test the Driver error handling.
-    // If you want to test invalid currency validation inside ChargeRequestDTO, that is a separate unit test.
-    // Here we simulate Stripe rejecting it.
-
-    // We expect a ChargeException (wrapper), not the raw Stripe exception
     expect(fn () => $driver->charge(new ChargeRequestDTO(100, 'USD', 'test@example.com', null, 'https://example.com/callback')))
         ->toThrow(ChargeException::class);
 });
 
 test('stripe verify returns success', function () {
-    // Verify uses paymentIntents, so we keep this mock structure
     $intentMock = (object) [
         'id' => 'pi_test_123',
         'status' => 'succeeded',
@@ -202,7 +185,6 @@ test('stripe verify handles not found', function () {
 
         public function all(): object
         {
-            // Return empty list when searching by metadata
             return (object) ['data' => []];
         }
     };
@@ -211,7 +193,6 @@ test('stripe verify handles not found', function () {
     {
         public function all(): object
         {
-            // Emulate finding nothing by metadata either
             return (object) ['data' => []];
         }
     };

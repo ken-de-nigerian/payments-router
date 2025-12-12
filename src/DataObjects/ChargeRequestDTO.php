@@ -37,7 +37,6 @@ final readonly class ChargeRequestDTO
      */
     private function validate(): void
     {
-        // Amount validation
         if ($this->amount <= 0) {
             throw new InvalidArgumentException('Amount must be greater than zero');
         }
@@ -46,7 +45,6 @@ final readonly class ChargeRequestDTO
             throw new InvalidArgumentException('Amount exceeds maximum allowed value');
         }
 
-        // Currency validation
         if (empty($this->currency)) {
             throw new InvalidArgumentException('Currency is required');
         }
@@ -59,17 +57,14 @@ final readonly class ChargeRequestDTO
             throw new InvalidArgumentException('Currency must contain only letters');
         }
 
-        // Enhanced email validation
         if (! $this->isValidEmail($this->email)) {
             throw new InvalidArgumentException('Invalid email address');
         }
 
-        // Validate callback URL if provided
         if ($this->callbackUrl !== null && ! $this->isValidUrl($this->callbackUrl)) {
             throw new InvalidArgumentException('Invalid callback URL');
         }
 
-        // Validate reference format if provided
         if ($this->reference !== null && ! $this->isValidReference($this->reference)) {
             throw new InvalidArgumentException('Invalid reference format');
         }
@@ -80,30 +75,25 @@ final readonly class ChargeRequestDTO
      */
     private function isValidEmail(string $email): bool
     {
-        // Basic filter validation
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             return false;
         }
 
-        // Additional checks
         [$local, $domain] = explode('@', $email);
 
-        // Check local part length
         if (strlen($local) > 64) {
             return false;
         }
 
-        // Check domain validity
         if (! filter_var($domain, FILTER_VALIDATE_DOMAIN)) {
             return false;
         }
 
-        // Check for suspicious patterns
         $suspiciousPatterns = [
-            '/\.\./',           // Double dots
-            '/@\./',            // Dot right after @
-            '/\.$/',            // Ends with dot
-            '/^\./',            // Starts with dot
+            '/\.\./',
+            '/@\./',
+            '/\.$/',
+            '/^\./',
         ];
 
         foreach ($suspiciousPatterns as $pattern) {
@@ -124,7 +114,6 @@ final readonly class ChargeRequestDTO
             return false;
         }
 
-        // Ensure HTTPS in production
         if (app()->environment('production')) {
             if (! str_starts_with($url, 'https://')) {
                 return false;
@@ -168,7 +157,6 @@ final readonly class ChargeRequestDTO
     {
         $amount = isset($data['amount']) ? round((float) $data['amount'], 2) : 0.0;
 
-        // Generate idempotency key if not provided
         $idempotencyKey = $data['idempotency_key'] ?? self::generateIdempotencyKey();
 
         return new self(

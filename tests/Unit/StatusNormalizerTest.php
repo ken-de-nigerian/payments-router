@@ -55,7 +55,6 @@ test('status normalizer falls back to default mappings when provider mapping not
         'success' => ['CUSTOM_SUCCESS'],
     ]);
 
-    // Should fall back to default mappings
     expect($normalizer->normalize('SUCCESS', 'custom'))->toBe('success')
         ->and($normalizer->normalize('FAILED', 'custom'))->toBe('failed');
 });
