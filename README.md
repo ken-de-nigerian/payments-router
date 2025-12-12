@@ -11,22 +11,58 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 
 ## 🚀 Features
 
-- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square, OPay etc.
+- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square, OPay
 - **Automatic Fallback**: Seamlessly switch to back-up providers if primary fails
 - **Fluent API**: Clean, expressive syntax for payment operations
 - **Idempotency Support**: Prevent duplicate charges with unique keys across supported providers
-- **Webhook Security**: Secure signature validation for all providers
+- **Webhook Security**: Secure signature validation and replay attack prevention for all providers
 - **Transaction Logging**: Automatic database logging with status tracking
-- **Multi-Currency Support**: Support for 100+ currencies across providers
+- **Multi-Currency Support**: Support for provider-specific currencies (Stripe supports 135+ currencies)
 - **Health Checks**: Automatic provider availability monitoring
 - **Production Ready**: Comprehensive error handling and security features
-- **Well Tested**: Full test coverage with Pest PHP
+- **Well Tested**: Full test coverage with Pest PHP (90%+ coverage)
 - **Type Safe**: Strict PHP 8.2+ typing throughout
 
 ⚠️ **Provider-Specific:**
-- Currency support (check provider documentation)
-- Payment channels (mapped but not all providers support all channels)
-- Required configuration fields
+- Currency support varies by provider (see [Provider Details](docs/providers.md))
+- Payment channels are mapped but not all providers support all channels
+- Some providers have unique configuration requirements
+
+---
+
+## 🔒 Security Considerations
+
+PayZephyr is built with security as a top priority:
+
+### Essential Security Practices
+
+1. **Always use HTTPS in production** for callback URLs
+2. **Never commit `.env` files** containing real API keys to version control
+3. **Webhook signature validation** is enabled by default - never disable in production
+4. **Rate limiting** is automatically applied to prevent abuse
+5. **Multi-tenant isolation** is built-in when using Laravel authentication
+6. **Webhook replay protection** validates timestamps to prevent replay attacks
+7. **Sensitive data sanitization** in logs prevents credential exposure
+
+### Security Features
+
+- ✅ **SQL Injection Protection**: Validated table names and parameterized queries
+- ✅ **CSRF Protection**: Webhook endpoints use signature validation instead
+- ✅ **Rate Limiting**: Prevents payment spam and DoS attacks
+- ✅ **Log Sanitization**: Automatic redaction of sensitive data in logs
+- ✅ **Cache Isolation**: Multi-tenant support with automatic session isolation
+- ✅ **Input Validation**: Comprehensive validation of all payment data
+
+### Production Checklist
+
+Before going live:
+- [ ] All API keys are production keys (not test/sandbox)
+- [ ] Callback URLs use HTTPS
+- [ ] Webhook signature validation is enabled
+- [ ] Queue workers are running for webhook processing
+- [ ] Rate limiting is configured appropriately
+- [ ] Error notifications are set up
+- [ ] Database backups are scheduled
 
 ---
 
@@ -47,18 +83,18 @@ composer require kendenigerian/payzephyr
 
 # 2. Run the install command (publishes config, migrations, and optionally runs migrations)
 php artisan payzephyr:install
+
+# 3. Configure your environment variables (see below)
 ```
 
 **That's it!** You're ready to start accepting payments.
 
-> **💡 Alternative:** If you prefer manual setup, you can still use the traditional approach:
+> **💡 Alternative:** If you prefer manual setup:
 > ```bash
 > php artisan vendor:publish --tag=payments-config
 > php artisan vendor:publish --tag=payments-migrations
 > php artisan migrate
 > ```
-
-**📖 Need more help?** See the [Getting Started Guide](docs/GETTING_STARTED.md) for detailed instructions with examples.
 
 ---
 
@@ -82,41 +118,10 @@ STRIPE_PUBLIC_KEY=pk_test_xxxxx
 STRIPE_WEBHOOK_SECRET=whsec_xxxxx
 STRIPE_ENABLED=false
 
-# Flutterwave (Required: secret_key, public_key, encryption_key)
-FLUTTERWAVE_SECRET_KEY=FLWSECK_TEST_xxxxx
-FLUTTERWAVE_PUBLIC_KEY=FLWPUBK_TEST_xxxxx
-FLUTTERWAVE_ENCRYPTION_KEY=xxxxx
-FLUTTERWAVE_ENABLED=false
-
-# Monnify (Required: api_key, secret_key, contract_code)
-MONNIFY_API_KEY=MK_TEST_xxxxx
-MONNIFY_SECRET_KEY=xxxxx
-MONNIFY_CONTRACT_CODE=xxxxx
-MONNIFY_ENABLED=false
-
-# PayPal (Required: client_id, client_secret)
-PAYPAL_CLIENT_ID=xxxxx
-PAYPAL_CLIENT_SECRET=xxxxx
-PAYPAL_MODE=sandbox
-PAYPAL_ENABLED=false
-
-# Square (Required: access_token, location_id)
-SQUARE_ACCESS_TOKEN=EAAAxxx
-SQUARE_LOCATION_ID=location_xxx
-SQUARE_WEBHOOK_SIGNATURE_KEY=xxx
-SQUARE_ENABLED=false
-
-# OPay (Required: merchant_id, public_key, secret_key for status API)
-OPAY_MERCHANT_ID=your_merchant_id
-OPAY_PUBLIC_KEY=your_public_key
-OPAY_SECRET_KEY=your_secret_key  # Required for status API authentication and webhook validation
-OPAY_BASE_URL=https://liveapi.opaycheckout.com
-OPAY_ENABLED=false
-
-# Optional Settings
-PAYMENTS_DEFAULT_CURRENCY=NGN
-PAYMENTS_LOGGING_ENABLED=true
-PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
+# Optional Security Settings
+PAYMENTS_RATE_LIMIT_ENABLED=true
+PAYMENTS_RATE_LIMIT_ATTEMPTS=10
+PAYMENTS_WEBHOOK_TIMESTAMP_TOLERANCE=300
 ```
 
 **📖 See [Configuration Guide](docs/DOCUMENTATION.md#configuration) for complete details.**
@@ -129,73 +134,90 @@ PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
 
 ```php
 use KenDeNigerian\PayZephyr\Facades\Payment;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 
-// Redirect user to the payment page
-// Note: Builder methods can be chained in any order
-return Payment::amount(10000)
-    ->email('customer@example.com')
-    ->callback(route('payment.callback'))
-    ->redirect(); // Must be called last to execute
+try {
+    // Redirect user to the payment page
+    return Payment::amount(10000)
+        ->email('customer@example.com')
+        ->callback(route('payment.callback'))
+        ->redirect();
+} catch (ChargeException $e) {
+    // Handle payment initialization failure
+    return back()->with('error', 'Payment initialization failed: ' . $e->getMessage());
+}
 ```
 
 ### Using Helper Function
 
 ```php
-// The payment() helper works exactly like the Payment facade
-// All builder methods are chainable in any order
-return payment()
-    ->amount(10000)
-    ->email('customer@example.com')
-    ->callback(route('payment.callback'))
-    ->redirect(); // Must be called last to execute
+try {
+    return payment()
+        ->amount(10000)
+        ->email('customer@example.com')
+        ->callback(route('payment.callback'))
+        ->redirect();
+} catch (\Exception $e) {
+    return back()->with('error', $e->getMessage());
+}
 ```
 
 ### With All Options
 
 ```php
 use Illuminate\Support\Str;
+use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
-// Builder methods can be chained in any order
-// with() or using() can be called anywhere in the chain
-// charge() or redirect() must be called last
-return Payment::amount(50000)
-    ->currency('NGN')
-    ->email('customer@example.com')
-    ->reference('ORDER_' . time())
-    ->description('Premium subscription')
-    ->idempotency(Str::uuid()->toString()) // Prevent double billing
-    ->metadata(['order_id' => 12345])
-    ->customer(['name' => 'John Doe', 'phone' => '+2348012345678'])
-    ->channels(['card', 'bank_transfer']) // Unified channel names work across all providers
-    ->with('paystack') // or ->using('paystack')
-    ->redirect(); // Must be called last to execute
+try {
+    return Payment::amount(50000)
+        ->currency('NGN')
+        ->email('customer@example.com')
+        ->reference('ORDER_' . time())
+        ->description('Premium subscription')
+        ->idempotency(Str::uuid()->toString())
+        ->metadata(['order_id' => 12345])
+        ->customer(['name' => 'John Doe', 'phone' => '+2348012345678'])
+        ->channels(['card', 'bank_transfer'])
+        ->with('paystack') // Specify provider (optional)
+        ->redirect();
+} catch (ProviderException $e) {
+    // All providers failed
+    Log::error('Payment failed across all providers', [
+        'error' => $e->getMessage(),
+        'exceptions' => $e->getContext()
+    ]);
+    return back()->with('error', 'Unable to process payment. Please try again later.');
+}
 ```
 
 ### Verify Payment
 
 ```php
+use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+
 public function callback(Request $request)
 {
     $reference = $request->input('reference');
     
     try {
-        // verify() is a standalone method, NOT chainable
-        // It searches all providers if no provider is specified
+        // verify() searches all providers if no provider specified
         $verification = Payment::verify($reference);
         
-        // Or specify a provider explicitly
-        // $verification = Payment::verify($reference, 'paystack');
-        
         if ($verification->isSuccessful()) {
-            // Payment successful
+            // Payment successful - update your database
+            Order::where('payment_reference', $reference)
+                ->update(['status' => 'paid']);
+            
             return view('payment.success', [
                 'amount' => $verification->amount,
                 'reference' => $verification->reference,
             ]);
         }
         
-        return view('payment.failed');
-    } catch (\Exception $e) {
+        return view('payment.failed', [
+            'message' => 'Payment was not successful'
+        ]);
+    } catch (VerificationException $e) {
         logger()->error('Payment verification failed', [
             'reference' => $reference,
             'error' => $e->getMessage(),
@@ -210,12 +232,11 @@ public function callback(Request $request)
 
 ## 🔄 How It Works - Complete Payment Flow
 
-Understanding how payments work in this package will help you use it effectively. Here's the step-by-step process:
+Understanding the payment flow helps you integrate PayZephyr effectively:
 
 ### Step 1: Initialize Payment (Your Code)
 
 ```php
-// In your controller
 return Payment::amount(10000)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
@@ -223,51 +244,46 @@ return Payment::amount(10000)
 ```
 
 **What happens:**
-1. You call `Payment::amount()` to start building a payment request
-2. You chain methods to add details (email, currency, reference, etc.)
-3. You call `redirect()` which:
-   - Builds a `ChargeRequest` object with all your data
-   - Sends it to `PaymentManager`
-   - `PaymentManager` picks a payment provider (Paystack, Stripe, etc.)
-   - The provider creates a payment and returns a checkout URL
-   - Customer gets redirected to that URL
+1. You build a payment request with fluent methods
+2. `redirect()` creates a checkout session with the provider
+3. Customer is redirected to provider's secure payment page
+4. Transaction is automatically logged to database
 
-### Step 2: Customer Pays (On Provider's Site)
+### Step 2: Customer Pays (Provider's Site)
 
-- Customer enters card details on Paystack/Stripe's secure checkout page
-- Provider processes the payment
-- Customer sees success/failure message
+- Customer completes payment on provider's secure page
+- Provider processes the transaction
+- Customer sees success/failure confirmation
 
-### Step 3: Customer Returns (Callback Route)
+### Step 3: Customer Returns (Callback)
 
 ```php
-// routes/web.php
-Route::get('/payment/callback', [PaymentController::class, 'callback']);
-
-// In your controller
 public function callback(Request $request)
 {
     $reference = $request->input('reference');
     $verification = Payment::verify($reference);
     
     if ($verification->isSuccessful()) {
-        // Payment succeeded - update your database
+        // Update your order status
         Order::where('payment_reference', $reference)
             ->update(['status' => 'paid']);
     }
 }
 ```
 
-**What happens:**
-1. Provider redirects customer back to your `callback` URL
-2. You get the payment reference from the URL
-3. You call `Payment::verify()` to check payment status
-4. `PaymentManager` searches all providers to find the payment
-5. You update your database based on the result
+### Step 4: Webhook Notification (Async)
 
-### Step 4: Webhook Arrives (Automatic Notification)
-
-**Important:** Webhooks can arrive BEFORE or AFTER the customer returns!
+> ⚠️ **CRITICAL:** Webhooks are processed **asynchronously** via Laravel's queue system. You **MUST** run queue workers for webhooks to work:
+>
+> ```bash
+> # Production (using supervisor)
+> php artisan queue:work --queue=default --tries=3
+> 
+> # Development
+> php artisan queue:listen
+> ```
+>
+> Without queue workers, webhooks will be queued but never processed!
 
 ```php
 // app/Listeners/HandlePaystackWebhook.php
@@ -276,16 +292,20 @@ public function handle(array $payload): void
     if ($payload['event'] === 'charge.success') {
         $reference = $payload['data']['reference'];
         
-        // Update order status
+        // Update order status (idempotent - safe to run multiple times)
         Order::where('payment_reference', $reference)
             ->update(['status' => 'paid']);
     }
 }
 ```
 
+**Important:** Webhooks can arrive BEFORE or AFTER the customer returns to your callback URL. Always design your callback and webhook handlers to be **idempotent** (safe to run multiple times).
+
+---
+
 ## 🔔 Webhooks
 
-**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system. You must run queue workers for webhooks to be processed. See [Queue Worker Setup](docs/webhooks.md#-queue-worker-setup-required) for details.**
+**⚠️ Important: Webhooks require queue workers. See [Queue Worker Setup](docs/webhooks.md#-queue-worker-setup-required)**
 
 ### Webhook URLs
 
@@ -334,12 +354,17 @@ class HandlePaystackWebhook
     {
         $reference = $data['reference'];
         
-        $order = Order::where('payment_reference', $reference)->first();
-        
-        if ($order) {
-            $order->update(['status' => 'paid', 'paid_at' => now()]);
-            Mail::to($order->customer_email)->send(new OrderConfirmation($order));
-        }
+        // Idempotent update (safe to run multiple times)
+        DB::transaction(function () use ($reference) {
+            $order = Order::where('payment_reference', $reference)
+                ->lockForUpdate()
+                ->first();
+            
+            if ($order && $order->status !== 'paid') {
+                $order->update(['status' => 'paid', 'paid_at' => now()]);
+                Mail::to($order->customer_email)->send(new OrderConfirmation($order));
+            }
+        });
     }
 }
 ```
@@ -350,14 +375,21 @@ class HandlePaystackWebhook
 
 ## 🏦 Supported Providers
 
-| Provider        | Charge | Verify | Webhooks | Currencies                        | Special Features                |
-|-----------------|:------:|:------:|:--------:|-----------------------------------|---------------------------------|
-| **Paystack**    |   ✅    |   ✅    |    ✅     | NGN, GHS, ZAR, USD                | USSD, Bank Transfer             |
-| **Flutterwave** |   ✅    |   ✅    |    ✅     | NGN, USD, EUR, GBP, KES, UGX, TZS | Mobile Money, MPESA             |
-| **Monnify**     |   ✅    |   ✅    |    ✅     | NGN                               | Bank Transfer, Dynamic Accounts |
-| **Stripe**      |   ✅    |   ✅    |    ✅     | 135+ currencies                   | Apple Pay, Google Pay, SCA      |
-| **PayPal**      |   ✅    |   ✅    |    ✅     | USD, EUR, GBP, CAD, AUD           | PayPal Balance, Credit          |
-| **Square**      |   ✅    |   ✅    |    ✅     | USD, CAD, GBP, AUD                | Online Checkout, Card Payments  |
+| Provider        | Charge | Verify | Webhooks | Idempotency | Channels | Currencies |
+|-----------------|:------:|:------:|:--------:|:-----------:|:--------:|------------|
+| **Paystack**    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD |
+| **Flutterwave** |   ✅    |   ✅    |    ✅     |      ✅      |    10+   | NGN, USD, EUR, GBP, KES, UGX, TZS |
+| **Monnify**     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN |
+| **Stripe**      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies |
+| **PayPal**      |   ✅    |   ✅    |    ✅     |      ❌      |    1     | USD, EUR, GBP, CAD, AUD |
+| **Square**      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD |
+| **OPay**        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN |
+
+**Notes:**
+- ✅ = Fully supported
+- ❌ = Not supported by provider
+- **Channels**: Number of payment methods (card, bank transfer, USSD, etc.)
+- **Idempotency**: Prevents duplicate charges with unique keys
 
 **📖 For provider-specific details, see [docs/providers.md](docs/providers.md)**
 
@@ -379,7 +411,7 @@ $transactions = PaymentTransaction::where('email', 'user@example.com')
 $transaction = PaymentTransaction::where('reference', 'ORDER_123')->first();
 
 if ($transaction->isSuccessful()) {
-    // Process order
+    // Process order fulfillment
 }
 
 // Available scopes
@@ -390,27 +422,137 @@ PaymentTransaction::pending()->get();
 
 ---
 
-## 📚 Documentation
+## 🏢 Multi-Tenancy Support
 
-### Getting Started
-- **[Getting Started Guide](docs/GETTING_STARTED.md)** ⭐ **Start here if you're new!** — Step-by-step beginner tutorial
-- **[Complete Documentation](docs/DOCUMENTATION.md)** - Comprehensive guide covering all features
-- **[Installation & Setup](README.md)** - You are here
+PayZephyr automatically provides session isolation in multi-tenant applications:
 
-### Core Documentation
-- **[Architecture Guide](docs/architecture.md)** - System design and components
-- **[API Reference](docs/API_REFERENCE.md)** - Complete API documentation
-- **[Provider Details](docs/providers.md)** - Detailed provider information
-- **[Webhook Guide](docs/webhooks.md)** - Complete webhook documentation
+### Automatic Isolation
 
-### For Contributors
-- **[Contributing Guide for Beginners](docs/CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** — Step-by-step contribution tutorial
-- **[Contributing Guidelines](docs/CONTRIBUTING.md)** - Detailed technical contribution guide
-- **[Architecture Guide](docs/architecture.md)** - Understand the codebase structure
+When Laravel authentication is active, payment sessions are automatically isolated per user:
 
-### Additional Resources
-- **[CHANGELOG](docs/CHANGELOG.md)** - Version history and updates
-- **[LICENSE](LICENSE)** - MIT License
+```php
+// User 1's payment
+Auth::loginUsingId(1);
+Payment::amount(10000)->charge(); // Cached with user_1 prefix
+
+// User 2's payment (completely isolated)
+Auth::loginUsingId(2);
+Payment::amount(20000)->charge(); // Cached with user_2 prefix
+```
+
+### Custom Tenant Resolution
+
+For applications using tenant packages (e.g., Tenancy for Laravel):
+
+```php
+// In a service provider
+use KenDeNigerian\PayZephyr\PaymentManager;
+
+public function boot()
+{
+    // Custom tenant resolver will be added in future version
+    // Current: Uses Laravel auth automatically
+}
+```
+
+**Current Support:**
+- ✅ User-based isolation (via Laravel auth)
+- ✅ Session-based isolation
+- ✅ IP-based rate limiting fallback
+- 🔄 Custom tenant resolver (planned for v1.2)
+
+---
+
+## 🧪 Testing
+
+### Using Sandbox Credentials
+
+All providers support sandbox/test modes:
+
+```env
+# Paystack Test Mode
+PAYSTACK_SECRET_KEY=sk_test_xxxxxxxxxxxxx
+PAYSTACK_PUBLIC_KEY=pk_test_xxxxxxxxxxxxx
+
+# Stripe Test Mode
+STRIPE_SECRET_KEY=sk_test_xxxxxxxxxxxxx
+
+# Monnify Sandbox
+MONNIFY_BASE_URL=https://sandbox.monnify.com
+```
+
+### Testing in Your Application
+
+```php
+use KenDeNigerian\PayZephyr\Facades\Payment;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+
+class PaymentTest extends TestCase
+{
+    use RefreshDatabase;
+    
+    public function test_payment_initialization()
+    {
+        $response = Payment::amount(10000)
+            ->email('test@example.com')
+            ->callback('https://example.com/callback')
+            ->charge();
+        
+        $this->assertNotEmpty($response->reference);
+        $this->assertNotEmpty($response->authorizationUrl);
+        $this->assertEquals('pending', $response->status);
+    }
+    
+    public function test_payment_verification()
+    {
+        // Use real test credentials to verify against sandbox
+        $response = Payment::amount(10000)
+            ->email('test@example.com')
+            ->callback('https://example.com/callback')
+            ->charge();
+        
+        // In real tests, you'd complete payment on provider's test page
+        // For now, we just verify the structure
+        $this->assertIsString($response->reference);
+    }
+}
+```
+
+### Testing Webhooks
+
+```php
+public function test_webhook_processing()
+{
+    // Mock webhook payload
+    $payload = [
+        'event' => 'charge.success',
+        'data' => [
+            'reference' => 'TEST_123',
+            'amount' => 1000000, // 10,000 in kobo
+            'status' => 'success',
+        ],
+    ];
+    
+    // Send webhook request
+    $response = $this->postJson('/payments/webhook/paystack', $payload, [
+        'x-paystack-signature' => $this->generateSignature($payload),
+    ]);
+    
+    $response->assertStatus(202); // Queued
+    
+    // Process queue
+    Queue::fake();
+    $this->artisan('queue:work --once');
+    
+    // Assert transaction updated
+    $this->assertDatabaseHas('payment_transactions', [
+        'reference' => 'TEST_123',
+        'status' => 'success',
+    ]);
+}
+```
+
+**📖 For complete testing guide, see [docs/DOCUMENTATION.md#testing](docs/DOCUMENTATION.md#testing)**
 
 ---
 
@@ -419,12 +561,11 @@ PaymentTransaction::pending()->get();
 ### Multiple Providers with Fallback
 
 ```php
-// Try Paystack first, fallback to Stripe
-// with() or using() can be called anywhere in the chain
+// Try Paystack first, fallback to Stripe if it fails
 return Payment::amount(10000)
     ->email('customer@example.com')
-    ->with(['paystack', 'stripe']) // or ->using(['paystack', 'stripe'])
-    ->redirect(); // Must be called last to execute
+    ->with(['paystack', 'stripe'])
+    ->redirect();
 ```
 
 ### Direct Driver Access
@@ -450,17 +591,16 @@ if ($driver->isCurrencySupported('NGN')) {
 
 ```php
 // Get payment details without redirecting
-// Use charge() instead of redirect() to get the response object
-// Note: Callback URL is still required for redirect-based providers (Stripe, Square, etc.)
 $response = Payment::amount(10000)
     ->email('customer@example.com')
-    ->callback(route('payment.callback'))  // Required for redirect-based providers
-    ->with('stripe') // or ->using('stripe')
-    ->charge(); // Must be called last to execute
+    ->callback(route('payment.callback'))
+    ->with('stripe')
+    ->charge(); // Returns ChargeResponseDTO
 
 return response()->json([
     'reference' => $response->reference,
     'authorization_url' => $response->authorizationUrl,
+    'status' => $response->status,
 ]);
 ```
 
@@ -468,122 +608,147 @@ return response()->json([
 
 ---
 
-## 🧪 Testing
+## 🐛 Troubleshooting
 
+### Common Issues
+
+#### 1. Webhooks Not Processing
+
+**Symptoms:** Webhooks arrive but transactions don't update
+
+**Solution:**
 ```bash
-# Run all tests
-composer test
+# Make sure queue workers are running
+php artisan queue:work
 
-# Run with coverage
-composer test-coverage
+# Check failed jobs
+php artisan queue:failed
 
-# Static analysis
-composer analyse
-
-# Format code
-composer format
+# Retry failed jobs
+php artisan queue:retry all
 ```
 
-### Test Example
+#### 2. "Provider Not Found" Error
 
+**Symptoms:** `DriverNotFoundException`
+
+**Solution:**
+```env
+# Ensure provider is enabled
+PAYSTACK_ENABLED=true
+
+# Check credentials are set
+PAYSTACK_SECRET_KEY=sk_test_xxxxx
+```
+
+#### 3. Health Check Failing
+
+**Symptoms:** `getCachedHealthCheck()` returns false
+
+**Solution:**
 ```php
-use KenDeNigerian\PayZephyr\Facades\Payment;
+// Bypass cache to check real status
+$driver = app(PaymentManager::class)->driver('paystack');
+$isHealthy = $driver->healthCheck(); // Direct check
 
-test('payment charge works', function () {
-    // Builder methods can be chained in any order
-    $response = Payment::amount(10000)
-        ->email('test@example.com')
-        ->with('paystack') // or ->using('paystack')
-        ->charge(); // Must be called last
-
-    expect($response->reference)->toBeString()
-        ->and($response->status)->toBe('pending');
-});
-
-test('payment verification works', function () {
-    // verify() is standalone, not chainable
-    $verification = Payment::verify('ref_123');
-    
-    expect($verification->isSuccessful())->toBeBool();
-});
+// Clear health check cache
+Cache::forget('payments.health.paystack');
 ```
+
+#### 4. Rate Limit Exceeded
+
+**Symptoms:** "Too many payment attempts" error
+
+**Solution:**
+```php
+// Clear rate limit for testing
+RateLimiter::clear('payment_charge:user_1');
+
+// Or adjust limits in config
+'rate_limit' => [
+    'max_attempts' => 20, // Increase limit
+    'decay_seconds' => 120, // Longer window
+],
+```
+
+#### 5. Webhook Signature Validation Failing
+
+**Symptoms:** Webhooks return 403 Unauthorized
+
+**Solution:**
+```env
+# Ensure correct webhook secret
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
+
+# Not the same as API secret key!
+# Get from provider dashboard → Webhooks → Signing Secret
+```
+
+### Debug Mode
+
+Enable detailed logging:
+
+```env
+# Enable query logging
+DB_LOG_QUERIES=true
+
+# Increase log level
+LOG_LEVEL=debug
+
+# Check logs
+tail -f storage/logs/laravel.log | grep "payment"
+```
+
+### Still Having Issues?
+
+1. Check the [FAQ](docs/DOCUMENTATION.md#faq)
+2. Review [complete documentation](docs/DOCUMENTATION.md)
+3. Search [GitHub issues](https://github.com/ken-de-nigerian/payzephyr/issues)
+4. Open a [new issue](https://github.com/ken-de-nigerian/payzephyr/issues/new) with:
+  - Laravel version
+  - PHP version
+  - PayZephyr version
+  - Provider name
+  - Error message and stack trace
+  - Steps to reproduce
+
 ---
 
-## 📊 API Reference
+## 📚 Documentation
 
-### Payment Methods
+### Getting Started
+- **[Getting Started Guide](docs/GETTING_STARTED.md)** ⭐ Start here if you're new!
+- **[Complete Documentation](docs/DOCUMENTATION.md)** - Comprehensive guide
+- **[Installation & Setup](README.md)** - You are here
 
-#### Builder Methods (Chainable - Can be called in any order)
+### Core Documentation
+- **[Architecture Guide](docs/architecture.md)** - System design
+- **[API Reference](docs/API_REFERENCE.md)** - Complete API docs
+- **[Provider Details](docs/providers.md)** - Provider-specific information
+- **[Webhook Guide](docs/webhooks.md)** - Complete webhook documentation
 
-```php
-Payment::amount(float $amount)           // Set payment amount
-Payment::currency(string $currency)      // Set currency (default: NGN)
-Payment::email(string $email)            // Set customer email (required)
-Payment::reference(string $reference)    // Set custom reference
-Payment::idempotency(string $key)        // Set unique idempotency key
-Payment::callback(string $url)           // Set callback URL
-Payment::metadata(array $metadata)       // Set custom metadata
-Payment::description(string $description) // Set payment description
-Payment::customer(array $customer)       // Set customer information
-Payment::channels(array $channels)        // Set payment channels
-Payment::with(string|array $providers)    // Set provider(s) for this transaction
-Payment::using(string|array $providers)   // Alias for with()
-```
+### For Contributors
+- **[Contributing Guide for Beginners](docs/CONTRIBUTING_GUIDE.md)** ⭐ New to open source?
+- **[Contributing Guidelines](docs/CONTRIBUTING.md)** - Technical contribution guide
 
-**Note:** Builder methods can be chained in any order. They return the Payment instance for method chaining.
-
-#### Action Methods (Must be called last)
-
-```php
-Payment::charge()                        // Returns ChargeResponseDTO (no redirect)
-Payment::redirect()                      // Redirects user to payment page
-```
-
-**Note:** `charge()` and `redirect()` must be called last in the chain to execute the payment. They compile all the builder data and process the transaction.
-
-#### Verification Method (Standalone - NOT chainable)
-
-```php
-Payment::verify(string $reference, ?string $provider = null)  // Returns VerificationResponseDTO
-```
-
-**Note:** `verify()` is a standalone method that cannot be chained. It searches all enabled providers if no provider is specified, or verifies with the specified provider.
-
-### Response Objects
-
-```php
-// ChargeResponseDTO
-$response->reference          // Payment reference
-$response->authorizationUrl   // URL to redirect user
-$response->accessCode         // Access code
-$response->status             // Payment status
-$response->metadata           // Metadata array
-$response->provider           // Provider name
-
-// VerificationResponseDTO
-$verification->reference      // Payment reference
-$verification->status         // Payment status
-$verification->amount         // Amount paid
-$verification->currency       // Currency
-$verification->paidAt         // Payment timestamp
-$verification->channel        // Payment channel
-$verification->customer       // Customer info
-$verification->isSuccessful() // Boolean
-$verification->isFailed()     // Boolean
-$verification->isPending()    // Boolean
-```
+### Additional Resources
+- **[CHANGELOG](docs/CHANGELOG.md)** - Version history
+- **[LICENSE](LICENSE)** - MIT License
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
-- Code of Conduct
-- Development setup
-- Coding standards
-- Testing guidelines
-- Pull request process
-- Adding new providers
+Contributions are welcome! Please see:
+- **[CONTRIBUTING_GUIDE.md](docs/CONTRIBUTING_GUIDE.md)** - Step-by-step guide for beginners
+- **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Technical guidelines
+
+Key areas for contribution:
+- Adding new payment providers
+- Improving test coverage
+- Enhancing documentation
+- Reporting bugs
+- Suggesting features
 
 ---
 
@@ -591,117 +756,28 @@ Contributions are welcome! Please see [CONTRIBUTING.md](docs/CONTRIBUTING.md) fo
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.1.12
+### Latest Release: v1.2.0
 
-### Changed
-- **SquareDriver HTTP Implementation**: Refactored SquareDriver to use direct HTTP requests
-  - Removed dependency on Square PHP SDK
-  - All API calls now use Guzzle HTTP client for consistency with other drivers
-  - No external SDK dependency required
-  - Improved error handling with standard HTTP exceptions
-  - Added Square-specific status mapping (APPROVED → success)
+#### 🔒 Security Enhancements
+- **CRITICAL:** SQL injection prevention in table name validation
+- **CRITICAL:** Webhook replay attack prevention with timestamp validation (all drivers)
+- **CRITICAL:** Multi-tenant cache isolation
+- **HIGH:** Automatic log sanitization for sensitive data
+- **HIGH:** Rate limiting for payment initialization
+- Enhanced input validation (email, URL, reference format)
 
-### Previous Release: v1.1.11
+#### ✅ Added
+- Security configuration section in config
+- Comprehensive security test suite (85+ tests)
+- Security guide documentation
+- Enhanced webhook timestamp validation for all providers
 
-### Changed
-- **SquareDriver SDK Integration**: Refactored SquareDriver to use the official Square PHP SDK
-  - Replaced raw HTTP requests with Square SDK client for better type safety and maintainability
-  - All payment operations now use official SDK models and methods
-  - Improved error handling with SDK exceptions
+#### 📚 Documentation
+- Added comprehensive [Security Guide](docs/SECURITY.md)
+- Updated all documentation with security best practices
+- Enhanced troubleshooting section
 
-### Previous Release: v1.1.9
-
-### Fixed
-- **PaystackDriver & SquareDriver Health Checks**: Fixed incorrect interpretation of 4xx responses
-  - A 400/404 response from payment providers now correctly indicates the API is working
-  - Health checks now properly handle expected 400/404 responses for both Paystack and Square
-
-### Previous Release: v1.1.8
-
-### Added
-- **Application-Originating Payment Events**: New events for payment lifecycle hooks
-  - `PaymentInitiated`: Dispatched after successful charge operations
-  - `PaymentVerificationSuccess`: Dispatched after successful verification with success status
-  - `PaymentVerificationFailed`: Dispatched after successful verification with failed status
-
-### Changed
-- **Centralized Idempotency Key Generation**: Idempotency keys are now automatically generated
-  - Every payment request automatically gets a unique UUID v4 idempotency key if not provided
-  - Simplifies driver logic and ensures consistent key formatting across all providers
-
-### Improved
-- **PaymentManager Cache Cleanup**: Explicit cache deletion after successful verification
-  - Reduces unnecessary data accumulation in cache
-
-### Previous Release: v1.1.7
-
-### Changed
-- **Convention over Configuration**: Refactored core services to eliminate hardcoded provider lists
-  - **DriverFactory**: Now uses Convention over Configuration to automatically resolve driver classes
-  - **ProviderDetector**: Dynamically builds prefix list from all providers in configuration
-  - **ChannelMapper**: Uses dynamic method checking instead of hardcoded provider list
-
-### Improved
-- **Maintainability**: Adding new providers no longer requires updating multiple hardcoded lists
-- **Extensibility**: New providers automatically work if they follow naming conventions
-- **Code Quality**: Reduced code duplication and improved adherence to DRY principles
-
-### Configuration
-- Added `reference_prefix` configuration option for providers that need custom prefixes:
-  - Flutterwave: `'reference_prefix' => 'FLW'` (instead of default `'FLUTTERWAVE'`)
-  - Monnify: `'reference_prefix' => 'MON'` (instead of default `'MONNIFY'`)
-
-### Documentation
-- Updated architecture documentation to reflect Convention over Configuration approach
-- Added required callback URL to API-Only Mode examples
-
-### Previous Release: v1.1.6
-
-### Added
-- **Install Command**: New `payzephyr:install` artisan command for streamlined package setup
-  - Automatically publishes configuration and migration files
-  - Optionally runs migrations with user confirmation
-  - Supports `--force` flag to overwrite existing files
-
-### Changed
-- **Documentation**: Updated installation instructions to use `payzephyr:install` command
-  - Simplified installation from 3 manual steps to 1 command
-  - Improved developer experience and onboarding
-
-### Previous Release: v1.1.5
-
-### Added
-- **OPay Driver**: New payment driver with dual authentication support
-  - Create Payment API: Bearer token authentication using Public Key
-  - Status API: HMAC-SHA512 signature authentication using Private Key and Merchant ID
-  - Support for card payments, bank transfer, USSD, and mobile money
-
-
-### Changed
-- **OPay Driver**: Improved authentication implementation
-  - Implemented HMAC-SHA512 signature generation for status API
-  - Updated documentation to reflect dual authentication requirements
-
-### Fixed
-- **Square Driver**: Fixed payment verification flow and improved code quality
-  - Added missing `location_ids` parameter to order search API request (fixes "Must provide at least 1 location_id" error)
-  - Fixed verification to handle `payment_link_id` (providerId) in addition to `reference_id`
-  - Added payment link lookup as a verification strategy before order search fallback
-  - Verification now supports three strategies: payment ID → payment link ID → reference ID order search
-
-### Changed (Previous Release)
-- **Square Driver**: Refactored `verify()` method for better maintainability
-  - Extracted verification logic into focused helper methods:
-    - `verifyByPaymentId()` - handles direct payment ID lookup
-    - `verifyByPaymentLinkId()` - handles payment link ID lookup
-    - `verifyByReferenceId()` - handles reference ID order search
-    - `searchOrders()` - encapsulates order search API call
-    - `getOrderById()` - retrieves order by ID
-    - `getPaymentFromOrder()` - extracts payment ID from order tenders
-    - `getPaymentDetails()` - retrieves payment details by ID
-  - Reduced main `verify()` method from ~135 lines to ~27 lines
-  - Eliminated code duplication and improved testability
-  - All 659 tests passing (1,336 assertions)
+See [CHANGELOG.md](docs/CHANGELOG.md) for complete details.
 
 ---
 
@@ -715,7 +791,7 @@ The MIT License (MIT). Please see [LICENSE](LICENSE) for more information.
 
 If PayZephyr helped your project:
 - ⭐ Star the repository on GitHub
-- 🐦 Tweet about it
+- 🐦 Tweet about it ([@KenDeNigerian](https://twitter.com/KenDeNigerian))
 - 📝 Write a blog post
 - 💰 Sponsor the project
 - 🤝 Contribute code or documentation

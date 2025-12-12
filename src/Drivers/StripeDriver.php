@@ -270,6 +270,14 @@ final class StripeDriver extends AbstractDriver
                 $this->config['webhook_secret']
             );
 
+            // Additional timestamp validation for extra security
+            $payload = json_decode($body, true) ?? [];
+            if (! $this->validateWebhookTimestamp($payload)) {
+                $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+                return false;
+            }
+
             $this->log('info', 'Webhook validated successfully');
 
             return true;

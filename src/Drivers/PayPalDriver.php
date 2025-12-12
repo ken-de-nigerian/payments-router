@@ -318,7 +318,7 @@ final class PayPalDriver extends AbstractDriver
         }
 
         try {
-            return $this->verifyWebhookSignatureViaAPI(
+            $isValid = $this->verifyWebhookSignatureViaAPI(
                 $transmissionId,
                 $transmissionTime,
                 $certUrl,
@@ -327,6 +327,20 @@ final class PayPalDriver extends AbstractDriver
                 $webhookId,
                 $body
             );
+
+            if (! $isValid) {
+                return false;
+            }
+
+            // Additional timestamp validation for extra security
+            $payload = json_decode($body, true) ?? [];
+            if (! $this->validateWebhookTimestamp($payload)) {
+                $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+                return false;
+            }
+
+            return true;
         } catch (Exception $e) {
             $this->log('error', 'PayPal webhook validation failed', [
                 'error' => $e->getMessage(),

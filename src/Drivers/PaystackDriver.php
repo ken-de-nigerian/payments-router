@@ -175,6 +175,9 @@ final class PaystackDriver extends AbstractDriver
      * The signature comes in the 'x-paystack-signature' header.
      * This prevents fake webhooks from malicious actors.
      */
+    /**
+     * Validate webhook with timestamp check
+     */
     public function validateWebhook(array $headers, string $body): bool
     {
         $signature = $headers['x-paystack-signature'][0]
@@ -188,14 +191,24 @@ final class PaystackDriver extends AbstractDriver
         }
 
         $hash = hash_hmac('sha512', $body, $this->config['secret_key']);
+        $signatureValid = hash_equals($signature, $hash);
 
-        $isValid = hash_equals($signature, $hash);
+        if (! $signatureValid) {
+            $this->log('warning', 'Webhook signature invalid');
 
-        $this->log($isValid ? 'info' : 'warning', 'Webhook validation', [
-            'valid' => $isValid,
-        ]);
+            return false;
+        }
 
-        return $isValid;
+        $payload = json_decode($body, true) ?? [];
+        if (! $this->validateWebhookTimestamp($payload)) {
+            $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+            return false;
+        }
+
+        $this->log('info', 'Webhook validated successfully');
+
+        return true;
     }
 
     /**

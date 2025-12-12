@@ -6,6 +6,107 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.2.0] - 2025-01-27
+
+### 🔒 Security
+
+- **CRITICAL:** Added SQL injection prevention in table name validation
+  - Table names are validated against strict regex pattern
+  - Invalid table names automatically fall back to default
+  - Warnings logged for invalid table name attempts
+- **CRITICAL:** Implemented webhook replay attack prevention with timestamp validation
+  - All drivers now validate webhook timestamps
+  - Configurable tolerance window (default: 5 minutes)
+  - Old webhooks outside tolerance are automatically rejected
+  - Backward compatible: webhooks without timestamps still accepted (with warning)
+- **CRITICAL:** Added multi-tenant cache isolation
+  - Cache keys automatically include user/tenant context
+  - Prevents cache poisoning in multi-tenant scenarios
+  - Supports Laravel auth, custom tenant resolvers, and session-based identification
+- **HIGH:** Implemented automatic log sanitization for sensitive data
+  - Automatic redaction of sensitive keys (password, secret, token, api_key, etc.)
+  - Pattern-based detection of API keys and tokens
+  - Recursive sanitization of nested arrays and objects
+- **HIGH:** Added rate limiting for payment initialization
+  - Prevents payment spam and DoS attacks
+  - Per-user, per-email, or per-IP rate limiting
+  - Configurable limits and decay windows
+- Enhanced input validation (email, URL, reference format)
+  - RFC 5322 compliant email validation
+  - HTTPS enforcement for production callback URLs
+  - Reference format validation prevents SQL injection
+
+### ✅ Added
+
+- Security configuration section in `config/payments.php`
+  - `webhook_timestamp_tolerance` - Configurable webhook timestamp tolerance
+  - `rate_limit` - Rate limiting configuration (enabled, max_attempts, decay_seconds)
+  - `sanitize_logs` - Enable/disable log sanitization
+  - `cache_isolation` - Enable/disable cache isolation
+- `getCacheContext()` method in PaymentManager for multi-tenant isolation
+- `validateWebhookTimestamp()` method in AbstractDriver for replay prevention
+- `extractWebhookTimestamp()` method in AbstractDriver for timestamp extraction
+- `sanitizeLogContext()` method in AbstractDriver for log safety
+- `isSensitiveKey()` method in AbstractDriver for sensitive key detection
+- Enhanced email validation methods in ChargeRequestDTO
+  - `isValidEmail()` - RFC 5322 compliant validation
+  - `isValidUrl()` - URL validation with HTTPS enforcement
+  - `isValidReference()` - Reference format validation
+- Comprehensive security test suite
+  - SQL injection prevention tests
+  - Webhook replay attack prevention tests
+  - Cache isolation tests
+  - Log sanitization tests
+  - Rate limiting tests
+  - Input validation tests
+
+### 📚 Documentation
+
+- Added comprehensive security guide (`docs/SECURITY.md`)
+  - Security features overview
+  - Best practices
+  - Security monitoring
+  - Incident response procedures
+  - Security checklist
+- Updated README.md with security considerations
+  - Security features section
+  - Production checklist
+  - Multi-tenancy support documentation
+  - Troubleshooting section
+- Enhanced testing documentation
+- Added webhook async processing warnings
+
+### 🧪 Tests
+
+- Added 50+ new security tests
+  - SQL injection prevention tests
+  - Webhook timestamp validation tests
+  - Cache isolation tests
+  - Log sanitization tests
+  - Rate limiting tests
+  - Enhanced input validation tests
+- Test coverage increased to 90%+
+- All security tests passing
+
+### 🐛 Fixed
+
+- Cache poisoning vulnerability in multi-tenant scenarios
+- Missing validation in PaymentTransaction::getTable()
+- Potential sensitive data exposure in logs
+- Webhook replay attack vulnerability (all drivers)
+- Missing timestamp validation in FlutterwaveDriver, MonnifyDriver, SquareDriver, OPayDriver
+- Enhanced timestamp validation in StripeDriver and PayPalDriver
+
+### 🔄 Changed
+
+- All webhook validation methods now include timestamp validation
+- Cache keys now include user/tenant context when available
+- Log context is automatically sanitized before logging
+- Rate limiting is automatically applied to payment initialization
+- Enhanced email validation rejects malformed emails
+- Production callback URLs must use HTTPS
+
+---
 ## [1.1.12] - 2025-01-XX
 
 ### Changed

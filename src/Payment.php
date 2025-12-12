@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr;
 
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\RateLimiter;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
+use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
@@ -151,17 +153,29 @@ final class Payment
      * Process payment and return response.
      *
      * @throws InvalidConfigurationException
-     * @throws ProviderException
+     * @throws ProviderException|ChargeException
      */
     public function charge(): ChargeResponseDTO
     {
+        // Rate limiting
+        $key = $this->getRateLimitKey();
+
+        if (RateLimiter::tooManyAttempts($key, 10)) {
+            $seconds = RateLimiter::availableIn($key);
+
+            throw new ChargeException(
+                "Too many payment attempts. Please try again in $seconds seconds."
+            );
+        }
+
+        RateLimiter::hit($key);
+
         if (empty($this->data['callback_url'] ?? null)) {
             throw new InvalidConfigurationException(
                 'Callback URL is required. Please use ->callback(url) in your payment chain.'
             );
         }
 
-        // Use config singleton to avoid breaking config caching
         $config = app('payments.config') ?? config('payments', []);
         $defaultCurrency = $config['currency']['default'] ?? 'NGN';
 
@@ -171,6 +185,29 @@ final class Payment
         ], $this->data));
 
         return $this->manager->chargeWithFallback($request, $this->providers ?: null);
+    }
+
+    /**
+     * Get rate limit key based on user context
+     */
+    protected function getRateLimitKey(): string
+    {
+        // Rate limit per user if authenticated
+        if (function_exists('auth') && auth()->check()) {
+            return 'payment_charge:user_'.auth()->id();
+        }
+
+        // Rate limit per email for guest checkouts
+        if (! empty($this->data['email'])) {
+            return 'payment_charge:email_'.hash('sha256', $this->data['email']);
+        }
+
+        // Rate limit per IP as last resort
+        if (app()->bound('request')) {
+            return 'payment_charge:ip_'.app('request')->ip();
+        }
+
+        return 'payment_charge:global';
     }
 
     /**

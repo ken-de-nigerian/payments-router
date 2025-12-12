@@ -54,6 +54,24 @@ abstract class AbstractDriver implements DriverInterface
     protected ?ChannelMapper $channelMapper = null;
 
     /**
+     * Sensitive keys to redact from logs
+     */
+    protected array $sensitiveKeys = [
+        'password',
+        'secret',
+        'token',
+        'api_key',
+        'access_token',
+        'refresh_token',
+        'card_number',
+        'cvv',
+        'pin',
+        'ssn',
+        'account_number',
+        'routing_number',
+    ];
+
+    /**
      * Create a new payment driver instance.
      *
      * @throws InvalidConfigurationException If required, config is missing.
@@ -337,9 +355,67 @@ abstract class AbstractDriver implements DriverInterface
     protected function log(string $level, string $message, array $context = []): void
     {
         $config = app('payments.config') ?? config('payments', []);
-        if ($config['logging']['enabled'] ?? true) {
-            logger()->{$level}("[{$this->getName()}] $message", $context);
+        if (! ($config['logging']['enabled'] ?? true)) {
+            return;
         }
+
+        // Sanitize context before logging
+        $sanitizedContext = $this->sanitizeLogContext($context);
+
+        logger()->{$level}("[{$this->getName()}] $message", $sanitizedContext);
+    }
+
+    /**
+     * Recursively sanitize log context
+     */
+    protected function sanitizeLogContext(mixed $data): mixed
+    {
+        if (is_array($data)) {
+            $sanitized = [];
+            foreach ($data as $key => $value) {
+                if ($this->isSensitiveKey($key)) {
+                    $sanitized[$key] = '[REDACTED]';
+                } else {
+                    $sanitized[$key] = $this->sanitizeLogContext($value);
+                }
+            }
+
+            return $sanitized;
+        }
+
+        if (is_object($data)) {
+            // Handle objects by converting to array first
+            $array = method_exists($data, 'toArray')
+                ? $data->toArray()
+                : (array) $data;
+
+            return $this->sanitizeLogContext($array);
+        }
+
+        // Sanitize strings that look like API keys or tokens
+        if (is_string($data) && strlen($data) > 20) {
+            if (preg_match('/^(sk_|pk_|whsec_|Bearer\s+)/i', $data)) {
+                return '[REDACTED_TOKEN]';
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Check if a key is considered sensitive
+     */
+    protected function isSensitiveKey(string $key): bool
+    {
+        $key = strtolower($key);
+
+        foreach ($this->sensitiveKeys as $sensitiveKey) {
+            if (str_contains($key, strtolower($sensitiveKey))) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -450,6 +526,75 @@ abstract class AbstractDriver implements DriverInterface
 
         if (! empty($request->channels)) {
             return $mapper->mapChannels($request->channels, $this->getName());
+        }
+
+        return null;
+    }
+
+    /**
+     * Validate webhook timestamp to prevent replay attacks
+     *
+     * @param  array  $payload  Webhook payload
+     * @param  int  $toleranceSeconds  Allowed time difference (default: 300 = 5 minutes)
+     */
+    protected function validateWebhookTimestamp(array $payload, int $toleranceSeconds = 300): bool
+    {
+        $timestamp = $this->extractWebhookTimestamp($payload);
+
+        if ($timestamp === null) {
+            $this->log('warning', 'Webhook timestamp missing', [
+                'hint' => 'Consider rejecting webhooks without timestamps to prevent replay attacks',
+            ]);
+
+            return true;
+        }
+
+        $currentTime = time();
+        $timeDifference = abs($currentTime - $timestamp);
+
+        if ($timeDifference > $toleranceSeconds) {
+            $this->log('warning', 'Webhook timestamp outside tolerance window', [
+                'timestamp' => $timestamp,
+                'current_time' => $currentTime,
+                'difference_seconds' => $timeDifference,
+                'tolerance_seconds' => $toleranceSeconds,
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Extract timestamp from webhook payload
+     * Override in specific drivers if needed
+     *
+     * @return int|null Unix timestamp
+     */
+    protected function extractWebhookTimestamp(array $payload): ?int
+    {
+        $timestampFields = [
+            'timestamp',
+            'created_at',
+            'createdAt',
+            'event_time',
+            'eventTime',
+            'time',
+        ];
+
+        foreach ($timestampFields as $field) {
+            if (isset($payload[$field])) {
+                $value = $payload[$field];
+
+                if (is_string($value) && strtotime($value) !== false) {
+                    return strtotime($value);
+                }
+
+                if (is_numeric($value)) {
+                    return (int) $value;
+                }
+            }
         }
 
         return null;

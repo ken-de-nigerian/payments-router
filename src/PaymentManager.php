@@ -226,7 +226,61 @@ class PaymentManager
      */
     protected function cacheKey(string $type, string $identifier): string
     {
-        return sprintf('payzephyr:%s:%s', $type, $identifier);
+        $prefix = 'payzephyr';
+        $context = $this->getCacheContext();
+
+        if ($context) {
+            return sprintf('%s:%s:%s:%s', $prefix, $context, $type, $identifier);
+        }
+
+        return sprintf('%s:%s:%s', $prefix, $type, $identifier);
+    }
+
+    /**
+     * Get cache context for multi-tenant isolation
+     *
+     * Checks multiple sources for user/tenant identification:
+     * 1. Laravel's authenticated user
+     * 2. Custom tenant resolver
+     * 3. Request context
+     *
+     * @return string|null Context identifier (user ID, tenant ID, etc.)
+     */
+    protected function getCacheContext(): ?string
+    {
+        try {
+            // Try Laravel auth
+            if (function_exists('auth') && auth()->check()) {
+                return 'user_'.auth()->id();
+            }
+
+            // Try custom tenant resolver
+            if (function_exists('tenant') && tenant() !== null) {
+                return 'tenant_'.tenant()->id;
+            }
+
+            // Try request-based identification
+            if (app()->bound('request')) {
+                $request = app('request');
+
+                // Check for API token user
+                if ($request->user()) {
+                    return 'user_'.$request->user()->id;
+                }
+
+                // Check for session-based user
+                if ($request->session() && $request->session()->has('user_id')) {
+                    return 'user_'.$request->session()->get('user_id');
+                }
+            }
+        } catch (Throwable $e) {
+            logger()->debug('Could not resolve cache context', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Return null for global context (webhooks, CLI, etc.)
+        return null;
     }
 
     /**

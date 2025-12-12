@@ -51,8 +51,27 @@ final class PaymentTransaction extends Model
     public function getTable(): string
     {
         $config = app('payments.config') ?? config('payments', []);
+        $tableName = $config['logging']['table'] ?? $this->table;
 
-        return $config['logging']['table'] ?? $this->table;
+        if (! $this->isValidTableName($tableName)) {
+            logger()->warning('Invalid table name in config, using default', [
+                'attempted_table' => $tableName,
+            ]);
+
+            return $this->table;
+        }
+
+        return $tableName;
+    }
+
+    /**
+     * Validate table name against SQL injection
+     *
+     * Only allows: alphanumeric, underscore, max 64 chars
+     */
+    protected function isValidTableName(string $tableName): bool
+    {
+        return preg_match('/^[a-zA-Z0-9_]{1,64}$/', $tableName) === 1;
     }
 
     /**

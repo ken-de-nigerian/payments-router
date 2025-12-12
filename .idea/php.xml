@@ -154,6 +154,12 @@
       <path value="$PROJECT_DIR$/vendor/theseer/tokenizer" />
       <path value="$PROJECT_DIR$/vendor/staabm/side-effects-detector" />
       <path value="$PROJECT_DIR$/vendor/pestphp/pest-plugin-mutate" />
+      <path value="$PROJECT_DIR$/vendor/apimatic/core" />
+      <path value="$PROJECT_DIR$/vendor/square/square" />
+      <path value="$PROJECT_DIR$/vendor/apimatic/jsonmapper" />
+      <path value="$PROJECT_DIR$/vendor/apimatic/core-interfaces" />
+      <path value="$PROJECT_DIR$/vendor/php-jsonpointer/php-jsonpointer" />
+      <path value="$PROJECT_DIR$/vendor/apimatic/unirest-php" />
     </include_path>
   </component>
   <component name="PhpProjectSharedConfiguration" php_language_level="8.2" />

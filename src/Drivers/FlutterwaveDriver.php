@@ -229,11 +229,21 @@ final class FlutterwaveDriver extends AbstractDriver
                 'received_hash_length' => strlen($signature),
                 'expected_hash_length' => strlen($secretHash),
             ]);
-        } else {
-            $this->log('info', 'Webhook validated successfully');
+
+            return false;
         }
 
-        return $isValid;
+        // Validate timestamp to prevent replay attacks
+        $payload = json_decode($body, true) ?? [];
+        if (! $this->validateWebhookTimestamp($payload)) {
+            $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+            return false;
+        }
+
+        $this->log('info', 'Webhook validated successfully');
+
+        return true;
     }
 
     /**

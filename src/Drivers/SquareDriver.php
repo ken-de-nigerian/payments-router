@@ -518,15 +518,25 @@ final class SquareDriver extends AbstractDriver
 
         $isValid = hash_equals($signature, $expectedSignature);
 
-        if ($isValid) {
-            $this->log('info', 'Webhook validated successfully');
-        } else {
+        if (! $isValid) {
             $this->log('warning', 'Webhook validation failed', [
                 'hint' => 'Ensure SQUARE_WEBHOOK_SIGNATURE_KEY matches the signature key from your Square webhook endpoint',
             ]);
+
+            return false;
         }
 
-        return $isValid;
+        // Validate timestamp to prevent replay attacks
+        $payload = json_decode($body, true) ?? [];
+        if (! $this->validateWebhookTimestamp($payload)) {
+            $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+            return false;
+        }
+
+        $this->log('info', 'Webhook validated successfully');
+
+        return true;
     }
 
     public function healthCheck(): bool

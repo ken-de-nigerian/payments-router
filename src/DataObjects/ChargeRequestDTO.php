@@ -37,6 +37,7 @@ final readonly class ChargeRequestDTO
      */
     private function validate(): void
     {
+        // Amount validation
         if ($this->amount <= 0) {
             throw new InvalidArgumentException('Amount must be greater than zero');
         }
@@ -45,17 +46,100 @@ final readonly class ChargeRequestDTO
             throw new InvalidArgumentException('Amount exceeds maximum allowed value');
         }
 
+        // Currency validation
         if (empty($this->currency)) {
             throw new InvalidArgumentException('Currency is required');
-        }
-
-        if (! filter_var($this->email, FILTER_VALIDATE_EMAIL)) {
-            throw new InvalidArgumentException('Invalid email address');
         }
 
         if (strlen($this->currency) !== 3) {
             throw new InvalidArgumentException('Currency must be a 3-letter ISO code');
         }
+
+        if (! ctype_alpha($this->currency)) {
+            throw new InvalidArgumentException('Currency must contain only letters');
+        }
+
+        // Enhanced email validation
+        if (! $this->isValidEmail($this->email)) {
+            throw new InvalidArgumentException('Invalid email address');
+        }
+
+        // Validate callback URL if provided
+        if ($this->callbackUrl !== null && ! $this->isValidUrl($this->callbackUrl)) {
+            throw new InvalidArgumentException('Invalid callback URL');
+        }
+
+        // Validate reference format if provided
+        if ($this->reference !== null && ! $this->isValidReference($this->reference)) {
+            throw new InvalidArgumentException('Invalid reference format');
+        }
+    }
+
+    /**
+     * Enhanced email validation (RFC 5322 compliant)
+     */
+    private function isValidEmail(string $email): bool
+    {
+        // Basic filter validation
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+
+        // Additional checks
+        [$local, $domain] = explode('@', $email);
+
+        // Check local part length
+        if (strlen($local) > 64) {
+            return false;
+        }
+
+        // Check domain validity
+        if (! filter_var($domain, FILTER_VALIDATE_DOMAIN)) {
+            return false;
+        }
+
+        // Check for suspicious patterns
+        $suspiciousPatterns = [
+            '/\.\./',           // Double dots
+            '/@\./',            // Dot right after @
+            '/\.$/',            // Ends with dot
+            '/^\./',            // Starts with dot
+        ];
+
+        foreach ($suspiciousPatterns as $pattern) {
+            if (preg_match($pattern, $email)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate URL format
+     */
+    private function isValidUrl(string $url): bool
+    {
+        if (! filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        // Ensure HTTPS in production
+        if (app()->environment('production')) {
+            if (! str_starts_with($url, 'https://')) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Validate reference format (alphanumeric, underscore, hyphen)
+     */
+    private function isValidReference(string $reference): bool
+    {
+        return preg_match('/^[a-zA-Z0-9_-]{1,255}$/', $reference) === 1;
     }
 
     /**

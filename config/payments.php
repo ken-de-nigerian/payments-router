@@ -160,6 +160,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Security Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Enable automatic logging of all payment transactions to the database.
+    |
+    */
+    'security' => [
+        'webhook_timestamp_tolerance' => env('PAYMENTS_WEBHOOK_TIMESTAMP_TOLERANCE', 300),
+        'rate_limit' => [
+            'enabled' => env('PAYMENTS_RATE_LIMIT_ENABLED', true),
+            'max_attempts' => env('PAYMENTS_RATE_LIMIT_ATTEMPTS', 10),
+            'decay_seconds' => env('PAYMENTS_RATE_LIMIT_DECAY', 60),
+        ],
+        'sanitize_logs' => env('PAYMENTS_SANITIZE_LOGS', true),
+        'cache_isolation' => env('PAYMENTS_CACHE_ISOLATION', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Testing Mode
     |--------------------------------------------------------------------------
     |

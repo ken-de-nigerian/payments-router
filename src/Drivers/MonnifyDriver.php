@@ -212,8 +212,21 @@ final class MonnifyDriver extends AbstractDriver
             return false;
         }
         $hash = hash_hmac('sha512', $body, $this->config['secret_key']);
+        $signatureValid = hash_equals($signature, $hash);
 
-        return hash_equals($signature, $hash);
+        if (! $signatureValid) {
+            return false;
+        }
+
+        // Validate timestamp to prevent replay attacks
+        $payload = json_decode($body, true) ?? [];
+        if (! $this->validateWebhookTimestamp($payload)) {
+            $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+            return false;
+        }
+
+        return true;
     }
 
     /**

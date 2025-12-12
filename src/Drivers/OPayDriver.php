@@ -252,11 +252,25 @@ final class OPayDriver extends AbstractDriver
         $expectedSignature = hash_hmac('sha256', $body, $secretKey);
         $isValid = hash_equals($signature, $expectedSignature);
 
-        $this->log($isValid ? 'info' : 'warning', 'Webhook validation', [
-            'valid' => $isValid,
-        ]);
+        if (! $isValid) {
+            $this->log('warning', 'Webhook validation failed', [
+                'valid' => false,
+            ]);
 
-        return $isValid;
+            return false;
+        }
+
+        // Validate timestamp to prevent replay attacks
+        $payload = json_decode($body, true) ?? [];
+        if (! $this->validateWebhookTimestamp($payload)) {
+            $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+            return false;
+        }
+
+        $this->log('info', 'Webhook validated successfully');
+
+        return true;
     }
 
     /**
