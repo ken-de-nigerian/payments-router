@@ -74,11 +74,13 @@ test('square driver healthCheck returns true for 4xx errors', function () {
 
     $client->shouldReceive('request')
         ->once()
-        ->andThrow(new ClientException('Not Found', new Request('GET', '/v2/locations'), $response));
+        ->andThrow(new ClientException('Not Found', new Request('GET', '/v2/payments/invalid_ref_test'), $response));
 
     $driver->setClient($client);
 
-    expect($driver->healthCheck())->toBeFalse();
+    // A 404 Not Found from Square when checking invalid_ref_test means the API is working correctly
+    // The API is responding as expected (payment not found), which indicates it's operational
+    expect($driver->healthCheck())->toBeTrue();
 });
 
 test('square driver healthCheck returns false for network errors', function () {
@@ -91,7 +93,7 @@ test('square driver healthCheck returns false for network errors', function () {
     $client = Mockery::mock(Client::class);
     $client->shouldReceive('request')
         ->once()
-        ->andThrow(new ConnectException('Connection timeout', new Request('GET', '/v2/locations')));
+        ->andThrow(new ConnectException('Connection timeout', new Request('GET', '/v2/payments/invalid_ref_test')));
 
     $driver->setClient($client);
 

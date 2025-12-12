@@ -14,6 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The health check now properly traverses the exception chain to find `ClientException` with 400/404 status codes
   - Previously, the health check incorrectly returned `false` for expected 400 responses
   - **Impact**: Paystack health checks now correctly report API availability
+- **SquareDriver Health Check**: Fixed incorrect interpretation of 404 Not Found responses
+  - A 404 Not Found from Square when checking `/v2/payments/invalid_ref_test` now correctly indicates the API is working
+  - The health check now properly traverses the exception chain to find `ClientException` with 400/404 status codes
+  - Changed health check endpoint from `/v2/locations` to `/v2/payments/invalid_ref_test` for consistency
+  - Previously, the health check incorrectly returned `false` for expected 404 responses
+  - **Impact**: Square health checks now correctly report API availability
+  - A 400 Bad Request from Paystack when checking `/transaction/verify/invalid_ref_test` now correctly indicates the API is working
+  - The health check now properly traverses the exception chain to find `ClientException` with 400/404 status codes
+  - Previously, the health check incorrectly returned `false` for expected 400 responses
+  - **Impact**: Paystack health checks now correctly report API availability
 
 ### Improved
 - **Exception Chain Traversal**: Improved exception handling in `PaystackDriver::healthCheck()` to properly traverse exception chains

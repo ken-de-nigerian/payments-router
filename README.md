@@ -594,9 +594,9 @@ Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 ### Latest Release: v1.1.9
 
 ### Fixed
-- **PaystackDriver Health Check**: Fixed incorrect interpretation of 400 Bad Request responses
-  - A 400 Bad Request from Paystack now correctly indicates the API is working
-  - Health checks now properly handle expected 400/404 responses
+- **PaystackDriver & SquareDriver Health Checks**: Fixed incorrect interpretation of 4xx responses
+  - A 400/404 response from payment providers now correctly indicates the API is working
+  - Health checks now properly handle expected 400/404 responses for both Paystack and Square
 
 ### Previous Release: v1.1.8
 
