@@ -54,12 +54,13 @@ The package follows clean architecture principles with clear separation of conce
 │         ├─ StripeDriver                      │
 │         ├─ PayPalDriver                      │
 │         ├─ SquareDriver                      │
-│         └─ OPayDriver                        │
+│         ├─ OPayDriver                        │
+│         └─ MollieDriver                      │
 └──────────────────────┬──────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────┐
 │      External Payment APIs                   │
-│   (Paystack, Stripe, etc.)                   │
+│   (Paystack, Stripe, PayPal, Square, etc.)   │
 └──────────────────────────────────────────────┘
 ```
 

@@ -51,6 +51,9 @@ Welcome to the PayZephyr documentation! This guide will help you get started and
 - **Monnify** → [Monnify Section](providers.md#monnify)
 - **Stripe** → [Stripe Section](providers.md#stripe)
 - **PayPal** → [PayPal Section](providers.md#paypal)
+- **Square** → [Square Section](providers.md#square)
+- **OPay** → [OPay Section](providers.md#opay)
+- **Mollie** → [Mollie Section](providers.md#mollie)
 
 ---
 
@@ -600,6 +603,9 @@ Enable detailed logging:
 - [Monnify Documentation](https://docs.monnify.com)
 - [Stripe Documentation](https://stripe.com/docs)
 - [PayPal Documentation](https://developer.paypal.com/docs)
+- [Square Documentation](https://developer.squareup.com/docs)
+- [OPay Documentation](https://doc.opayweb.com)
+- [Mollie Documentation](https://docs.mollie.com)
 
 ---
 

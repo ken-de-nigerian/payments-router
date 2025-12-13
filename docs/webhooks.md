@@ -29,6 +29,7 @@ POST /payments/webhook/stripe       ← Stripe sends webhooks here
 POST /payments/webhook/paypal       ← PayPal sends webhooks here
 POST /payments/webhook/square       ← Square sends webhooks here
 POST /payments/webhook/opay         ← OPay sends webhooks here
+POST /payments/webhook/mollie       ← Mollie sends webhooks here
 ```
 
 **You don't need to create these routes manually - they're already there!**
@@ -107,6 +108,13 @@ You need to tell each payment provider where to send webhooks. Go to each provid
 - Add URL: `https://yourdomain.com/payments/webhook/opay`
 - OPay uses RSA signature (SHA256) validation
 - Ensure `OPAY_PUBLIC_KEY` is set in your `.env` file
+
+**Mollie Dashboard:**
+- Go to: Developers → Webhooks
+- Add URL: `https://yourdomain.com/payments/webhook/mollie`
+- Select payment events you want to receive
+- **Note:** Mollie doesn't use signature-based webhook validation. PayZephyr automatically fetches payment details from the Mollie API to verify webhooks.
+- Ensure `MOLLIE_API_KEY` is set in your `.env` file
 
 **Important:** 
 - Use `https://` (not `http://`) - most providers require HTTPS
@@ -332,6 +340,11 @@ protected $listen = [
     // Listen for Flutterwave webhooks
     'payments.webhook.flutterwave' => [
         \App\Listeners\HandleFlutterwaveWebhook::class,
+    ],
+    
+    // Listen for Mollie webhooks
+    'payments.webhook.mollie' => [
+        \App\Listeners\HandleMollieWebhook::class,
     ],
     
     // Listen for ANY webhook (from any provider)
@@ -635,6 +648,80 @@ Each payment provider sends webhook data in a slightly different format. Here's 
 - `event_type`: What happened
 - `resource.custom_id`: Your custom reference
 - `resource.status`: Payment status
+
+### Square Webhook Format
+
+```json
+{
+  "merchant_id": "xxx",
+  "type": "payment.updated",
+  "event_id": "xxx",
+  "created_at": "2024-01-15T10:30:00.000Z",
+  "data": {
+    "type": "payment",
+    "id": "xxx",
+    "object": {
+      "payment": {
+        "id": "xxx",
+        "order_id": "xxx",
+        "reference_id": "ORDER_123",
+        "status": "COMPLETED"
+      }
+    }
+  }
+}
+```
+
+**Key fields:**
+- `type`: Event type (`payment.created`, `payment.updated`, etc.)
+- `data.object.payment.reference_id`: Your custom reference
+- `data.object.payment.status`: Payment status
+
+### OPay Webhook Format
+
+```json
+{
+  "orderNo": "ORDER_123",
+  "status": "SUCCESS",
+  "amount": "100.00",
+  "currency": "NGN",
+  "paymentMethod": "CARD",
+  "transTime": "2024-01-15T10:30:00.000Z"
+}
+```
+
+**Key fields:**
+- `orderNo`: Your transaction reference
+- `status`: Payment status (`SUCCESS`, `FAILED`, etc.)
+- `amount`: Payment amount
+
+### Mollie Webhook Format
+
+```json
+{
+  "id": "tr_WDqYK6vllg",
+  "mode": "test",
+  "createdAt": "2024-01-15T10:30:00.000Z",
+  "status": "paid",
+  "amount": {
+    "value": "10.00",
+    "currency": "EUR"
+  },
+  "metadata": {
+    "reference": "ORDER_123"
+  },
+  "method": "ideal"
+}
+```
+
+**Key fields:**
+- `id`: Mollie payment ID
+- `status`: Payment status (`paid`, `open`, `pending`, `failed`, `canceled`, `expired`, `authorized`)
+- `metadata.reference`: Your custom reference (if provided)
+- `amount.value`: Payment amount
+- `amount.currency`: Currency code
+
+**Note:** Mollie doesn't use signature-based webhook validation. PayZephyr automatically fetches payment details from the Mollie API when receiving webhooks to verify their authenticity.
 
 ---
 
@@ -965,6 +1052,18 @@ Different providers send different event types. Here's what to expect:
 - `payment.updated` - Payment status updated
 - `payment.completed` - Payment completed
 - `payment.failed` - Payment failed
+
+### OPay Events
+- Payment status updates sent via webhook
+- Status values: `SUCCESS`, `FAILED`, `PENDING`
+
+### Mollie Events
+- `payment.paid` - Payment completed successfully
+- `payment.pending` - Payment is pending
+- `payment.failed` - Payment failed
+- `payment.canceled` - Payment was canceled
+- `payment.expired` - Payment expired
+- `payment.authorized` - Payment authorized (for certain payment methods)
 
 ---
 

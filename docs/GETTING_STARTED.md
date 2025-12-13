@@ -39,6 +39,8 @@ Before you start, make sure you have:
    - [Monnify](https://monnify.com)
    - [PayPal](https://paypal.com)
    - [Square](https://squareup.com)
+   - [OPay](https://opayweb.com)
+   - [Mollie](https://mollie.com)
 
 ---
 
