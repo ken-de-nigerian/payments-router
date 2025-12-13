@@ -147,7 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Production callback URLs must use HTTPS
 
 ---
-## [1.1.12] - 2025-01-XX
+## [1.1.12] - 2025-12-12
 
 ### Changed
 - **SquareDriver HTTP Implementation**: Refactored SquareDriver to use direct HTTP requests instead of SDK
