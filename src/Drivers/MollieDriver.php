@@ -374,7 +374,11 @@ final class MollieDriver extends AbstractDriver
             return null;
         }
 
-        return rtrim($baseUrl, '/').'/payments/webhook/mollie';
+        $config = app('payments.config') ?? config('payments', []);
+        $webhookPath = $config['webhook']['path'] ?? '/payments/webhook';
+        $providerName = $this->getName();
+
+        return rtrim($baseUrl, '/').rtrim($webhookPath, '/').'/'.$providerName;
     }
 
     /**

@@ -43,7 +43,10 @@ test('mollie driver getDefaultHeaders includes authorization', function () {
         ->and($headers['Content-Type'])->toBe('application/json');
 });
 
-test('mollie driver getWebhookUrl returns configured url', function () {
+test('mollie driver getWebhookUrl returns configured url using webhook path from config', function () {
+    app()->forgetInstance('payments.config');
+    config(['payments.webhook.path' => '/payments/webhook']);
+
     $config = array_merge($this->config, [
         'webhook_url' => 'https://example.com',
     ]);
@@ -55,6 +58,23 @@ test('mollie driver getWebhookUrl returns configured url', function () {
     $url = $method->invoke($driver);
 
     expect($url)->toBe('https://example.com/payments/webhook/mollie');
+});
+
+test('mollie driver getWebhookUrl uses custom webhook path from config', function () {
+    app()->forgetInstance('payments.config');
+    config(['payments.webhook.path' => '/api/webhooks']);
+
+    $config = array_merge($this->config, [
+        'webhook_url' => 'https://example.com',
+    ]);
+    $driver = new MollieDriver($config);
+
+    $reflection = new ReflectionClass($driver);
+    $method = $reflection->getMethod('getWebhookUrl');
+
+    $url = $method->invoke($driver);
+
+    expect($url)->toBe('https://example.com/api/webhooks/mollie');
 });
 
 test('mollie driver getWebhookUrl returns null when not configured', function () {

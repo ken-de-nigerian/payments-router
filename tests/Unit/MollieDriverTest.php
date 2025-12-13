@@ -167,6 +167,32 @@ test('mollie driver rejects webhook when payment not found in API', function () 
     expect($isValid)->toBeFalse();
 });
 
+test('mollie driver webhook validation handles ClientException with response', function () {
+    $mock = new MockHandler([
+        new ClientException(
+            'Bad Request',
+            new Request('GET', '/v2/payments/tr_test'),
+            new Response(400, [], json_encode([
+                'status' => 400,
+                'title' => 'Bad Request',
+                'detail' => 'Invalid payment ID',
+            ]))
+        ),
+    ]);
+
+    $driver = new MollieDriver($this->config);
+    $driver->setClient(new Client(['handler' => HandlerStack::create($mock)]));
+
+    $payload = json_encode([
+        'id' => 'tr_test',
+        'createdAt' => date('c'),
+    ]);
+
+    $isValid = $driver->validateWebhook([], $payload);
+
+    expect($isValid)->toBeFalse();
+});
+
 test('mollie driver health check succeeds', function () {
     $mock = new MockHandler([
         new Response(200, [], json_encode([
@@ -423,6 +449,45 @@ test('mollie driver handles charge with custom reference', function () {
     $response = $driver->charge($request);
 
     expect($response->reference)->toBe('CUSTOM_REF_123');
+});
+
+test('mollie driver uses reference prefix from config', function () {
+    $config = [
+        'api_key' => 'test_mollie_api_key',
+        'base_url' => 'https://api.mollie.com',
+        'currencies' => ['EUR', 'USD', 'GBP'],
+        'reference_prefix' => 'MOLLIE_TEST',
+    ];
+
+    $mock = new MockHandler([
+        new Response(201, [], json_encode([
+            'id' => 'tr_WDqYK6vllg',
+            'status' => 'open',
+            'amount' => [
+                'value' => '10.00',
+                'currency' => 'EUR',
+            ],
+            '_links' => [
+                'checkout' => [
+                    'href' => 'https://www.mollie.com/payscreen/select-method/WDqYK6vllg',
+                ],
+            ],
+        ])),
+    ]);
+
+    $driver = new MollieDriver($config);
+    $driver->setClient(new Client(['handler' => HandlerStack::create($mock)]));
+
+    $request = new ChargeRequestDTO(
+        amount: 10.00,
+        currency: 'EUR',
+        email: 'test@example.com',
+        callbackUrl: 'https://example.com/callback',
+    );
+
+    $response = $driver->charge($request);
+
+    expect($response->reference)->toStartWith('MOLLIE_TEST_');
 });
 
 test('mollie driver handles charge with idempotency key', function () {
