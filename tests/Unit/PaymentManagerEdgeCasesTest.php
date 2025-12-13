@@ -124,8 +124,10 @@ test('payment manager resolveVerificationContext handles ArrayObject metadata', 
         'amount' => 10000,
         'currency' => 'NGN',
         'email' => 'test@example.com',
-        'metadata' => new \ArrayObject(['_provider_id' => 'provider_123']),
+        'metadata' => ['_provider_id' => 'provider_123'],
     ]);
+
+    $transaction->refresh();
 
     $reflection = new ReflectionClass($manager);
     $method = $reflection->getMethod('resolveVerificationContext');
