@@ -46,11 +46,9 @@ test('mollie driver getDefaultHeaders includes authorization', function () {
 test('mollie driver getWebhookUrl returns configured url using webhook path from config', function () {
     app()->forgetInstance('payments.config');
     config(['payments.webhook.path' => '/payments/webhook']);
+    config(['app.url' => 'https://example.com']);
 
-    $config = array_merge($this->config, [
-        'webhook_url' => 'https://example.com',
-    ]);
-    $driver = new MollieDriver($config);
+    $driver = new MollieDriver($this->config);
 
     $reflection = new ReflectionClass($driver);
     $method = $reflection->getMethod('getWebhookUrl');
@@ -63,11 +61,9 @@ test('mollie driver getWebhookUrl returns configured url using webhook path from
 test('mollie driver getWebhookUrl uses custom webhook path from config', function () {
     app()->forgetInstance('payments.config');
     config(['payments.webhook.path' => '/api/webhooks']);
+    config(['app.url' => 'https://example.com']);
 
-    $config = array_merge($this->config, [
-        'webhook_url' => 'https://example.com',
-    ]);
-    $driver = new MollieDriver($config);
+    $driver = new MollieDriver($this->config);
 
     $reflection = new ReflectionClass($driver);
     $method = $reflection->getMethod('getWebhookUrl');

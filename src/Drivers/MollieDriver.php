@@ -88,7 +88,6 @@ final class MollieDriver extends AbstractDriver
                     'reference',
                     $reference
                 ),
-                'webhookUrl' => $this->getWebhookUrl(),
                 'metadata' => array_merge($request->metadata, [
                     'reference' => $reference,
                 ]),
@@ -195,8 +194,6 @@ final class MollieDriver extends AbstractDriver
      * Mollie doesn't use signature-based webhook validation. Instead, we fetch
      * the payment details from the API to verify it exists and is legitimate.
      * This ensures the webhook is valid and prevents spoofing.
-     *
-     * Note: For production, you should whitelist Mollie's IP addresses.
      *
      * @param  array<string, array<string>>  $headers  Request headers
      * @param  string  $body  Raw request body
@@ -359,25 +356,5 @@ final class MollieDriver extends AbstractDriver
     protected function formatAmount(float $amount, string $currency): string
     {
         return number_format($amount, 2, '.', '');
-    }
-
-    /**
-     * Get the webhook URL for this application.
-     *
-     * @return string|null Webhook URL or null if not configured
-     */
-    protected function getWebhookUrl(): ?string
-    {
-        $baseUrl = $this->config['webhook_url'] ?? config('app.url');
-
-        if (! $baseUrl) {
-            return null;
-        }
-
-        $config = app('payments.config') ?? config('payments', []);
-        $webhookPath = $config['webhook']['path'] ?? '/payments/webhook';
-        $providerName = $this->getName();
-
-        return rtrim($baseUrl, '/').rtrim($webhookPath, '/').'/'.$providerName;
     }
 }
