@@ -129,6 +129,73 @@ test('mollie driver validates webhook by fetching payment from API', function ()
     expect($isValid)->toBeTrue();
 });
 
+test('mollie driver validates webhook using signature when webhook secret is configured', function () {
+    $config = array_merge($this->config, [
+        'webhook_secret' => '4Js3DqVSKFMUvkbGzcvjuA5GcHG3MVBM',
+    ]);
+
+    $driver = new MollieDriver($config);
+
+    $payload = json_encode([
+        'id' => 'tr_WDqYK6vllg',
+        'status' => 'paid',
+        'createdAt' => date('c'),
+    ]);
+
+    // Generate correct signature
+    $signature = hash_hmac('sha256', $payload, $config['webhook_secret']);
+
+    $headers = [
+        'X-Mollie-Signature' => [$signature],
+    ];
+
+    $isValid = $driver->validateWebhook($headers, $payload);
+
+    expect($isValid)->toBeTrue();
+});
+
+test('mollie driver rejects webhook with invalid signature', function () {
+    $config = array_merge($this->config, [
+        'webhook_secret' => '4Js3DqVSKFMUvkbGzcvjuA5GcHG3MVBM',
+    ]);
+
+    $driver = new MollieDriver($config);
+
+    $payload = json_encode([
+        'id' => 'tr_WDqYK6vllg',
+        'status' => 'paid',
+        'createdAt' => date('c'),
+    ]);
+
+    // Use wrong signature
+    $headers = [
+        'X-Mollie-Signature' => ['invalid_signature'],
+    ];
+
+    $isValid = $driver->validateWebhook($headers, $payload);
+
+    expect($isValid)->toBeFalse();
+});
+
+test('mollie driver rejects webhook without signature when webhook secret is configured', function () {
+    $config = array_merge($this->config, [
+        'webhook_secret' => '4Js3DqVSKFMUvkbGzcvjuA5GcHG3MVBM',
+    ]);
+
+    $driver = new MollieDriver($config);
+
+    $payload = json_encode([
+        'id' => 'tr_WDqYK6vllg',
+        'status' => 'paid',
+        'createdAt' => date('c'),
+    ]);
+
+    // No signature header
+    $isValid = $driver->validateWebhook([], $payload);
+
+    expect($isValid)->toBeFalse();
+});
+
 test('mollie driver rejects webhook without payment id', function () {
     $driver = new MollieDriver($this->config);
 

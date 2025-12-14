@@ -191,15 +191,84 @@ final class MollieDriver extends AbstractDriver
     /**
      * Validate Mollie webhook.
      *
-     * Mollie doesn't use signature-based webhook validation. Instead, we fetch
-     * the payment details from the API to verify it exists and is legitimate.
-     * This ensures the webhook is valid and prevents spoofing.
+     * Mollie supports two validation methods:
+     * 1. Signature-based validation (recommended): Uses HMAC SHA-256 with webhook secret
+     *    to verify the X-Mollie-Signature header. This is the preferred method.
+     * 2. API verification (fallback): If webhook_secret is not configured, falls back to
+     *    fetching payment details from the API to verify the webhook is legitimate.
      *
      * @param  array<string, array<string>>  $headers  Request headers
      * @param  string  $body  Raw request body
      * @return bool True if webhook is valid
      */
     public function validateWebhook(array $headers, string $body): bool
+    {
+        // If webhook secret is configured, use signature-based validation (recommended)
+        if (! empty($this->config['webhook_secret'])) {
+            return $this->validateWebhookSignature($headers, $body);
+        }
+
+        // Fallback to API verification if webhook secret is not configured
+        return $this->validateWebhookViaAPI($body);
+    }
+
+    /**
+     * Validate webhook using HMAC SHA-256 signature.
+     *
+     * Mollie signs webhooks using HMAC SHA-256 with the webhook secret.
+     * The signature comes in the 'X-Mollie-Signature' header.
+     *
+     * @param  array<string, array<string>>  $headers  Request headers
+     * @param  string  $body  Raw request body
+     * @return bool True if signature is valid
+     */
+    protected function validateWebhookSignature(array $headers, string $body): bool
+    {
+        $signature = $headers['x-mollie-signature'][0]
+            ?? $headers['X-Mollie-Signature'][0]
+            ?? null;
+
+        if (! $signature) {
+            $this->log('warning', 'Webhook signature missing', [
+                'hint' => 'Mollie webhooks should include the X-Mollie-Signature header when webhook_secret is configured',
+            ]);
+
+            return false;
+        }
+
+        $expectedSignature = hash_hmac('sha256', $body, $this->config['webhook_secret']);
+        $isValid = hash_equals($signature, $expectedSignature);
+
+        if (! $isValid) {
+            $this->log('warning', 'Webhook signature validation failed', [
+                'hint' => 'The X-Mollie-Signature header does not match. Ensure MOLLIE_WEBHOOK_SECRET matches the webhook secret from your Mollie dashboard.',
+            ]);
+
+            return false;
+        }
+
+        $payload = json_decode($body, true) ?? [];
+        if (! $this->validateWebhookTimestamp($payload)) {
+            $this->log('warning', 'Webhook timestamp validation failed - potential replay attack');
+
+            return false;
+        }
+
+        $this->log('info', 'Webhook validated successfully via signature verification');
+
+        return true;
+    }
+
+    /**
+     * Validate webhook by fetching payment details from API (fallback method).
+     *
+     * This method is used when webhook_secret is not configured.
+     * It fetches the payment from Mollie's API to verify it exists and is legitimate.
+     *
+     * @param  string  $body  Raw request body
+     * @return bool True if webhook is valid
+     */
+    protected function validateWebhookViaAPI(string $body): bool
     {
         try {
             $payload = json_decode($body, true);
@@ -234,6 +303,7 @@ final class MollieDriver extends AbstractDriver
                 $this->log('info', 'Webhook validated successfully via API verification', [
                     'payment_id' => $paymentId,
                     'payment_status' => $paymentData['status'] ?? 'unknown',
+                    'hint' => 'Consider configuring MOLLIE_WEBHOOK_SECRET for more secure signature-based validation',
                 ]);
 
                 return true;
