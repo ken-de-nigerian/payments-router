@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Full integration with Mollie payment gateway
   - Support for EUR, USD, GBP, and other Mollie-supported currencies
   - Redirect-based payment flow with hosted payment page
-  - Webhook validation via API (Mollie doesn't use signature-based validation)
+  - Webhook validation via signature (HMAC SHA-256) when webhook secret is configured, with API fallback
   - Automatic payment verification on webhook receipt
   - Comprehensive test coverage with 53 tests (96 assertions)
   - Edge case handling for network errors and missing data

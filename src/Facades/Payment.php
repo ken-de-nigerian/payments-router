@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Facades;
 
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Facade;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -26,7 +27,7 @@ use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
  * @method static \KenDeNigerian\PayZephyr\Payment with(string|array $providers)
  * @method static \KenDeNigerian\PayZephyr\Payment using(string|array $providers)
  * @method static ChargeResponseDTO charge()
- * @method static mixed redirect()
+ * @method static RedirectResponse redirect()
  * @method static VerificationResponseDTO verify(string $reference, ?string $provider = null)
  *
  * @see \KenDeNigerian\PayZephyr\Payment

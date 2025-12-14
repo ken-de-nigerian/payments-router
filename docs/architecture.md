@@ -456,7 +456,7 @@ Each provider has a concrete driver class:
 **StripeDriver:**
 - Global payment provider using official SDK
 - Supports: Card, Apple Pay, Google Pay
-- Currencies: 135+ currencies
+- Currencies: USD, EUR, GBP, CAD, AUD (commonly used), 135+ total
 - Webhook validation: HMAC SHA256
 
 **PayPalDriver:**
@@ -477,6 +477,15 @@ Each provider has a concrete driver class:
 - Create Payment API: Bearer token (Public Key)
 - Status API: HMAC-SHA512 (Private Key + Merchant ID)
 - Supports: Card, Bank Transfer, USSD, Mobile Money
+- Currencies: NGN
+- Webhook validation: HMAC SHA-256
+
+**MollieDriver:**
+- European payment provider with multiple payment methods
+- Supports: iDEAL, Credit Card, Bank Transfer, and 30+ payment methods
+- Currencies: EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, and 30+ more
+- Webhook validation: HMAC SHA-256 (when webhook_secret configured) or API verification (fallback)
+- Handles `hook.ping` test events automatically
 
 **Driver Responsibilities:**
 1. **Format requests** for provider's API
@@ -802,7 +811,10 @@ enum PaymentChannel: string
 
 1. **User calls Payment API:**
    ```php
-   Payment::amount(1000)->email('user@example.com')->redirect()
+   Payment::amount(1000)
+       ->email('user@example.com')
+       ->callback(route('payment.callback'))
+       ->redirect()
    ```
 
 2. **Payment builds ChargeRequestDTO:**

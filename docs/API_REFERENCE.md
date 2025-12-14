@@ -1042,7 +1042,10 @@ Thrown when all providers fail (fallback exhausted).
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
 try {
-    $response = Payment::amount(10000)->charge();
+    $response = Payment::amount(10000)
+        ->email('customer@example.com')
+        ->callback(route('payment.callback'))
+        ->charge();
 } catch (ProviderException $e) {
     $context = $e->getContext();
     // $context['exceptions'] contains errors from all providers
@@ -1111,7 +1114,10 @@ use KenDeNigerian\PayZephyr\Http\Resources\ChargeResource;
 #### Usage
 
 ```php
-$response = Payment::amount(10000)->charge();
+$response = Payment::amount(10000)
+    ->email('customer@example.com')
+    ->callback(route('payment.callback'))
+    ->charge();
 return new ChargeResource($response);
 ```
 

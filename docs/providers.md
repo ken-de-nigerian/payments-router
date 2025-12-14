@@ -71,7 +71,7 @@ FLUTTERWAVE_ENABLED=true
 ### Supported Currencies
 - NGN, USD, EUR, GBP
 - KES, UGX, TZS
-- GHS, ZAR, XAF, XOF
+- Note: Flutterwave supports additional currencies - see [Flutterwave documentation](https://developer.flutterwave.com/docs/currencies) for complete list
 
 ### Features
 - Card payments
@@ -149,8 +149,8 @@ STRIPE_ENABLED=true
 ```
 
 ### Supported Currencies
-- USD, EUR, GBP, CAD, AUD
-- 135+ currencies
+- USD, EUR, GBP, CAD, AUD (commonly used)
+- Stripe supports 135+ currencies total - see [Stripe's currency list](https://stripe.com/docs/currencies) for complete list
 
 ### Features
 - Card payments
@@ -206,8 +206,8 @@ PAYPAL_ENABLED=true
 ```
 
 ### Supported Currencies
-- USD, EUR, GBP, CAD, AUD
-- 25+ currencies
+- USD, EUR, GBP, CAD, AUD (commonly used)
+- PayPal supports 25+ currencies total - see [PayPal's currency list](https://developer.paypal.com/docs/api/reference/currency-codes/) for complete list
 
 ### Features
 - PayPal account payments
@@ -244,6 +244,7 @@ Configure in PayPal Dashboard under Webhooks.
 Payment::amount(10000)
     ->with(['paystack', 'stripe']) // or ->using(['paystack', 'stripe'])
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->redirect(); // Must be called last
 ```
 
@@ -260,6 +261,7 @@ Then use:
 // Uses default and fallback from config
 Payment::amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->redirect(); // Tries paystack, falls back to stripe
 ```
 
@@ -272,10 +274,11 @@ Payment::amount(10000)
 | Paystack    |  ✅  |  ✅  |  ❌  |  ❌  |  ❌  |      GHS, ZAR      |
 | Flutterwave |  ✅  |  ✅  |  ✅  |  ✅  |  ✅  | UGX, TZS, GHS, ZAR |
 | Monnify     |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
-| Stripe      |  ✅  |  ✅  |  ✅  |  ✅  |  ❌  |        135+        |
-| PayPal      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |        25+         |
+| Stripe      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |        135+        |
+| PayPal      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |      CAD, AUD      |
 | Square      |  ❌  |  ✅  |  ❌  |  ✅  |  ❌  |      CAD, AUD      |
 | OPay        |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
+| Mollie      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  | CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
 
 ---
 
@@ -371,16 +374,16 @@ Payment::amount(10000)
 
 URL: `https://yourdomain.com/payments/webhook/opay`
 
-OPay uses HMAC SHA256 for webhook signature validation. The signature is sent in the `x-opay-signature` header.
+OPay uses HMAC SHA-256 for webhook signature validation. The signature is sent in the `x-opay-signature` header.
 
 **Important:** Set your secret key in `.env` for webhook validation and status API authentication:
 ```env
 OPAY_SECRET_KEY=your_secret_key
 ```
 
-**Note:** The secret key (private key) is required for:
+**Note:** The secret key is required for:
 - Status API authentication (HMAC-SHA512 signature generation)
-- Webhook signature validation
+- Webhook signature validation (HMAC-SHA256)
 
 ### Testing
 
@@ -452,15 +455,24 @@ Get the signature key from: Square Dashboard → Developers → Webhooks → Sel
 
 ```env
 MOLLIE_API_KEY=test_xxx
-MOLLIE_WEBHOOK_URL=https://yourdomain.com
+MOLLIE_WEBHOOK_SECRET=4Js3DqVSKFMUvkbGzcvjuA5GcHG3MVBM
 MOLLIE_ENABLED=true
 ```
+
+**Note:** `MOLLIE_WEBHOOK_SECRET` is optional but recommended. If not provided, webhook validation falls back to API verification.
 
 ### Supported Currencies
 
 - EUR (Euro)
 - USD (US Dollar)
 - GBP (British Pound)
+- CHF (Swiss Franc)
+- SEK (Swedish Krona)
+- NOK (Norwegian Krone)
+- DKK (Danish Krone)
+- PLN (Polish Zloty)
+- CZK (Czech Koruna)
+- HUF (Hungarian Forint)
 - And 30+ other currencies supported by Mollie
 
 ### Features
@@ -470,44 +482,47 @@ MOLLIE_ENABLED=true
 - Recurring payments support
 - Refunds support
 - Multi-currency support
+- Webhook signature validation (HMAC SHA-256)
 
 ### Usage Example
 
 ```php
+// Builder methods can be chained in any order
+// redirect() must be called last to execute
 Payment::amount(10.00)
     ->currency('EUR')
     ->email('customer@example.com')
     ->description('Order #123')
     ->callback(route('payment.callback'))
-    ->with('mollie')
-    ->redirect();
+    ->with('mollie') // or ->using('mollie')
+    ->redirect(); // Must be called last
 ```
 
 ### Webhook Configuration
 
 URL: `https://yourdomain.com/payments/webhook/mollie`
 
-**Important:** Mollie doesn't use signature-based webhook validation. Instead, PayZephyr automatically fetches payment details from the Mollie API when receiving webhooks to verify their authenticity.
+**Recommended:** Configure webhook secret for signature-based validation:
+1. Go to Mollie Dashboard → Developers → Webhooks
+2. Create a webhook and copy the webhook secret
+3. Add webhook URL: `https://yourdomain.com/payments/webhook/mollie`
+4. Set `MOLLIE_WEBHOOK_SECRET` in your `.env` file
 
-Configure your webhook URL in your Mollie Dashboard:
-1. Go to Developers → Webhooks
-2. Add webhook URL: `https://yourdomain.com/payments/webhook/mollie`
-3. Select payment events you want to receive
+**Fallback:** If `MOLLIE_WEBHOOK_SECRET` is not configured, PayZephyr automatically fetches payment details from the Mollie API to verify webhooks.
 
-**Security Note:** For production, consider whitelisting Mollie's IP addresses for additional security.
+### Webhook Validation
+
+Mollie supports two validation methods:
+
+1. **Signature-based validation (recommended):** When `MOLLIE_WEBHOOK_SECRET` is configured, PayZephyr validates the `X-Mollie-Signature` header using HMAC SHA-256. This is the preferred method.
+
+2. **API verification (fallback):** If webhook secret is not configured, PayZephyr fetches payment details from the Mollie API to verify the webhook is legitimate.
+
+**Note:** `hook.ping` test events are automatically accepted after signature validation (if configured) or without API verification (if using fallback).
 
 ### Testing
 
 - Use Mollie test API keys (starts with `test_`)
 - Test payment methods are available in the Mollie test environment
 - API Key: Get from Mollie Dashboard → Developers → API Keys
-
-### Webhook Validation
-
-Unlike other providers, Mollie doesn't use HMAC signatures for webhook validation. PayZephyr handles this by:
-1. Receiving the webhook with payment ID
-2. Fetching payment details from Mollie API using the payment ID
-3. Verifying the payment exists and matches the webhook data
-4. Validating timestamp to prevent replay attacks
-
-This ensures webhook authenticity without requiring signature validation.
+- Webhook Secret: Get from Mollie Dashboard → Developers → Webhooks → Your webhook → Secret

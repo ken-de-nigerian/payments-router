@@ -136,6 +136,7 @@ try {
     return Payment::amount(50000)
         ->currency('NGN')
         ->email('customer@example.com')
+        ->callback(route('payment.callback'))
         ->reference('ORDER_' . time())
         ->description('Premium subscription')
         ->idempotency(Str::uuid()->toString())
@@ -346,10 +347,10 @@ class HandlePaystackWebhook
 | **Flutterwave** |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | NGN, USD, EUR, GBP, KES, UGX, TZS |
 | **Monnify**     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN                               |
 | **Stripe**      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies                   |
-| **PayPal**      |   ✅    |   ✅    |    ✅     |      ❌      |    1     | USD, EUR, GBP, CAD, AUD           |
+| **PayPal**      |   ✅    |   ✅    |    ✅     |      ✅      |    1     | USD, EUR, GBP, CAD, AUD           |
 | **Square**      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD                |
 | **OPay**        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN                               |
-| **Mollie**      |   ✅    |   ✅    |    ✅     |      ✅      |    10+   | EUR, USD, GBP, 30+ currencies    |
+| **Mollie**      |   ✅    |   ✅    |    ✅     |      ✅      |    10+   | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
 
 **Notes:**
 - ✅ = Fully supported
@@ -399,11 +400,17 @@ When Laravel authentication is active, payment sessions are automatically isolat
 ```php
 // User 1's payment
 Auth::loginUsingId(1);
-Payment::amount(10000)->charge(); // Cached with user_1 prefix
+Payment::amount(10000)
+    ->email('user1@example.com')
+    ->callback(route('payment.callback'))
+    ->charge(); // Cached with user_1 prefix
 
 // User 2's payment (completely isolated)
 Auth::loginUsingId(2);
-Payment::amount(20000)->charge(); // Cached with user_2 prefix
+Payment::amount(20000)
+    ->email('user2@example.com')
+    ->callback(route('payment.callback'))
+    ->charge(); // Cached with user_2 prefix
 ```
 
 **Current Support:**
@@ -514,6 +521,7 @@ public function test_webhook_processing()
 // Try Paystack first, fallback to Stripe if it fails
 return Payment::amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->with(['paystack', 'stripe'])
     ->redirect();
 ```

@@ -134,9 +134,9 @@ OPAY_SECRET_KEY=your_secret_key  # Required for status API authentication and we
 OPAY_BASE_URL=https://liveapi.opaycheckout.com
 OPAY_ENABLED=false
 
-# Mollie (Required: api_key)
+# Mollie (Required: api_key; Optional: webhook_secret for signature validation)
 MOLLIE_API_KEY=test_xxx
-MOLLIE_WEBHOOK_URL=https://yourdomain.com
+MOLLIE_WEBHOOK_SECRET=4Js3DqVSKFMUvkbGzcvjuA5GcHG3MVBM
 MOLLIE_ENABLED=false
 
 # Optional Settings
@@ -268,6 +268,7 @@ $reference = 'ORDER_' . auth()->id() . '_' . time();
 
 return Payment::amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->reference($reference)
     ->redirect();
 ```
@@ -282,6 +283,7 @@ use Illuminate\Support\Str;
 // Option 1: Let the package auto-generate (recommended)
 return Payment::amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->redirect();
 // A UUID v4 idempotency key is automatically generated
 
@@ -290,6 +292,7 @@ $idempotencyKey = Str::uuid()->toString();
 
 return Payment::amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->idempotency($idempotencyKey)  // Optional: override auto-generated key
     ->redirect();
 ```
@@ -314,6 +317,7 @@ The package automatically maps these unified names to provider-specific formats:
 // Works across all providers
 Payment::amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->channels(['card', 'bank_transfer'])  // Unified names
     ->redirect();
 ```
@@ -324,6 +328,9 @@ Payment::amount(10000)
 - **Flutterwave**: `['card', 'bank_transfer']` → `'card,banktransfer'` (comma-separated)
 - **Stripe**: `['card']` → `['card']`
 - **PayPal**: Channels are ignored (PayPal doesn't support channel filtering)
+- **Square**: Channels are ignored (Square uses default payment methods)
+- **OPay**: Channels are mapped to OPay's payment method format
+- **Mollie**: Channels are mapped to Mollie's payment method format
 
 If no channels are specified, each provider uses its default payment methods.
 
@@ -342,7 +349,7 @@ If no channels are specified, each provider uses its default payment methods.
 | **PayPal**      |   ✅    |   ✅    |    ✅     | USD, EUR, GBP, CAD, AUD           | PayPal Balance, Credit          |
 | **Square**      |   ✅    |   ✅    |    ✅     | USD, CAD, GBP, AUD                | Online Checkout, Payment Links  |
 | **OPay**        |   ✅    |   ✅    |    ✅     | NGN                               | Card, Bank Transfer, USSD       |
-| **Mollie**      |   ✅    |   ✅    |    ✅     | EUR, USD, GBP, 30+ currencies     | iDEAL, Card, Bank Transfer      |
+| **Mollie**      |   ✅    |   ✅    |    ✅     | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ | iDEAL, Card, Bank Transfer      |
 
 ### Provider-Specific Configuration
 
@@ -592,6 +599,7 @@ use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 try {
     return Payment::amount(10000)
         ->email('customer@example.com')
+        ->callback(route('payment.callback'))
         ->redirect();
 } catch (ChargeException $e) {
     // Payment initialization failed
@@ -799,7 +807,7 @@ The API Reference includes:
 
 **VerificationResponseDTO:**
 - `reference`, `status`, `amount`, `currency`, `paidAt`, `channel`, `customer`, `metadata`, `provider`
-- Methods: `isSuccessful()`, `isFailed()`, `isPending()`
+- Methods: `isSuccessful()`, `isPending()`
 
 **📖 See [API Reference](API_REFERENCE.md) for complete documentation.**
 

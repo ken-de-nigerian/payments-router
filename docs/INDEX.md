@@ -141,6 +141,7 @@ return Payment::amount(50000)
         'customer_id' => auth()->id(),
     ])
     ->description('Premium Plan Subscription')
+    ->callback(route('payment.callback'))
     ->redirect(); // Must be called last
 ```
 
@@ -199,6 +200,7 @@ public function callback(Request $request)
 return payment()
     ->amount(10000)
     ->email('customer@example.com')
+    ->callback(route('payment.callback'))
     ->redirect(); // Must be called last
 ```
 

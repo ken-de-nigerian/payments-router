@@ -43,7 +43,6 @@ test('mollie driver getDefaultHeaders includes authorization', function () {
         ->and($headers['Content-Type'])->toBe('application/json');
 });
 
-
 test('mollie driver verify handles all payment statuses correctly', function () {
     $statuses = [
         ['status' => 'paid', 'expected' => 'success'],

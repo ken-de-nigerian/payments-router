@@ -106,14 +106,15 @@ You need to tell each payment provider where to send webhooks. Go to each provid
 **OPay Dashboard:**
 - Go to: OPay Business Dashboard → Webhooks
 - Add URL: `https://yourdomain.com/payments/webhook/opay`
-- OPay uses RSA signature (SHA256) validation
+- OPay uses HMAC SHA-256 signature validation
 - Ensure `OPAY_PUBLIC_KEY` is set in your `.env` file
 
 **Mollie Dashboard:**
 - Go to: Developers → Webhooks
 - Add URL: `https://yourdomain.com/payments/webhook/mollie`
 - Select payment events you want to receive
-- **Note:** Mollie doesn't use signature-based webhook validation. PayZephyr automatically fetches payment details from the Mollie API to verify webhooks.
+- Copy the webhook secret and set it as `MOLLIE_WEBHOOK_SECRET` in your `.env` file
+- **Note:** If `MOLLIE_WEBHOOK_SECRET` is not configured, PayZephyr automatically fetches payment details from the Mollie API to verify webhooks (fallback method)
 - Ensure `MOLLIE_API_KEY` is set in your `.env` file
 
 **Important:** 
@@ -454,6 +455,7 @@ namespace App\Listeners;
 
 use App\Models\Order;
 use KenDeNigerian\PayZephyr\Facades\Payment;
+use KenDeNigerian\PayZephyr\PaymentManager;
 use Illuminate\Support\Facades\Log;
 
 class HandleAnyWebhook
@@ -501,7 +503,8 @@ class HandleAnyWebhook
     private function extractReference(string $provider, array $payload): ?string
     {
         try {
-            $driver = Payment::manager()->driver($provider);
+            $manager = app(PaymentManager::class);
+            $driver = $manager->driver($provider);
             return $driver->extractWebhookReference($payload);
         } catch (\KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException $e) {
             // Unknown provider - return null
@@ -721,7 +724,7 @@ Each payment provider sends webhook data in a slightly different format. Here's 
 - `amount.value`: Payment amount
 - `amount.currency`: Currency code
 
-**Note:** Mollie doesn't use signature-based webhook validation. PayZephyr automatically fetches payment details from the Mollie API when receiving webhooks to verify their authenticity.
+**Note:** Mollie supports signature-based webhook validation using HMAC SHA-256 when `MOLLIE_WEBHOOK_SECRET` is configured. If not configured, PayZephyr automatically fetches payment details from the Mollie API to verify webhooks (fallback method).
 
 ---
 
@@ -1064,6 +1067,7 @@ Different providers send different event types. Here's what to expect:
 - `payment.canceled` - Payment was canceled
 - `payment.expired` - Payment expired
 - `payment.authorized` - Payment authorized (for certain payment methods)
+- `hook.ping` - Test webhook event (automatically accepted)
 
 ---
 
