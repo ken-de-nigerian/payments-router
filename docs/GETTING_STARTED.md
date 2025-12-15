@@ -1,104 +1,24 @@
-# Getting Started with PayZephyr
+# Getting Started
 
-A beginner-friendly guide to installing and using PayZephyr in your Laravel application.
+Quick setup guide for PayZephyr.
 
----
+## Prerequisites
 
-## 🎯 Who This Guide Is For
-
-- ✅ Complete beginners to payment processing
-- ✅ Developers new to Laravel packages
-- ✅ Anyone setting up PayZephyr for the first time
-- ✅ Developers who want a step-by-step walkthrough
+- PHP 8.2+
+- Laravel 10.x, 11.x, or 12.x
+- Composer
+- Payment provider account (Paystack, Stripe, etc.)
 
 ---
 
-## 📋 Prerequisites
-
-Before you start, make sure you have:
-
-1. **PHP 8.2 or higher** installed
-   ```bash
-   php -v  # Should show 8.2.0 or higher
-   ```
-
-2. **Composer** installed
-   ```bash
-   composer --version  # Should show Composer version
-   ```
-
-3. **Laravel 10.x, 11.x, or 12.x** project
-   ```bash
-   php artisan --version  # Should show Laravel version
-   ```
-
-4. **A payment provider account** (at least one):
-   - [Paystack](https://paystack.com) (Recommended for beginners - easiest to set up)
-   - [Stripe](https://stripe.com)
-   - [Flutterwave](https://flutterwave.com)
-   - [Monnify](https://monnify.com)
-   - [PayPal](https://paypal.com)
-   - [Square](https://squareup.com)
-   - [OPay](https://opayweb.com)
-   - [Mollie](https://mollie.com)
-
----
-
-## 🚀 Step-by-Step Installation
-
-### Step 1: Install the Package
-
-Open your terminal in your Laravel project directory and run:
+## Installation
 
 ```bash
 composer require kendenigerian/payzephyr
-```
-
-**What this does:** Downloads and installs the PayZephyr package into your Laravel project.
-
-**Expected output:**
-```
-Using version ^1.0 for kendenigerian/payzephyr
-...
-Package manifest generated successfully.
-```
-
-### Step 2: Run the Install Command
-
-```bash
 php artisan payzephyr:install
 ```
 
-**What this does:** This command automatically:
-1. Publishes the configuration file (`config/payments.php`)
-2. Publishes migration files
-3. Optionally runs migrations (you'll be prompted)
-
-**Expected output:**
-```
-Installing PayZephyr...
-✓ Configuration file published
-✓ Migration files published
-Run migrations now? (yes/no) [yes]:
-> yes
-
-Running migrations...
-2024_01_01_000000_create_payment_transactions_table .......... DONE
-✓ Migrations completed
-
-PayZephyr installed successfully!
-Please configure your providers in .env
-
-Example environment variables:
-  PAYMENTS_DEFAULT_PROVIDER=paystack
-  PAYSTACK_SECRET_KEY=your_secret_key
-  PAYSTACK_PUBLIC_KEY=your_public_key
-```
-
-**💡 Tip:** If you want to overwrite existing files, use the `--force` flag:
-```bash
-php artisan payzephyr:install --force
-```
+Publishes config, migrations, and optionally runs migrations.
 
 **⚠️ Troubleshooting:** If you get an error, make sure:
 - Your database is configured in `.env`
@@ -427,7 +347,7 @@ Now that you've made your first payment:
 1. **Set Up Queue Workers** (CRITICAL for Webhooks!)
    - Webhooks are processed asynchronously via Laravel's queue system
    - **You MUST run queue workers for webhooks to be processed**
-   - See [Queue Worker Setup](webhooks.md#-queue-worker-setup-required) for complete instructions
+   - See [Queue Workers](webhooks.md#queue-workers-required) for complete instructions
    - Quick start for local development:
      ```bash
      # In your .env, set:

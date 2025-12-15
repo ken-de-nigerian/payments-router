@@ -8,6 +8,7 @@ use ArrayObject;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
@@ -21,12 +22,10 @@ use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\Services\DriverFactory;
+use KenDeNigerian\PayZephyr\Services\MetadataSanitizer;
 use Throwable;
 
-/**
- * Payment manager.
- */
-class PaymentManager
+final class PaymentManager
 {
     protected array $drivers = [];
 
@@ -36,18 +35,20 @@ class PaymentManager
 
     protected DriverFactory $driverFactory;
 
+    protected MetadataSanitizer $metadataSanitizer;
+
     public function __construct(
         ?ProviderDetectorInterface $providerDetector = null,
-        ?DriverFactory $driverFactory = null
+        ?DriverFactory $driverFactory = null,
+        ?MetadataSanitizer $metadataSanitizer = null
     ) {
         $this->config = app('payments.config') ?? Config::get('payments', []);
         $this->providerDetector = $providerDetector ?? app(ProviderDetectorInterface::class);
         $this->driverFactory = $driverFactory ?? app(DriverFactory::class);
+        $this->metadataSanitizer = $metadataSanitizer ?? app(MetadataSanitizer::class);
     }
 
     /**
-     * Get payment provider driver.
-     *
      * @throws DriverNotFoundException
      */
     public function driver(?string $name = null): DriverInterface
@@ -71,10 +72,6 @@ class PaymentManager
     }
 
     /**
-     * Process payment with automatic fallback.
-     *
-     * @param  array<string>|null  $providers
-     *
      * @throws ProviderException
      */
     public function chargeWithFallback(ChargeRequestDTO $request, ?array $providers = null): ChargeResponseDTO
@@ -88,14 +85,14 @@ class PaymentManager
 
                 if ($this->config['health_check']['enabled'] ?? true) {
                     if (! $driver->getCachedHealthCheck()) {
-                        logger()->warning("Provider [$providerName] failed health check, skipping");
+                        $this->log('warning', "Provider [$providerName] failed health check, skipping");
 
                         continue;
                     }
                 }
 
                 if (! $driver->isCurrencySupported($request->currency)) {
-                    logger()->info("Provider [$providerName] does not support currency $request->currency");
+                    $this->log('info', "Provider [$providerName] does not support currency $request->currency");
 
                     continue;
                 }
@@ -107,14 +104,14 @@ class PaymentManager
 
                 PaymentInitiated::dispatch($request, $response, $providerName);
 
-                logger()->info("Payment charged successfully via [$providerName]", [
+                $this->log('info', "Payment charged successfully via [$providerName]", [
                     'reference' => $response->reference,
                 ]);
 
                 return $response;
             } catch (Throwable $e) {
                 $exceptions[$providerName] = $e;
-                logger()->error("Provider [$providerName] failed", [
+                $this->log('error', "Provider [$providerName] failed", [
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString(),
                 ]);
@@ -127,9 +124,6 @@ class PaymentManager
         );
     }
 
-    /**
-     * Log transaction to database.
-     */
     protected function logTransaction(ChargeRequestDTO $request, ChargeResponseDTO $response, string $provider): void
     {
         if (! ($this->config['logging']['enabled'] ?? true)) {
@@ -137,9 +131,12 @@ class PaymentManager
         }
 
         try {
-            $metadata = array_merge($request->metadata, $response->metadata, [
+            $rawMetadata = array_merge($request->metadata, $response->metadata, [
                 '_provider_id' => $response->accessCode,
             ]);
+
+            $metadata = $this->metadataSanitizer->sanitize($rawMetadata);
+            $customer = $request->customer ? $this->metadataSanitizer->sanitize($request->customer) : null;
 
             PaymentTransaction::create([
                 'reference' => $response->reference,
@@ -150,11 +147,11 @@ class PaymentManager
                 'email' => $request->email,
                 'channel' => null,
                 'metadata' => $metadata,
-                'customer' => $request->customer,
+                'customer' => $customer,
                 'paid_at' => null,
             ]);
         } catch (Throwable $e) {
-            logger()->error('Failed to log transaction', [
+            $this->log('error', 'Failed to log transaction', [
                 'error' => $e->getMessage(),
                 'reference' => $response->reference,
             ]);
@@ -162,8 +159,6 @@ class PaymentManager
     }
 
     /**
-     * Verify payment by reference.
-     *
      * @throws ProviderException
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponseDTO
@@ -200,9 +195,6 @@ class PaymentManager
         );
     }
 
-    /**
-     * Cache session data.
-     */
     protected function cacheSessionData(string $reference, string $provider, string $providerId): void
     {
         Cache::put(
@@ -215,9 +207,6 @@ class PaymentManager
         );
     }
 
-    /**
-     * Generate cache key.
-     */
     protected function cacheKey(string $type, string $identifier): string
     {
         $prefix = 'payzephyr';
@@ -230,15 +219,6 @@ class PaymentManager
         return sprintf('%s:%s:%s', $prefix, $type, $identifier);
     }
 
-    /**
-     * Get cache context for multi-tenant isolation
-     *
-     * Checks multiple sources for user identification:
-     * 1. Laravel's authenticated user
-     * 2. Request-based user (API token, session)
-     *
-     * @return string|null Context identifier (user ID, etc.)
-     */
     protected function getCacheContext(): ?string
     {
         try {
@@ -258,7 +238,7 @@ class PaymentManager
                 }
             }
         } catch (Throwable $e) {
-            logger()->debug('Could not resolve cache context', [
+            $this->log('debug', 'Could not resolve cache context', [
                 'error' => $e->getMessage(),
             ]);
         }
@@ -266,9 +246,6 @@ class PaymentManager
         return null;
     }
 
-    /**
-     * Resolve verification context.
-     */
     protected function resolveVerificationContext(string $reference, ?string $explicitProvider): array
     {
         $cached = Cache::get($this->cacheKey('session', $reference));
@@ -343,17 +320,11 @@ class PaymentManager
         ];
     }
 
-    /**
-     * Detect provider from reference.
-     */
     protected function detectProviderFromReference(string $reference): ?string
     {
         return $this->providerDetector->detectFromReference($reference);
     }
 
-    /**
-     * Update transaction from verification.
-     */
     protected function updateTransactionFromVerification(string $reference, VerificationResponseDTO $response): void
     {
         if (! ($this->config['logging']['enabled'] ?? true)) {
@@ -376,24 +347,18 @@ class PaymentManager
                 }
             });
         } catch (Throwable $e) {
-            logger()->error('Failed to update transaction from verification', [
+            $this->log('error', 'Failed to update transaction from verification', [
                 'error' => $e->getMessage(),
                 'reference' => $reference,
             ]);
         }
     }
 
-    /**
-     * Get default driver name.
-     */
     public function getDefaultDriver(): string
     {
         return $this->config['default'] ?? array_key_first($this->config['providers'] ?? []);
     }
 
-    /**
-     * Get fallback provider chain.
-     */
     public function getFallbackChain(): array
     {
         $chain = [$this->getDefaultDriver()];
@@ -406,14 +371,23 @@ class PaymentManager
         return array_unique(array_filter($chain));
     }
 
-    /**
-     * Get enabled providers.
-     */
     public function getEnabledProviders(): array
     {
         return array_filter(
             $this->config['providers'] ?? [],
             fn ($config) => $config['enabled'] ?? true
         );
+    }
+
+    protected function log(string $level, string $message, array $context = []): void
+    {
+        $config = app('payments.config') ?? config('payments', []);
+        $channelName = $config['logging']['channel'] ?? 'payments';
+
+        try {
+            Log::channel($channelName)->{$level}($message, $context);
+        } catch (\InvalidArgumentException) {
+            Log::{$level}($message, $context);
+        }
     }
 }

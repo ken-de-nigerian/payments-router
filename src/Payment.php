@@ -13,9 +13,6 @@ use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
-/**
- * Payment builder for processing payments.
- */
 final class Payment
 {
     protected PaymentManager $manager;
@@ -29,9 +26,6 @@ final class Payment
         $this->manager = $manager;
     }
 
-    /**
-     * Set payment amount.
-     */
     public function amount(float $amount): Payment
     {
         $this->data['amount'] = $amount;
@@ -39,9 +33,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set currency code.
-     */
     public function currency(string $currency): Payment
     {
         $this->data['currency'] = strtoupper($currency);
@@ -49,9 +40,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set customer email.
-     */
     public function email(string $email): Payment
     {
         $this->data['email'] = $email;
@@ -59,9 +47,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set transaction reference.
-     */
     public function reference(string $reference): Payment
     {
         $this->data['reference'] = $reference;
@@ -69,9 +54,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set callback URL (required).
-     */
     public function callback(string $url): Payment
     {
         $this->data['callback_url'] = $url;
@@ -79,9 +61,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set payment metadata.
-     */
     public function metadata(array $metadata): Payment
     {
         $this->data['metadata'] = $metadata;
@@ -89,9 +68,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set idempotency key.
-     */
     public function idempotency(string $key): Payment
     {
         $this->data['idempotency_key'] = $key;
@@ -99,9 +75,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set payment description.
-     */
     public function description(string $description): Payment
     {
         $this->data['description'] = $description;
@@ -109,9 +82,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set customer details.
-     */
     public function customer(array $customer): Payment
     {
         $this->data['customer'] = $customer;
@@ -119,9 +89,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set payment channels.
-     */
     public function channels(array $channels): Payment
     {
         $this->data['channels'] = $channels;
@@ -129,11 +96,6 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Set payment provider(s).
-     *
-     * @param  string|array<string>  $providers
-     */
     public function with(string|array $providers): Payment
     {
         $this->providers = is_array($providers) ? $providers : [$providers];
@@ -141,17 +103,12 @@ final class Payment
         return $this;
     }
 
-    /**
-     * Alias for with().
-     */
     public function using(string|array $providers): Payment
     {
         return $this->with($providers);
     }
 
     /**
-     * Process payment and return response.
-     *
      * @throws InvalidConfigurationException
      * @throws ProviderException|ChargeException
      */
@@ -186,9 +143,6 @@ final class Payment
         return $this->manager->chargeWithFallback($request, $this->providers ?: null);
     }
 
-    /**
-     * Get rate limit key based on user context
-     */
     protected function getRateLimitKey(): string
     {
         if (function_exists('auth') && auth()->check()) {
@@ -207,8 +161,6 @@ final class Payment
     }
 
     /**
-     * Process payment and redirect to payment page.
-     *
      * @throws ProviderException
      * @throws InvalidConfigurationException|ChargeException
      */
@@ -220,8 +172,6 @@ final class Payment
     }
 
     /**
-     * Verify payment by reference.
-     *
      * @throws ProviderException
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponseDTO

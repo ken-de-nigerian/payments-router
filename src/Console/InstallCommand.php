@@ -6,10 +6,7 @@ namespace KenDeNigerian\PayZephyr\Console;
 
 use Illuminate\Console\Command;
 
-/**
- * Install command.
- */
-class InstallCommand extends Command
+final class InstallCommand extends Command
 {
     protected $signature = 'payzephyr:install {--force : Overwrite existing files}';
 
@@ -44,11 +41,6 @@ class InstallCommand extends Command
         $this->newLine();
         $this->info('PayZephyr installed successfully!');
         $this->comment('Please configure your providers in .env');
-        $this->newLine();
-        $this->line('Example environment variables:');
-        $this->line('  PAYMENTS_DEFAULT_PROVIDER=paystack');
-        $this->line('  PAYSTACK_SECRET_KEY=your_secret_key');
-        $this->line('  PAYSTACK_PUBLIC_KEY=your_public_key');
 
         return self::SUCCESS;
     }

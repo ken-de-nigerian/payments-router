@@ -125,17 +125,6 @@ test('channel mapper returns channels as-is for unknown provider', function () {
     expect($result)->toBe(['card', 'bank']);
 });
 
-test('channel mapper getDefaultChannels returns correct defaults for all providers', function () {
-    $mapper = new ChannelMapper;
-
-    expect($mapper->getDefaultChannels('paystack'))->toBe(['card', 'bank_transfer'])
-        ->and($mapper->getDefaultChannels('monnify'))->toBe(['CARD', 'ACCOUNT_TRANSFER'])
-        ->and($mapper->getDefaultChannels('flutterwave'))->toBe(['card'])
-        ->and($mapper->getDefaultChannels('stripe'))->toBe(['card'])
-        ->and($mapper->getDefaultChannels('paypal'))->toBe([])
-        ->and($mapper->getDefaultChannels('unknown'))->toBe(['card']);
-});
-
 test('channel mapper supportsChannels returns correct values for all providers', function () {
     $mapper = new ChannelMapper;
 

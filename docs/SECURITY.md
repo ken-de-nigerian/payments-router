@@ -36,7 +36,69 @@ config(['payments.logging.table' => 'custom_payment_transactions']);
 
 ---
 
-### 2. Webhook Replay Attack Prevention
+### 2. Metadata Sanitization
+
+**Protection:** Automatic XSS prevention for metadata and customer data before database storage.
+
+**Implementation:**
+- All metadata and customer data is sanitized before storage
+- HTML tags are stripped and special characters are escaped
+- Dangerous patterns (JavaScript, VBScript) are removed
+- Array size and depth limits prevent DoS attacks
+- Key validation ensures only safe characters are used
+
+**Configuration:**
+```php
+// Automatically enabled - no configuration needed
+// Sanitization happens transparently in PaymentManager
+```
+
+**What Gets Sanitized:**
+- Payment metadata arrays
+- Customer information objects
+- All string values in nested arrays
+
+### 3. Health Endpoint Security
+
+**Protection:** IP whitelisting and token authentication for the health check endpoint.
+
+**Configuration:**
+```env
+# Require authentication
+PAYMENTS_HEALTH_CHECK_REQUIRE_AUTH=true
+
+# IP whitelist (comma-separated)
+PAYMENTS_HEALTH_CHECK_ALLOWED_IPS=127.0.0.1,192.168.1.100,10.0.0.0/8
+
+# Token authentication (comma-separated)
+PAYMENTS_HEALTH_CHECK_ALLOWED_TOKENS=your-secret-token-1,your-secret-token-2
+```
+
+**Usage:**
+```bash
+# With token
+curl -H "Authorization: Bearer your-secret-token-1" https://yourdomain.com/payments/health
+
+# Or query parameter
+curl https://yourdomain.com/payments/health?token=your-secret-token-1
+```
+
+### 4. Webhook Payload Size Limits
+
+**Protection:** Prevents DoS attacks via large webhook payloads.
+
+**Configuration:**
+```env
+# Maximum payload size in bytes (default: 1MB)
+PAYMENTS_WEBHOOK_MAX_PAYLOAD_SIZE=1048576
+```
+
+**Behavior:**
+- Payloads exceeding the limit are automatically rejected
+- Warnings are logged for oversized payloads
+- Default limit: 1MB (1,048,576 bytes)
+
+### 5. Webhook Replay Attack Prevention
 
 **Protection:** Timestamp validation prevents attackers from replaying old webhook payloads.
 

@@ -1,59 +1,15 @@
 # PayZephyr Documentation
 
-Welcome to the PayZephyr documentation! This guide will help you get started and make the most of the package.
+## Quick Links
 
-> **👋 New to PayZephyr?** Start with our **[Getting Started Guide](GETTING_STARTED.md)** - a complete beginner-friendly tutorial!
-
----
-
-## 📚 Table of Contents
-
-### Getting Started
-1. **[Getting Started Guide](GETTING_STARTED.md)** ⭐ **Start here!** - Complete beginner tutorial
-2. [Installation & Quick Start](../README.md)
-3. [Configuration Guide](#configuration)
-4. [Basic Usage Examples](#basic-usage)
-
-### Core Documentation
-1. [Architecture Overview](architecture.md) - System design and components
-2. [API Reference](API_REFERENCE.md) - Complete API documentation
-3. [Payment Providers](providers.md) - Detailed provider information
-4. [Webhook Integration](webhooks.md) - Complete webhook guide
-
-### Advanced Topics
-1. [Transaction Logging](#transaction-logging)
-2. [Error Handling](#error-handling)
-3. [Testing Your Integration](#testing)
-
-### Development
-1. **[Contributing Guide for Beginners](CONTRIBUTING_GUIDE.md)** ⭐ **New to open source?** - Step-by-step contribution tutorial
-2. [Contributing Guidelines](CONTRIBUTING.md) - Detailed technical guide
-3. [Changelog](CHANGELOG.md)
-4. [API Reference](API_REFERENCE.md) - Complete API documentation
-
----
-
-## 🚀 Quick Links
-
-### By Use Case
-
-**I want to...**
-- 💳 **Accept payments** → [Basic Usage](#basic-usage) - Start here for your first payment!
-- 🔔 **Handle webhooks** → [Webhook Guide](webhooks.md) - Learn how to receive payment notifications
-- 🏦 **Add a new provider** → [Architecture](architecture.md) + [Contributing](CONTRIBUTING.md)
-- 🐛 **Debug issues** → [Error Handling](#error-handling)
-- 📊 **Track transactions** → [Transaction Logging](#transaction-logging)
-
-### By Provider
-
-- **Paystack** → [Paystack Section](providers.md#paystack)
-- **Flutterwave** → [Flutterwave Section](providers.md#flutterwave)
-- **Monnify** → [Monnify Section](providers.md#monnify)
-- **Stripe** → [Stripe Section](providers.md#stripe)
-- **PayPal** → [PayPal Section](providers.md#paypal)
-- **Square** → [Square Section](providers.md#square)
-- **OPay** → [OPay Section](providers.md#opay)
-- **Mollie** → [Mollie Section](providers.md#mollie)
+- [Getting Started](GETTING_STARTED.md)
+- [Installation](../README.md)
+- [Configuration](#configuration)
+- [Basic Usage](#basic-usage)
+- [Webhooks](webhooks.md)
+- [Providers](providers.md)
+- [API Reference](API_REFERENCE.md)
+- [Contributing](CONTRIBUTING.md)
 
 ---
 

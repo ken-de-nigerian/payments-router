@@ -221,9 +221,11 @@ class ExampleDriver extends AbstractDriver implements DriverInterface
 
 1. **Strict Types**: Always use `declare(strict_types=1);`
 2. **Type Hints**: Use type hints for all parameters and return types
-3. **Readonly Properties**: Use `readonly` for immutable DTOs
-4. **DocBlocks**: Document all public methods
-5. **Single Responsibility**: Each class should have one clear purpose
+3. **Final Classes**: Core classes are marked `final` for better encapsulation - only extend when necessary
+4. **Readonly DTOs**: Use `readonly` for immutable data transfer objects
+5. **Minimal Docblocks**: Only add comments where they add value - avoid redundant documentation
+6. **Consistent Logging**: Use the `log()` method instead of direct `logger()` calls
+7. **Single Responsibility**: Each class should have one clear purpose
 
 #### Naming Conventions
 

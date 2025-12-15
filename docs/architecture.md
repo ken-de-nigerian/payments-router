@@ -15,54 +15,56 @@ The package follows clean architecture principles with clear separation of conce
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Facades & Helpers                          │
-│              (Payment::, payment())                          │
+│              Payment::, payment()                             │
 └──────────────────────┬──────────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────────┐
 │                  Payment (Fluent API)                        │
-│         Builds ChargeRequestDTO & calls Manager               │
+│         Builds ChargeRequestDTO → calls Manager              │
 └──────────────────────┬──────────────────────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────────────────────┐
 │                  PaymentManager                               │
-│   - Manages driver instances (via DriverFactory)             │
-│   - Handles fallback logic                                    │
-│   - Coordinates health checks                                  │
-│   - Resolves verification context                              │
-│   - Logs transactions                                          │
-└──────────────────────┬──────────────────────────────────────┘
-                       │
-        ┌──────────────┼──────────────┐
-        │              │              │
-┌───────▼──────┐ ┌─────▼──────┐ ┌────▼──────┐
-│ DriverFactory│ │  Services  │ │   DTOs     │
-│              │ │            │ │            │
-│ - Creates    │ │ - Status   │ │ - Charge   │
-│   drivers    │ │   Normalizer│ │   Request  │
-│ - Registers  │ │ - Channel   │ │ - Charge   │
-│   custom     │ │   Mapper    │ │   Response │
-│   drivers    │ │ - Provider  │ │ - Verif.   │
-│              │ │   Detector  │ │   Response │
-└───────┬──────┘ └─────────────┘ └────────────┘
+│  • Driver management (via DriverFactory)                      │
+│  • Fallback logic                                             │
+│  • Health checks                                              │
+│  • Verification context resolution                            │
+│  • Transaction logging                                        │
+└───────┬──────────────────────────────────────────────────────┘
+        │
+        ├──────────────┬──────────────┬──────────────┐
+        │              │              │              │
+┌───────▼──────┐ ┌─────▼──────┐ ┌────▼──────┐ ┌────▼──────┐
+│ DriverFactory│ │  Services  │ │   DTOs     │ │  Models   │
+├──────────────┤ ├────────────┤ ├────────────┤ ├───────────┤
+│ • Creates    │ │ • Status   │ │ • Charge   │ │ • Payment │
+│   drivers    │ │   Normalizer│ │   Request  │ │   Transaction│
+│ • Registers  │ │ • Channel   │ │ • Charge   │ │           │
+│   custom     │ │   Mapper    │ │   Response │ │           │
+│   drivers    │ │ • Provider  │ │ • Verif.   │ │           │
+│              │ │   Detector  │ │   Response │ │           │
+└───────┬──────┘ └─────────────┘ └────────────┘ └───────────┘
         │
 ┌───────▼──────────────────────────────────────┐
-│           Drivers Layer                      │
-│  AbstractDriver ← Implements DriverInterface │
-│         ├─ PaystackDriver                    │
-│         ├─ FlutterwaveDriver                 │
-│         ├─ MonnifyDriver                     │
-│         ├─ StripeDriver                      │
-│         ├─ PayPalDriver                      │
-│         ├─ SquareDriver                      │
-│         ├─ OPayDriver                        │
-│         └─ MollieDriver                      │
+│           Drivers Layer                       │
+│  AbstractDriver ← DriverInterface            │
+│  ├─ PaystackDriver                           │
+│  ├─ FlutterwaveDriver                        │
+│  ├─ MonnifyDriver                            │
+│  ├─ StripeDriver                             │
+│  ├─ PayPalDriver                             │
+│  ├─ SquareDriver                             │
+│  ├─ OPayDriver                               │
+│  └─ MollieDriver                             │
 └──────────────────────┬──────────────────────┘
                        │
 ┌──────────────────────▼──────────────────────┐
 │      External Payment APIs                   │
-│   (Paystack, Stripe, PayPal, Square, etc.)   │
+│  Paystack • Stripe • PayPal • Square • etc. │
 └──────────────────────────────────────────────┘
 ```
+<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
+read_file
 
 ## Core Components
 
@@ -962,6 +964,7 @@ Each **Driver** is a strategy for processing payments. PaymentManager selects th
 ## Error Handling
 
 Exception hierarchy:
+
 ```
 Exception
 └── PaymentException (base)
@@ -970,7 +973,7 @@ Exception
     ├── ChargeException
     ├── VerificationException
     ├── WebhookException
-    └── ProviderException (all providers failed)
+    └── ProviderException
 ```
 
 Each exception:

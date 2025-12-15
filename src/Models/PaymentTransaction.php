@@ -9,14 +9,13 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
 /**
- * Payment transaction model.
- *
  * @method static Builder where(string $column, mixed $operator = null, mixed $value = null)
  * @method static Builder create(array $attributes = [])
  * @method static Builder first(array|string $columns = ['*'])
@@ -37,11 +36,7 @@ use Throwable;
  */
 final class PaymentTransaction extends Model
 {
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
-     */
+    /** @var array<int, string> */
     protected $fillable = [
         'reference',
         'provider',
@@ -55,23 +50,15 @@ final class PaymentTransaction extends Model
         'paid_at',
     ];
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'payment_transactions';
 
-    /**
-     * Get the table associated with the model.
-     */
     public function getTable(): string
     {
         $config = app('payments.config') ?? config('payments', []);
         $tableName = $config['logging']['table'] ?? $this->table;
 
         if (! $this->isValidTableName($tableName)) {
-            logger()->warning('Invalid table name in config, using default', [
+            $this->log('warning', 'Invalid table name in config, using default', [
                 'attempted_table' => $tableName,
             ]);
 
@@ -81,21 +68,12 @@ final class PaymentTransaction extends Model
         return $tableName;
     }
 
-    /**
-     * Validate table name against SQL injection
-     *
-     * Only allows: alphanumeric, underscore, max 64 chars
-     */
     protected function isValidTableName(string $tableName): bool
     {
         return preg_match('/^[a-zA-Z0-9_]{1,64}$/', $tableName) === 1;
     }
 
-    /**
-     * Get attribute casts.
-     *
-     * @return array<string, string>
-     */
+    /** @return array<string, string> */
     protected function casts(): array
     {
         $laravelVersion = (float) app()->version();
@@ -111,14 +89,6 @@ final class PaymentTransaction extends Model
         ];
     }
 
-    /**
-     * Set a given attribute on the model.
-     * Override to handle array encoding for Laravel 10 compatibility.
-     *
-     * @param  string  $key
-     * @param  mixed  $value
-     * @return $this
-     */
     public function setAttribute($key, $value): self
     {
         $laravelVersion = (float) app()->version();
@@ -138,12 +108,6 @@ final class PaymentTransaction extends Model
         return parent::setAttribute($key, $value);
     }
 
-    /**
-     * Get a given attribute on the model.
-     * Override to handle JSON string decoding for Laravel 10 compatibility.
-     *
-     * @param  string  $key
-     */
     public function getAttribute($key): mixed
     {
         $value = parent::getAttribute($key);
@@ -161,29 +125,18 @@ final class PaymentTransaction extends Model
         return $value;
     }
 
-    /**
-     * Set table name.
-     */
     public static function setTableName(string $table): void
     {
         $instance = new self;
         $instance->table = $table;
     }
 
-    /**
-     * Get database connection name.
-     */
     public function getConnectionName(): ?string
     {
         return parent::getConnectionName() ?? (app()->environment('testing') ? 'testing' : null);
     }
 
-    /**
-     * Scope: successful payments.
-     *
-     * @param  Builder<self>  $query
-     * @return Builder<self>
-     */
+    /** @param  Builder<self>  $query */
     public function scopeSuccessful(Builder $query): Builder
     {
         $successStatuses = [
@@ -198,12 +151,7 @@ final class PaymentTransaction extends Model
         return $query->whereIn('status', $successStatuses);
     }
 
-    /**
-     * Scope: failed payments.
-     *
-     * @param  Builder<self>  $query
-     * @return Builder<self>
-     */
+    /** @param  Builder<self>  $query */
     public function scopeFailed(Builder $query): Builder
     {
         $failedStatuses = [
@@ -220,9 +168,7 @@ final class PaymentTransaction extends Model
         return $query->whereIn('status', $failedStatuses);
     }
 
-    /**
-     * Scope: pending payments.
-     */
+    /** @param  Builder<self>  $query */
     public function scopePending(Builder $query): Builder
     {
         return $query->where('status', PaymentStatus::PENDING->value);
@@ -280,5 +226,17 @@ final class PaymentTransaction extends Model
         $status = PaymentStatus::tryFromString($normalizedStatus);
 
         return $status?->isPending() ?? false;
+    }
+
+    protected function log(string $level, string $message, array $context = []): void
+    {
+        $config = app('payments.config') ?? config('payments', []);
+        $channelName = $config['logging']['channel'] ?? 'payments';
+
+        try {
+            Log::channel($channelName)->{$level}($message, $context);
+        } catch (\InvalidArgumentException) {
+            Log::{$level}($message, $context);
+        }
     }
 }

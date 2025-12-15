@@ -6,6 +6,51 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.0] - 2025-12-15
+
+### 🔒 Security Enhancements
+
+- **Metadata Sanitization**: Automatic XSS protection for metadata and customer data before storage
+- **Health Endpoint Security**: IP whitelisting and token authentication for `/payments/health` endpoint
+- **Webhook Payload Size Limits**: Configurable maximum payload size to prevent DoS attacks (default: 1MB)
+- Enhanced input validation and sanitization throughout the package
+
+### 🔧 Code Quality
+
+- **Final Classes**: Core classes marked as `final` for better encapsulation and performance
+- **Readonly DTOs**: Data transfer objects use `readonly` properties for immutability
+- **Consistent Logging**: Unified `log()` method across all classes (replaces direct `logger()` calls)
+- **Configurable Log Channel**: Customize log channel via `PAYMENTS_LOG_CHANNEL` environment variable
+- **Minimized Docblocks**: Streamlined documentation comments for better readability
+- **Removed Deprecations**: Cleaned up non-code-breaking deprecations
+
+### ✅ Added
+
+- `MetadataSanitizer` service for automatic data sanitization
+- `HealthEndpointMiddleware` for securing health check endpoint
+- Configurable log channel in `config/payments.php`
+- Environment variable `PAYMENTS_LOG_CHANNEL` for custom log channels
+
+### 🔄 Changed
+
+- All logging now uses consistent `log()` method instead of direct `logger()` calls
+- Log channel is configurable (defaults to `'payments'`, falls back to default Laravel channel)
+- Health endpoint now requires authentication/IP whitelisting in production (configurable)
+- Webhook requests validate payload size before processing
+
+### 🧪 Testing
+
+- Updated test suite to work with `final` classes (917 tests, 1,808 assertions)
+- Added tests for metadata sanitization
+- Enhanced security test coverage
+
+### 📚 Documentation
+
+- Updated logging documentation with configurable channel details
+- Enhanced security guide with new features
+- Streamlined contributing guidelines
+
+---
 ## [1.3.0] - 2025-12-14
 
 ### ✅ Added

@@ -12,20 +12,16 @@ use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
 use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 use KenDeNigerian\PayZephyr\Http\Controllers\WebhookController;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
+use KenDeNigerian\PayZephyr\Http\Middleware\HealthEndpointMiddleware;
 use KenDeNigerian\PayZephyr\Services\ChannelMapper;
 use KenDeNigerian\PayZephyr\Services\DriverFactory;
+use KenDeNigerian\PayZephyr\Services\MetadataSanitizer;
 use KenDeNigerian\PayZephyr\Services\ProviderDetector;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
-/**
- * Service Provider for PayZephyr package.
- */
 final class PaymentServiceProvider extends ServiceProvider
 {
-    /**
-     * Register application services.
-     */
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/payments.php', 'payments');
@@ -39,6 +35,7 @@ final class PaymentServiceProvider extends ServiceProvider
         $this->app->singleton(StatusNormalizer::class);
         $this->app->singleton(ProviderDetector::class);
         $this->app->singleton(ChannelMapper::class);
+        $this->app->singleton(MetadataSanitizer::class);
 
         $this->app->singleton(DriverFactory::class);
 
@@ -54,9 +51,6 @@ final class PaymentServiceProvider extends ServiceProvider
         });
     }
 
-    /**
-     * Bootstrap application services.
-     */
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
@@ -80,9 +74,6 @@ final class PaymentServiceProvider extends ServiceProvider
         $this->registerWebhookStatusMappings();
     }
 
-    /**
-     * Register routes.
-     */
     protected function registerRoutes(): void
     {
         if (! $this->app->routesAreCached()) {
@@ -98,6 +89,10 @@ final class PaymentServiceProvider extends ServiceProvider
                 Route::post('/{provider}', [WebhookController::class, 'handle'])
                     ->name('payments.webhook');
             });
+
+            $healthConfig = $config['health_check'] ?? [];
+            $healthMiddleware = $healthConfig['middleware'] ?? [];
+            $healthMiddleware[] = HealthEndpointMiddleware::class;
 
             Route::get('/payments/health', function (PaymentManager $manager) {
                 $providers = [];
@@ -124,13 +119,10 @@ final class PaymentServiceProvider extends ServiceProvider
                     'status' => 'operational',
                     'providers' => $providers,
                 ]);
-            })->middleware('api')->name('payments.health');
+            })->middleware(array_merge(['api'], $healthMiddleware))->name('payments.health');
         }
     }
 
-    /**
-     * Configure model table name.
-     */
     protected function configureModel(): void
     {
         $config = app('payments.config') ?? config('payments', []);
@@ -138,9 +130,6 @@ final class PaymentServiceProvider extends ServiceProvider
         PaymentTransaction::setTableName($tableName);
     }
 
-    /**
-     * Register webhook status mappings.
-     */
     protected function registerWebhookStatusMappings(): void
     {
         $normalizer = $this->app->make(StatusNormalizerInterface::class);

@@ -6,9 +6,6 @@ namespace KenDeNigerian\PayZephyr\Services;
 
 use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 
-/**
- * Status normalizer service.
- */
 final class StatusNormalizer implements StatusNormalizerInterface
 {
     /** @var array<string, array<string, string>> */
@@ -28,9 +25,6 @@ final class StatusNormalizer implements StatusNormalizerInterface
         ],
     ];
 
-    /**
-     * Normalize status.
-     */
     public function normalize(string $status, ?string $provider = null): string
     {
         $status = strtoupper(trim($status));
@@ -53,11 +47,6 @@ final class StatusNormalizer implements StatusNormalizerInterface
         return strtolower($status);
     }
 
-    /**
-     * Register provider mappings.
-     *
-     * @param  array<string, array<string>>  $mappings
-     */
     public function registerProviderMappings(string $provider, array $mappings): self
     {
         $this->providerMappings[$provider] = $mappings;
@@ -65,29 +54,16 @@ final class StatusNormalizer implements StatusNormalizerInterface
         return $this;
     }
 
-    /**
-     * Get provider mappings.
-     *
-     * @return array<string, array<string, string>>
-     */
     public function getProviderMappings(): array
     {
         return $this->providerMappings;
     }
 
-    /**
-     * Get default mappings.
-     *
-     * @return array<string, array<string>>
-     */
     public function getDefaultMappings(): array
     {
         return $this->defaultMappings;
     }
 
-    /**
-     * Normalize status statically.
-     */
     public static function normalizeStatic(string $status): string
     {
         $status = strtoupper(trim($status));

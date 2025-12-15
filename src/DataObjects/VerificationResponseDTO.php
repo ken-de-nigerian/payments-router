@@ -8,9 +8,6 @@ use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
-/**
- * VerificationResponseDTO - Payment Verification Responses
- */
 final readonly class VerificationResponseDTO
 {
     public function __construct(
@@ -27,9 +24,6 @@ final readonly class VerificationResponseDTO
         public ?array $customer = null,
     ) {}
 
-    /**
-     * Get normalized status using StatusNormalizer.
-     */
     protected function getNormalizedStatus(): string
     {
         try {
@@ -44,9 +38,6 @@ final readonly class VerificationResponseDTO
         return StatusNormalizer::normalizeStatic($this->status);
     }
 
-    /**
-     * Create from array
-     */
     public static function fromArray(array $data): VerificationResponseDTO
     {
         return new self(
@@ -64,9 +55,6 @@ final readonly class VerificationResponseDTO
         );
     }
 
-    /**
-     * Convert to array
-     */
     public function toArray(): array
     {
         return [
@@ -84,9 +72,6 @@ final readonly class VerificationResponseDTO
         ];
     }
 
-    /**
-     * Check if payment was successful
-     */
     public function isSuccessful(): bool
     {
         $normalizedStatus = $this->getNormalizedStatus();
@@ -95,9 +80,6 @@ final readonly class VerificationResponseDTO
         return $status?->isSuccessful() ?? false;
     }
 
-    /**
-     * Check if payment failed
-     */
     public function isFailed(): bool
     {
         $normalizedStatus = $this->getNormalizedStatus();
@@ -106,9 +88,6 @@ final readonly class VerificationResponseDTO
         return $status?->isFailed() ?? false;
     }
 
-    /**
-     * Check if payment is pending
-     */
     public function isPending(): bool
     {
         $normalizedStatus = $this->getNormalizedStatus();

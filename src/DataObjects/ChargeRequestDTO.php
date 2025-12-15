@@ -7,9 +7,6 @@ namespace KenDeNigerian\PayZephyr\DataObjects;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
-/**
- * ChargeRequestDTO - Payment Request Data Object
- */
 final readonly class ChargeRequestDTO
 {
     public function __construct(
@@ -30,10 +27,7 @@ final readonly class ChargeRequestDTO
     }
 
     /**
-     * Check that all required payment data is valid.
-     * Makes sure amount is positive, email is valid, currency is three letters, etc.
-     *
-     * @throws InvalidArgumentException If any data is invalid.
+     * @throws InvalidArgumentException
      */
     private function validate(): void
     {
@@ -70,9 +64,6 @@ final readonly class ChargeRequestDTO
         }
     }
 
-    /**
-     * Enhanced email validation (RFC 5322 compliant)
-     */
     private function isValidEmail(string $email): bool
     {
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -105,9 +96,6 @@ final readonly class ChargeRequestDTO
         return true;
     }
 
-    /**
-     * Validate URL format
-     */
     private function isValidUrl(string $url): bool
     {
         if (! filter_var($url, FILTER_VALIDATE_URL)) {
@@ -123,36 +111,16 @@ final readonly class ChargeRequestDTO
         return true;
     }
 
-    /**
-     * Validate reference format (alphanumeric, underscore, hyphen)
-     */
     private function isValidReference(string $reference): bool
     {
         return preg_match('/^[a-zA-Z0-9_-]{1,255}$/', $reference) === 1;
     }
 
-    /**
-     * Convert the amount to the smallest currency unit (cents, kobo, etc.).
-     *
-     * Payment providers need amounts in the smallest unit:
-     * - $100.00 becomes 10,000 cents
-     * - ₦100.00 becomes 10,000 kobos
-     *
-     * This method rounds to avoid floating-point precision issues.
-     *
-     * @return int Amount in minor units (always an integer)
-     */
     public function getAmountInMinorUnits(): int
     {
         return (int) round($this->amount * 100);
     }
 
-    /**
-     * Create from array
-     *
-     * Automatically generates an idempotency key if one is not provided
-     * to ensure consistent key formatting across all providers.
-     */
     public static function fromArray(array $data): ChargeRequestDTO
     {
         $amount = isset($data['amount']) ? round((float) $data['amount'], 2) : 0.0;
@@ -175,20 +143,11 @@ final readonly class ChargeRequestDTO
         );
     }
 
-    /**
-     * Generate a unique idempotency key.
-     *
-     * Uses UUID v4 format for maximum uniqueness and compatibility
-     * across all payment providers.
-     */
     protected static function generateIdempotencyKey(): string
     {
         return Str::uuid()->toString();
     }
 
-    /**
-     * Convert to array
-     */
     public function toArray(): array
     {
         return [

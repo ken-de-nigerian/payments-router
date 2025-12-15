@@ -3,7 +3,7 @@
 ## Table of Contents
 
 1. [Introduction](#introduction)
-2. [Installation & Setup](#installation--setup)
+2. [Installation](#installation)
 3. [Configuration](#configuration)
 4. [Basic Usage](#basic-usage)
 5. [Advanced Usage](#advanced-usage)
@@ -40,44 +40,14 @@ It provides a clean, fluent API for processing payments across different provide
 
 ---
 
-## Installation & Setup
-
-### Requirements
-
-- PHP 8.2 or higher
-- Laravel 10.x, 11.x, or 12.x
-- Composer
-
-### Installation
+## Installation
 
 ```bash
 composer require kendenigerian/payzephyr
-```
-
-### Run Install Command
-
-```bash
 php artisan payzephyr:install
 ```
 
-This command automatically:
-- Publishes the configuration file (`config/payments.php`)
-- Publishes migration files
-- Optionally runs migrations (you'll be prompted)
-
-**Force overwrite existing files:**
-```bash
-php artisan payzephyr:install --force
-```
-
-> **💡 Alternative Manual Setup:** If you prefer to set up manually:
-> ```bash
-> php artisan vendor:publish --tag=payments-config
-> php artisan vendor:publish --tag=payments-migrations
-> php artisan migrate
-> ```
-
-This creates the `payment_transactions` table for automatic transaction logging.
+Requirements: PHP 8.2+, Laravel 10.x/11.x/12.x
 
 ---
 
@@ -136,7 +106,7 @@ OPAY_ENABLED=false
 
 # Mollie (Required: api_key; Optional: webhook_secret for signature validation)
 MOLLIE_API_KEY=test_xxx
-MOLLIE_WEBHOOK_SECRET=4Js3DqVSKFMUvkbGzcvjuA5GcHG3MVBM
+MOLLIE_WEBHOOK_SECRET=xxxxx
 MOLLIE_ENABLED=false
 
 # Optional Settings
@@ -340,16 +310,16 @@ If no channels are specified, each provider uses its default payment methods.
 
 ### Supported Providers
 
-| Provider        | Charge | Verify | Webhooks | Currencies                        | Special Features                |
-|-----------------|:------:|:------:|:--------:|-----------------------------------|---------------------------------|
-| **Paystack**    |   ✅    |   ✅    |    ✅     | NGN, GHS, ZAR, USD                | USSD, Bank Transfer             |
-| **Flutterwave** |   ✅    |   ✅    |    ✅     | NGN, USD, EUR, GBP, KES, UGX, TZS | Mobile Money, MPESA             |
-| **Monnify**     |   ✅    |   ✅    |    ✅     | NGN                               | Bank Transfer, Dynamic Accounts |
-| **Stripe**      |   ✅    |   ✅    |    ✅     | 135+ currencies                   | Apple Pay, Google Pay, SCA      |
-| **PayPal**      |   ✅    |   ✅    |    ✅     | USD, EUR, GBP, CAD, AUD           | PayPal Balance, Credit          |
-| **Square**      |   ✅    |   ✅    |    ✅     | USD, CAD, GBP, AUD                | Online Checkout, Payment Links  |
-| **OPay**        |   ✅    |   ✅    |    ✅     | NGN                               | Card, Bank Transfer, USSD       |
-| **Mollie**      |   ✅    |   ✅    |    ✅     | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ | iDEAL, Card, Bank Transfer      |
+| Provider    | Charge | Verify | Webhooks | Currencies                                            | Features                        |
+|-------------|:------:|:------:|:--------:|-------------------------------------------------------|---------------------------------|
+| Paystack    |   ✅    |   ✅    |    ✅     | NGN, GHS, ZAR, USD                                    | USSD, Bank Transfer             |
+| Flutterwave |   ✅    |   ✅    |    ✅     | NGN, USD, EUR, GBP, KES, UGX, TZS                     | Mobile Money, MPESA             |
+| Monnify     |   ✅    |   ✅    |    ✅     | NGN                                                   | Bank Transfer, Dynamic Accounts |
+| Stripe      |   ✅    |   ✅    |    ✅     | 135+ currencies                                       | Apple Pay, Google Pay, SCA      |
+| PayPal      |   ✅    |   ✅    |    ✅     | USD, EUR, GBP, CAD, AUD                               | PayPal Balance, Credit          |
+| Square      |   ✅    |   ✅    |    ✅     | USD, CAD, GBP, AUD                                    | Online Checkout, Payment Links  |
+| OPay        |   ✅    |   ✅    |    ✅     | NGN                                                   | Card, Bank Transfer, USSD       |
+| Mollie      |   ✅    |   ✅    |    ✅     | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ | iDEAL, Card, Bank Transfer      |
 
 ### Provider-Specific Configuration
 
@@ -359,7 +329,7 @@ Each provider has specific configuration requirements. See the [Provider Details
 
 ## Webhooks
 
-**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system. You must run queue workers for webhooks to be processed. See [Queue Worker Setup](webhooks.md#-queue-worker-setup-required) for details.**
+**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system. You must run queue workers for webhooks to be processed. See [Queue Workers](webhooks.md#queue-workers-required) for details.**
 
 ### Webhook URLs
 

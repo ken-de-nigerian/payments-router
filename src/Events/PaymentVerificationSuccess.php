@@ -8,15 +8,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 
-/**
- * Payment verification success event.
- *
- * Dispatched after a successful verify() operation that results in a successful state.
- * This provides a clean hook for the host application to run business logic
- * (e.g., sending confirmation emails, updating order status, fulfilling products)
- * immediately after successful payment verification.
- */
-class PaymentVerificationSuccess
+final class PaymentVerificationSuccess
 {
     use Dispatchable, SerializesModels;
 

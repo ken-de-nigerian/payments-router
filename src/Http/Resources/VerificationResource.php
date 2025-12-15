@@ -8,10 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 
-/**
- * Verification response resource.
- */
-class VerificationResource extends JsonResource
+final class VerificationResource extends JsonResource
 {
     /**
      * Transform resource to array.

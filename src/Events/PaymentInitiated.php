@@ -9,15 +9,7 @@ use Illuminate\Queue\SerializesModels;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 
-/**
- * Payment initiated event.
- *
- * Dispatched after a successful charge() operation, before returning ChargeResponseDTO.
- * This provides a clean hook for the host application to run business logic
- * (e.g., sending email confirmations, updating inventory, notifying internal systems)
- * immediately after payment initialization.
- */
-class PaymentInitiated
+final class PaymentInitiated
 {
     use Dispatchable, SerializesModels;
 

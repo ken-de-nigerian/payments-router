@@ -6,12 +6,10 @@ namespace KenDeNigerian\PayZephyr\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\PaymentManager;
 use Throwable;
 
-/**
- * Webhook request validation.
- */
 class WebhookRequest extends FormRequest
 {
     /**
@@ -20,7 +18,33 @@ class WebhookRequest extends FormRequest
     public function authorize(): bool
     {
         $config = app('payments.config') ?? config('payments', []);
-        if (! ($config['webhook']['verify_signature'] ?? true)) {
+        $webhookConfig = $config['webhook'] ?? [];
+
+        $maxPayloadSize = $webhookConfig['max_payload_size'] ?? 1048576;
+        $contentLength = $this->header('Content-Length');
+        $bodySize = strlen($this->getContent());
+
+        if ($contentLength && (int) $contentLength > $maxPayloadSize) {
+            $this->log('warning', 'Webhook payload size exceeds limit', [
+                'size' => $contentLength,
+                'max' => $maxPayloadSize,
+                'ip' => $this->ip(),
+            ]);
+
+            return false;
+        }
+
+        if ($bodySize > $maxPayloadSize) {
+            $this->log('warning', 'Webhook payload size exceeds limit', [
+                'size' => $bodySize,
+                'max' => $maxPayloadSize,
+                'ip' => $this->ip(),
+            ]);
+
+            return false;
+        }
+
+        if (! ($webhookConfig['verify_signature'] ?? true)) {
             return true;
         }
 
@@ -35,12 +59,24 @@ class WebhookRequest extends FormRequest
                 $this->getContent()
             );
         } catch (Throwable $e) {
-            logger()->warning("Webhook authorization failed for provider [$provider]", [
+            $this->log('warning', "Webhook authorization failed for provider [$provider]", [
                 'error' => $e->getMessage(),
                 'ip' => $this->ip(),
             ]);
 
             return false;
+        }
+    }
+
+    protected function log(string $level, string $message, array $context = []): void
+    {
+        $config = app('payments.config') ?? config('payments', []);
+        $channelName = $config['logging']['channel'] ?? 'payments';
+
+        try {
+            Log::channel($channelName)->{$level}($message, $context);
+        } catch (\InvalidArgumentException) {
+            Log::{$level}($message, $context);
         }
     }
 

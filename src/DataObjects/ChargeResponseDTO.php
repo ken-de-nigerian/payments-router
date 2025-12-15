@@ -8,9 +8,6 @@ use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
 use Throwable;
 
-/**
- * ChargeResponseDTO - Payment Initialization Response
- */
 final readonly class ChargeResponseDTO
 {
     public function __construct(
@@ -22,9 +19,6 @@ final readonly class ChargeResponseDTO
         public ?string $provider = null,
     ) {}
 
-    /**
-     * Get normalized status using StatusNormalizer.
-     */
     protected function getNormalizedStatus(): string
     {
         try {
@@ -39,9 +33,6 @@ final readonly class ChargeResponseDTO
         return StatusNormalizer::normalizeStatic($this->status);
     }
 
-    /**
-     * Create from array
-     */
     public static function fromArray(array $data): ChargeResponseDTO
     {
         return new self(
@@ -54,9 +45,6 @@ final readonly class ChargeResponseDTO
         );
     }
 
-    /**
-     * Convert to array
-     */
     public function toArray(): array
     {
         return [
@@ -69,9 +57,6 @@ final readonly class ChargeResponseDTO
         ];
     }
 
-    /**
-     * Check if the payment was successfully created and is ready for the customer to pay.
-     */
     public function isSuccessful(): bool
     {
         $normalizedStatus = $this->getNormalizedStatus();
@@ -80,9 +65,6 @@ final readonly class ChargeResponseDTO
         return $status?->isSuccessful() ?? false;
     }
 
-    /**
-     * Check if the payment is still waiting for the customer to complete it.
-     */
     public function isPending(): bool
     {
         $normalizedStatus = $this->getNormalizedStatus();

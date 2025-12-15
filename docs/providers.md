@@ -269,15 +269,15 @@ Payment::amount(10000)
 
 ## Currency Support Matrix
 
-| Provider    | NGN | USD | EUR | GBP | KES |       Other        |
-|-------------|:---:|:---:|:---:|:---:|:---:|:------------------:|
-| Paystack    |  ✅  |  ✅  |  ❌  |  ❌  |  ❌  |      GHS, ZAR      |
-| Flutterwave |  ✅  |  ✅  |  ✅  |  ✅  |  ✅  | UGX, TZS, GHS, ZAR |
-| Monnify     |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
-| Stripe      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |        135+        |
-| PayPal      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  |      CAD, AUD      |
-| Square      |  ❌  |  ✅  |  ❌  |  ✅  |  ❌  |      CAD, AUD      |
-| OPay        |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  |         -          |
+| Provider    | NGN | USD | EUR | GBP | KES | Other Currencies                       |
+|-------------|:---:|:---:|:---:|:---:|:---:|----------------------------------------|
+| Paystack    |  ✅  |  ✅  |  ❌  |  ❌  |  ❌  | GHS, ZAR                               |
+| Flutterwave |  ✅  |  ✅  |  ✅  |  ✅  |  ✅  | UGX, TZS, GHS, ZAR                     |
+| Monnify     |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  | -                                      |
+| Stripe      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  | 135+ currencies                        |
+| PayPal      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  | CAD, AUD                               |
+| Square      |  ❌  |  ✅  |  ❌  |  ✅  |  ❌  | CAD, AUD                               |
+| OPay        |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  | -                                      |
 | Mollie      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  | CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
 
 ---

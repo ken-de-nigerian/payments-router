@@ -12,14 +12,8 @@ use KenDeNigerian\PayZephyr\Http\Requests\WebhookRequest;
 use KenDeNigerian\PayZephyr\Jobs\ProcessWebhook;
 use Throwable;
 
-/**
- * Webhook controller.
- */
 final class WebhookController extends Controller
 {
-    /**
-     * Handle webhook request.
-     */
     public function handle(WebhookRequest $request, string $provider): JsonResponse
     {
         try {
@@ -42,13 +36,13 @@ final class WebhookController extends Controller
         }
     }
 
-    /**
-     * Log message, using payments channel if available, otherwise default channel.
-     */
     protected function log(string $level, string $message, array $context = []): void
     {
+        $config = app('payments.config') ?? config('payments', []);
+        $channelName = $config['logging']['channel'] ?? 'payments';
+
         try {
-            Log::channel('payments')->{$level}($message, $context);
+            Log::channel($channelName)->{$level}($message, $context);
         } catch (InvalidArgumentException) {
             Log::{$level}($message, $context);
         }

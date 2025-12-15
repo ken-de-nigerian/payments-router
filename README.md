@@ -15,13 +15,14 @@ A unified payment abstraction layer for Laravel that supports multiple payment p
 - **Automatic Fallback**: Seamlessly switch to back-up providers if primary fails
 - **Fluent API**: Clean, expressive syntax for payment operations
 - **Idempotency Support**: Prevent duplicate charges with unique keys across supported providers
-- **Webhook Security**: Secure signature validation and replay attack prevention for all providers
-- **Transaction Logging**: Automatic database logging with status tracking
+- **Webhook Security**: Secure signature validation, replay attack prevention, and payload size limits
+- **Transaction Logging**: Automatic database logging with configurable log channels
+- **Data Sanitization**: Automatic XSS protection for metadata and customer data
 - **Multi-Currency Support**: Support for provider-specific currencies (Stripe supports 135+ currencies)
 - **Health Checks**: Automatic provider availability monitoring
-- **Production Ready**: Comprehensive error handling and security features
-- **Well Tested**: Full test coverage with Pest PHP (90%+ coverage)
-- **Type Safe**: Strict PHP 8.2+ typing throughout
+- **Production Ready**: Comprehensive error handling, security features, and final classes for stability
+- **Well Tested**: Full test coverage with Pest PHP (917 tests, 1,808 assertions)
+- **Type Safe**: Strict PHP 8.2+ typing with readonly DTOs and final classes
 
 ⚠️ **Provider-Specific:**
 - Currency support varies by provider (see [Provider Details](docs/providers.md))
@@ -86,6 +87,10 @@ STRIPE_ENABLED=false
 PAYMENTS_RATE_LIMIT_ENABLED=true
 PAYMENTS_RATE_LIMIT_ATTEMPTS=10
 PAYMENTS_WEBHOOK_TIMESTAMP_TOLERANCE=300
+PAYMENTS_WEBHOOK_MAX_PAYLOAD_SIZE=1048576
+
+# Optional Logging
+PAYMENTS_LOG_CHANNEL=payments
 ```
 
 **📖 See [Configuration Guide](docs/DOCUMENTATION.md#configuration) for complete details.**
@@ -270,7 +275,7 @@ public function handle(array $payload): void
 
 ## 🔔 Webhooks
 
-**⚠️ Important: Webhooks require queue workers. See [Queue Worker Setup](docs/webhooks.md#-queue-worker-setup-required)**
+**⚠️ Important: Webhooks require queue workers. See [Queue Workers](docs/webhooks.md#queue-workers-required)**
 
 ### Webhook URLs
 
@@ -341,16 +346,16 @@ class HandlePaystackWebhook
 
 ## 🏦 Supported Providers
 
-| Provider        | Charge | Verify | Webhooks | Idempotency | Channels | Currencies                        |
-|-----------------|:------:|:------:|:--------:|:-----------:|:--------:|-----------------------------------|
-| **Paystack**    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD                |
-| **Flutterwave** |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | NGN, USD, EUR, GBP, KES, UGX, TZS |
-| **Monnify**     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN                               |
-| **Stripe**      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies                   |
-| **PayPal**      |   ✅    |   ✅    |    ✅     |      ✅      |    1     | USD, EUR, GBP, CAD, AUD           |
-| **Square**      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD                |
-| **OPay**        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN                               |
-| **Mollie**      |   ✅    |   ✅    |    ✅     |      ✅      |    10+   | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
+| Provider    | Charge | Verify | Webhooks | Idempotency | Channels | Currencies                                            |
+|-------------|:------:|:------:|:--------:|:-----------:|:--------:|-------------------------------------------------------|
+| Paystack    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD                                    |
+| Flutterwave |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | NGN, USD, EUR, GBP, KES, UGX, TZS                     |
+| Monnify     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN                                                   |
+| Stripe      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies                                       |
+| PayPal      |   ✅    |   ✅    |    ✅     |      ✅      |    1     | USD, EUR, GBP, CAD, AUD                               |
+| Square      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD                                    |
+| OPay        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN                                                   |
+| Mollie      |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
 
 **Notes:**
 - ✅ = Fully supported
@@ -752,33 +757,24 @@ Key areas for contribution:
 
 Please see [CHANGELOG.md](docs/CHANGELOG.md) for recent changes.
 
-### Latest Release: v1.3.0
+### Latest Release: v1.4.0
 
-#### 🔧 Code Quality Improvements
-- Fixed all PHPStan static analysis errors
-- Improved type safety across the codebase
-- Enhanced code quality and maintainability
-- Added comprehensive test coverage improvements (855 tests, 1,707 assertions)
-- Better IDE support with enhanced PHPDoc annotations
+#### 🔒 Security Enhancements
+- **Metadata Sanitization**: Automatic XSS protection for metadata and customer data
+- **Health Endpoint Security**: IP whitelisting and token authentication
+- **Webhook Payload Limits**: Configurable size limits to prevent DoS attacks
 
-#### 🔒 Security Enhancements (v1.2.0)
-- **CRITICAL:** SQL injection prevention in table name validation
-- **CRITICAL:** Webhook replay attack prevention with timestamp validation (all drivers)
-- **CRITICAL:** Multi-tenant cache isolation
-- **HIGH:** Automatic log sanitization for sensitive data
-- **HIGH:** Rate limiting for payment initialization
-- Enhanced input validation (email, URL, reference format)
+#### 🔧 Code Quality
+- **Final Classes**: Core classes marked as `final` for better encapsulation
+- **Readonly DTOs**: Immutable data transfer objects
+- **Consistent Logging**: Unified `log()` method across all classes
+- **Configurable Log Channel**: Customize via `PAYMENTS_LOG_CHANNEL`
+- **Streamlined Documentation**: Minimized docblocks for better readability
 
-#### ✅ Added
-- Security configuration section in config
-- Comprehensive security test suite (85+ tests)
-- Security guide documentation
-- Enhanced webhook timestamp validation for all providers
-
-#### 📚 Documentation
-- Added comprehensive [Security Guide](docs/SECURITY.md)
-- Updated all documentation with security best practices
-- Enhanced troubleshooting section
+#### 📊 Testing
+- **917 tests passing** with **1,808 assertions**
+- Updated test suite to work with final classes
+- Enhanced security test coverage
 
 See [CHANGELOG.md](docs/CHANGELOG.md) for complete details.
 

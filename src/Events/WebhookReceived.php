@@ -7,10 +7,7 @@ namespace KenDeNigerian\PayZephyr\Events;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-/**
- * Webhook received event.
- */
-class WebhookReceived
+final class WebhookReceived
 {
     use Dispatchable, SerializesModels;
 

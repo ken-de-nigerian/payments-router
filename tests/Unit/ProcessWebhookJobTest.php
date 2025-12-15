@@ -73,7 +73,7 @@ test('process webhook job updates transaction when reference exists', function (
         'data' => ['reference' => 'ref_123', 'status' => 'success'],
     ]);
 
-    $manager = Mockery::mock(PaymentManager::class);
+    $manager = app(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookReference')
         ->andReturn('ref_123');
@@ -82,11 +82,10 @@ test('process webhook job updates transaction when reference exists', function (
     $mockDriver->shouldReceive('extractWebhookChannel')
         ->andReturn('card');
 
-    $manager->shouldReceive('driver')
-        ->with('paystack')
-        ->andReturn($mockDriver);
-
-    app()->instance(PaymentManager::class, $manager);
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
 
     $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class));
 
@@ -103,16 +102,15 @@ test('process webhook job handles missing reference gracefully', function () {
         'data' => [],
     ]);
 
-    $manager = Mockery::mock(PaymentManager::class);
+    $manager = app(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookReference')
         ->andReturn(null);
 
-    $manager->shouldReceive('driver')
-        ->with('paystack')
-        ->andReturn($mockDriver);
-
-    app()->instance(PaymentManager::class, $manager);
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
 
     $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class));
 
@@ -132,7 +130,7 @@ test('process webhook job logs processing', function () {
         'data' => ['reference' => 'ref_123'],
     ]);
 
-    $manager = Mockery::mock(PaymentManager::class);
+    $manager = app(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookReference')
         ->andReturn('ref_123');
@@ -141,11 +139,10 @@ test('process webhook job logs processing', function () {
     $mockDriver->shouldReceive('extractWebhookChannel')
         ->andReturn(null);
 
-    $manager->shouldReceive('driver')
-        ->with('paystack')
-        ->andReturn($mockDriver);
-
-    app()->instance(PaymentManager::class, $manager);
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
 
     expect(fn () => $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class)))
         ->not->toThrow(\Exception::class);
@@ -171,7 +168,7 @@ test('process webhook job uses database transactions', function () {
         'data' => ['reference' => 'ref_123'],
     ]);
 
-    $manager = Mockery::mock(PaymentManager::class);
+    $manager = app(PaymentManager::class);
     $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
     $mockDriver->shouldReceive('extractWebhookReference')
         ->andReturn('ref_123');
@@ -180,11 +177,10 @@ test('process webhook job uses database transactions', function () {
     $mockDriver->shouldReceive('extractWebhookChannel')
         ->andReturn(null);
 
-    $manager->shouldReceive('driver')
-        ->with('paystack')
-        ->andReturn($mockDriver);
-
-    app()->instance(PaymentManager::class, $manager);
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
 
     $job->handle($manager, app(\KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface::class));
 

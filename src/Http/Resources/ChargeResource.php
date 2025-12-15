@@ -8,10 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 
-/**
- * Charge response resource.
- */
-class ChargeResource extends JsonResource
+final class ChargeResource extends JsonResource
 {
     /**
      * Transform resource to array.

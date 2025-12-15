@@ -6,12 +6,6 @@ namespace KenDeNigerian\PayZephyr\Services;
 
 use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
 
-/**
- * Provider detector service.
- *
- * This service dynamically builds its list of known reference prefixes
- * based on the enabled providers defined in the configuration.
- */
 final class ProviderDetector implements ProviderDetectorInterface
 {
     /** @var array<string, string> */
@@ -22,15 +16,6 @@ final class ProviderDetector implements ProviderDetectorInterface
         $this->prefixes = $this->loadPrefixesFromConfig();
     }
 
-    /**
-     * Dynamically loads default prefixes based on all providers in config.
-     *
-     * Note: We load all providers (not just enabled ones) because we need to
-     * detect which provider a reference belongs to, regardless of whether
-     * that provider is currently enabled for payments.
-     *
-     * @return array<string, string>
-     */
     protected function loadPrefixesFromConfig(): array
     {
         $config = app('payments.config') ?? config('payments', []);
@@ -45,9 +30,6 @@ final class ProviderDetector implements ProviderDetectorInterface
         return $prefixes;
     }
 
-    /**
-     * Detect provider from reference.
-     */
     public function detectFromReference(string $reference): ?string
     {
         $upperReference = strtoupper($reference);
@@ -61,9 +43,6 @@ final class ProviderDetector implements ProviderDetectorInterface
         return null;
     }
 
-    /**
-     * Register provider prefix.
-     */
     public function registerPrefix(string $prefix, string $provider): self
     {
         $this->prefixes[strtoupper($prefix)] = $provider;
@@ -71,11 +50,6 @@ final class ProviderDetector implements ProviderDetectorInterface
         return $this;
     }
 
-    /**
-     * Get registered prefixes.
-     *
-     * @return array<string, string>
-     */
     public function getPrefixes(): array
     {
         return $this->prefixes;

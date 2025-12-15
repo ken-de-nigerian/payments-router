@@ -85,17 +85,29 @@ PayZephyr logs the following events:
 
 ## Custom Log Channel
 
-If you prefer a different channel name, you can configure it in `config/payments.php`:
+You can configure a custom log channel name via environment variable or config:
 
+**Option 1: Environment Variable (Recommended)**
+```env
+PAYMENTS_LOG_CHANNEL=custom-payments
+```
+
+**Option 2: Config File**
 ```php
+// config/payments.php
 'logging' => [
     'enabled' => true,
-    'channel' => 'custom-payments', // Use your custom channel name
+    'channel' => 'custom-payments',
     'table' => 'payment_transactions',
 ],
 ```
 
-Then update your logging configuration accordingly.
+**Using Default Laravel Logging:**
+```env
+PAYMENTS_LOG_CHANNEL=stack
+```
+
+If the configured channel doesn't exist, PayZephyr automatically falls back to Laravel's default logging channel.
 
 ## Disabling Logging
 

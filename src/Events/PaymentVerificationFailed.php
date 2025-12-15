@@ -8,15 +8,7 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 
-/**
- * Payment verification failed event.
- *
- * Dispatched after a successful verify() operation that results in a failed state.
- * This provides a clean hook for the host application to run business logic
- * (e.g., sending failure notifications, updating order status, handling refunds)
- * immediately after failed payment verification.
- */
-class PaymentVerificationFailed
+final class PaymentVerificationFailed
 {
     use Dispatchable, SerializesModels;
 

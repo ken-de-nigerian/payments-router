@@ -141,6 +141,7 @@ return [
         'path' => env('PAYMENTS_WEBHOOK_PATH', '/payments/webhook'),
         'verify_signature' => env('PAYMENTS_WEBHOOK_VERIFY_SIGNATURE', true),
         'rate_limit' => env('PAYMENTS_WEBHOOK_RATE_LIMIT', '120,1'), // requests per minute
+        'max_payload_size' => env('PAYMENTS_WEBHOOK_MAX_PAYLOAD_SIZE', 1048576), // 1MB in bytes
     ],
 
     /*
@@ -149,10 +150,14 @@ return [
     |--------------------------------------------------------------------------
     |
     | Cache TTL for health check results (in seconds).
+    | Authentication and IP whitelisting for production security.
     |
     */
     'health_check' => [
         'cache_ttl' => env('PAYMENTS_HEALTH_CHECK_CACHE_TTL', 300), // 5 minutes
+        'require_auth' => env('PAYMENTS_HEALTH_CHECK_REQUIRE_AUTH', false),
+        'allowed_ips' => env('PAYMENTS_HEALTH_CHECK_ALLOWED_IPS') ? explode(',', env('PAYMENTS_HEALTH_CHECK_ALLOWED_IPS')) : [],
+        'allowed_tokens' => env('PAYMENTS_HEALTH_CHECK_ALLOWED_TOKENS') ? explode(',', env('PAYMENTS_HEALTH_CHECK_ALLOWED_TOKENS')) : [],
     ],
 
     /*
@@ -166,6 +171,7 @@ return [
     'logging' => [
         'enabled' => env('PAYMENTS_LOGGING_ENABLED', true),
         'table' => 'payment_transactions',
+        'channel' => env('PAYMENTS_LOG_CHANNEL', 'payments'),
     ],
 
     /*

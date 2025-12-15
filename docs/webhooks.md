@@ -1,153 +1,59 @@
-# Webhooks Guide - Complete Beginner's Tutorial
+# Webhooks
 
-## What Are Webhooks? 🤔
+Webhooks are notifications from payment providers to your application.
 
-Think of webhooks as **notifications** from payment providers to your application.
+## Routes
 
-**Here's the flow:**
-1. Customer clicks "Pay Now" on your website
-2. They get redirected to Paystack/Stripe/etc. to complete payment
-3. Customer pays successfully
-4. **Payment provider sends a webhook** (a POST request) to your server saying "Hey! Payment completed!"
-5. Your app receives the webhook and updates the order status, sends confirmation email, etc.
+Routes are automatically created:
+- `POST /payments/webhook/paystack`
+- `POST /payments/webhook/flutterwave`
+- `POST /payments/webhook/monnify`
+- `POST /payments/webhook/stripe`
+- `POST /payments/webhook/paypal`
+- `POST /payments/webhook/square`
+- `POST /payments/webhook/opay`
+- `POST /payments/webhook/mollie`
 
-**Why webhooks?** Because sometimes customers close their browser before returning to your site. Webhooks ensure you always know when a payment succeeds, even if the customer never comes back.
+## Flow
 
----
+1. Provider sends webhook → Controller verifies signature
+2. Webhook queued → Returns 202 Accepted
+3. Queue worker processes → Updates database → Fires events
 
-## How Webhooks Work in This Package
+**⚠️ Queue workers must be running for webhooks to process.**
 
-### Step 1: Routes Are Automatically Set Up ✅
+## Configuration
 
-When you install this package, webhook routes are automatically created for all providers:
+### Provider Dashboards
 
-```
-POST /payments/webhook/paystack     ← Paystack sends webhooks here
-POST /payments/webhook/flutterwave  ← Flutterwave sends webhooks here
-POST /payments/webhook/monnify      ← Monnify sends webhooks here
-POST /payments/webhook/stripe       ← Stripe sends webhooks here
-POST /payments/webhook/paypal       ← PayPal sends webhooks here
-POST /payments/webhook/square       ← Square sends webhooks here
-POST /payments/webhook/opay         ← OPay sends webhooks here
-POST /payments/webhook/mollie       ← Mollie sends webhooks here
-```
+Add webhook URLs in each provider's dashboard:
+- Paystack: `https://yourdomain.com/payments/webhook/paystack`
+- Flutterwave: `https://yourdomain.com/payments/webhook/flutterwave`
+- Monnify: `https://yourdomain.com/payments/webhook/monnify`
+- Stripe: `https://yourdomain.com/payments/webhook/stripe`
+- PayPal: `https://yourdomain.com/payments/webhook/paypal`
+- Square: `https://yourdomain.com/payments/webhook/square`
+- OPay: `https://yourdomain.com/payments/webhook/opay`
+- Mollie: `https://yourdomain.com/payments/webhook/mollie`
 
-**You don't need to create these routes manually - they're already there!**
-
-### Step 2: What Happens When a Webhook Arrives
-
-**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system!**
-
-Here's the complete flow when a payment provider sends a webhook:
-
-```
-1. Payment Provider → POST /payments/webhook/paystack
-                    ↓
-2. WebhookController receives the request
-                    ↓
-3. Controller verifies the webhook signature (security check)
-   - Makes sure it's really from Paystack, not a hacker
-                    ↓
-4. Controller queues the webhook for processing
-   - Dispatches ProcessWebhook job to Laravel's queue
-   - Returns 202 Accepted immediately (fast response to provider)
-                    ↓
-5. Queue Worker picks up the job (if running)
-                    ↓
-6. ProcessWebhook job executes:
-   - Extracts payment reference from webhook data
-   - Updates payment record in your database
-     * Changes status from 'pending' to 'success' or 'failed'
-     * Saves payment method, timestamp, etc.
-   - Fires Laravel events:
-     * 'payments.webhook.paystack' (provider-specific)
-     * 'payments.webhook' (generic, for all providers)
-                    ↓
-7. Your event listeners handle the webhook
-   - Update order status
-   - Send confirmation email
-   - Process the order
-   - Whatever you need!
-```
-
-**🔴 Critical: You MUST run queue workers for webhooks to be processed!**
-
-If queue workers aren't running, webhooks will be queued but never processed. See the "Queue Worker Setup" section below.
-
-### Step 3: Configure Webhook URLs in Provider Dashboards
-
-You need to tell each payment provider where to send webhooks. Go to each provider's dashboard and add these URLs:
-
-**Paystack Dashboard:**
-- Go to: Settings → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/paystack`
-
-**Flutterwave Dashboard:**
-- Go to: Settings → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/flutterwave`
-
-**Monnify Dashboard:**
-- Go to: Settings → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/monnify`
-
-**Stripe Dashboard:**
-- Go to: Developers → Webhooks → Add endpoint
-- Add URL: `https://yourdomain.com/payments/webhook/stripe`
-
-**PayPal Dashboard:**
-- Go to: Developer Dashboard → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/paypal`
-
-**Square Dashboard:**
-- Go to: Developers → Webhooks → Add endpoint
-- Add URL: `https://yourdomain.com/payments/webhook/square`
-- Copy the Signature Key and set it as `SQUARE_WEBHOOK_SIGNATURE_KEY` in your `.env` file
-
-**OPay Dashboard:**
-- Go to: OPay Business Dashboard → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/opay`
-- OPay uses HMAC SHA-256 signature validation
-- Ensure `OPAY_PUBLIC_KEY` is set in your `.env` file
-
-**Mollie Dashboard:**
-- Go to: Developers → Webhooks
-- Add URL: `https://yourdomain.com/payments/webhook/mollie`
-- Select payment events you want to receive
-- Copy the webhook secret and set it as `MOLLIE_WEBHOOK_SECRET` in your `.env` file
-- **Note:** If `MOLLIE_WEBHOOK_SECRET` is not configured, PayZephyr automatically fetches payment details from the Mollie API to verify webhooks (fallback method)
-- Ensure `MOLLIE_API_KEY` is set in your `.env` file
-
-**Important:** 
-- Use `https://` (not `http://`) - most providers require HTTPS
-- Replace `yourdomain.com` with your actual domain
-- For local testing, use ngrok (see "Testing Locally" section below)
-
-### Step 4: Configure Webhook Settings
-
-In your `config/payments.php` file:
+### Config File
 
 ```php
+// config/payments.php
 'webhook' => [
-    'verify_signature' => true,  // ALWAYS keep this true in production!
-    'middleware' => ['api'],
+    'verify_signature' => true, // Always true in production
     'path' => '/payments/webhook',
+    'max_payload_size' => 1048576, // 1MB
 ],
 ```
 
-**What does `verify_signature` do?**
-- It checks that the webhook is really from the payment provider
-- Prevents hackers from sending fake webhooks
-- **Never set this to false in production!**
-
 ---
 
-## ⚙️ Queue Worker Setup (REQUIRED)
+## Queue Workers (Required)
 
-**🔴 CRITICAL: Webhooks are processed asynchronously via Laravel's queue system. You MUST run queue workers for webhooks to be processed!**
+Webhooks are processed asynchronously. Queue workers must be running.
 
-### Why Queues?
-
-Webhooks are queued to:
+### Setup
 - ✅ Respond quickly to payment providers (202 Accepted)
 - ✅ Handle high webhook volumes without blocking
 - ✅ Retry failed webhooks automatically

@@ -84,9 +84,15 @@ test('process webhook job logs error when exception occurs', function () {
 
     $job = new ProcessWebhook('paystack', ['data' => ['reference' => 'TEST_123']]);
 
-    $manager = \Mockery::mock(PaymentManager::class);
-    $manager->shouldReceive('driver')
+    $manager = app(PaymentManager::class);
+    $mockDriver = \Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\DriverInterface::class);
+    $mockDriver->shouldReceive('extractWebhookReference')
         ->andThrow(new \Exception('Driver error'));
+
+    $managerReflection = new \ReflectionClass($manager);
+    $driversProperty = $managerReflection->getProperty('drivers');
+    $driversProperty->setAccessible(true);
+    $driversProperty->setValue($manager, ['paystack' => $mockDriver]);
 
     expect(fn () => $job->handle(
         $manager,

@@ -20,10 +20,7 @@ use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\PaymentManager;
 use Throwable;
 
-/**
- * Process webhook job.
- */
-class ProcessWebhook implements ShouldQueue
+final class ProcessWebhook implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -31,17 +28,11 @@ class ProcessWebhook implements ShouldQueue
 
     public int $backoff = 60;
 
-    /**
-     * @param  array<string, mixed>  $payload
-     */
     public function __construct(
         public readonly string $provider,
         public readonly array $payload
     ) {}
 
-    /**
-     * Execute job.
-     */
     public function handle(PaymentManager $manager, StatusNormalizerInterface $statusNormalizer): void
     {
         try {
@@ -69,9 +60,6 @@ class ProcessWebhook implements ShouldQueue
         }
     }
 
-    /**
-     * Extract reference from payload.
-     */
     protected function extractReference(PaymentManager $manager): ?string
     {
         try {
@@ -81,9 +69,6 @@ class ProcessWebhook implements ShouldQueue
         }
     }
 
-    /**
-     * Update transaction from webhook.
-     */
     protected function updateTransactionFromWebhook(
         PaymentManager $manager,
         StatusNormalizerInterface $statusNormalizer,
@@ -132,9 +117,6 @@ class ProcessWebhook implements ShouldQueue
         }
     }
 
-    /**
-     * Determine status from webhook.
-     */
     protected function determineStatus(PaymentManager $manager, StatusNormalizerInterface $statusNormalizer): string
     {
         try {
@@ -151,13 +133,13 @@ class ProcessWebhook implements ShouldQueue
         }
     }
 
-    /**
-     * Log message, using payments channel if available, otherwise default channel.
-     */
     protected function log(string $level, string $message, array $context = []): void
     {
+        $config = app('payments.config') ?? config('payments', []);
+        $channelName = $config['logging']['channel'] ?? 'payments';
+
         try {
-            Log::channel('payments')->{$level}($message, $context);
+            Log::channel($channelName)->{$level}($message, $context);
         } catch (InvalidArgumentException) {
             Log::{$level}($message, $context);
         }

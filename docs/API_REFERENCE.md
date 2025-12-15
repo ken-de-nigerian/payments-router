@@ -1133,7 +1133,7 @@ return new ChargeResource($response);
         "value": 10000,
         "currency": "NGN"
     },
-    "metadata": {...},
+    "metadata": { },
     "created_at": "2024-01-01T00:00:00Z"
 }
 ```
@@ -1167,7 +1167,7 @@ return new VerificationResource($verification);
         "currency": "NGN"
     },
     "paid_at": "2024-01-01T00:00:00Z",
-    "metadata": {...},
+    "metadata": { },
     "verified_at": "2024-01-01T00:00:00Z"
 }
 ```
