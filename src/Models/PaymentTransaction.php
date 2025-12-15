@@ -9,10 +9,10 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
+use KenDeNigerian\PayZephyr\Traits\LogsToPaymentChannel;
 use Throwable;
 
 /**
@@ -36,6 +36,8 @@ use Throwable;
  */
 final class PaymentTransaction extends Model
 {
+    use LogsToPaymentChannel;
+
     /** @var array<int, string> */
     protected $fillable = [
         'reference',
@@ -70,7 +72,15 @@ final class PaymentTransaction extends Model
 
     protected function isValidTableName(string $tableName): bool
     {
-        return preg_match('/^[a-zA-Z0-9_]{1,64}$/', $tableName) === 1;
+        if (preg_match('/^[a-zA-Z0-9_]{1,64}$/', $tableName) !== 1) {
+            return false;
+        }
+
+        if (preg_match('/^\d/', $tableName) === 1) {
+            return false;
+        }
+
+        return true;
     }
 
     /** @return array<string, string> */
@@ -226,17 +236,5 @@ final class PaymentTransaction extends Model
         $status = PaymentStatus::tryFromString($normalizedStatus);
 
         return $status?->isPending() ?? false;
-    }
-
-    protected function log(string $level, string $message, array $context = []): void
-    {
-        $config = app('payments.config') ?? config('payments', []);
-        $channelName = $config['logging']['channel'] ?? 'payments';
-
-        try {
-            Log::channel($channelName)->{$level}($message, $context);
-        } catch (\InvalidArgumentException) {
-            Log::{$level}($message, $context);
-        }
     }
 }

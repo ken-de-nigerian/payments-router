@@ -142,6 +142,8 @@ return [
         'verify_signature' => env('PAYMENTS_WEBHOOK_VERIFY_SIGNATURE', true),
         'rate_limit' => env('PAYMENTS_WEBHOOK_RATE_LIMIT', '120,1'), // requests per minute
         'max_payload_size' => env('PAYMENTS_WEBHOOK_MAX_PAYLOAD_SIZE', 1048576), // 1MB in bytes
+        'max_retries' => env('PAYMENTS_WEBHOOK_MAX_RETRIES', 3),
+        'retry_backoff' => env('PAYMENTS_WEBHOOK_RETRY_BACKOFF', 60), // seconds
     ],
 
     /*
@@ -172,6 +174,18 @@ return [
         'enabled' => env('PAYMENTS_LOGGING_ENABLED', true),
         'table' => 'payment_transactions',
         'channel' => env('PAYMENTS_LOG_CHANNEL', 'payments'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Cache TTL for session data (in seconds).
+    |
+    */
+    'cache' => [
+        'session_ttl' => env('PAYMENTS_CACHE_SESSION_TTL', 3600), // 1 hour in seconds
     ],
 
     /*

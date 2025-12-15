@@ -74,4 +74,3 @@ test('metadata sanitizer rejects invalid keys', function () {
         ->and($sanitized)->not->toHaveKey('invalid key with spaces')
         ->and($sanitized)->not->toHaveKey('invalid.key');
 });
-

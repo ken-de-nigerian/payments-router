@@ -2,7 +2,6 @@
 
 namespace Tests\Helpers;
 
-use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\PaymentManager;
 use Mockery\MockInterface;
 use ReflectionClass;
@@ -21,4 +20,3 @@ class PaymentManagerTestHelper
         return $manager;
     }
 }
-

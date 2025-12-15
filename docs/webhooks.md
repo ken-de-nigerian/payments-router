@@ -20,32 +20,32 @@ Routes are automatically created:
 2. Webhook queued → Returns 202 Accepted
 3. Queue worker processes → Updates database → Fires events
 
-**⚠️ Queue workers must be running for webhooks to process.**
+**Important:** Queue workers must be running for webhooks to process.
 
 ## Configuration
 
-### Provider Dashboards
-
-Add webhook URLs in each provider's dashboard:
+Add webhook URLs in provider dashboards:
 - Paystack: `https://yourdomain.com/payments/webhook/paystack`
-- Flutterwave: `https://yourdomain.com/payments/webhook/flutterwave`
-- Monnify: `https://yourdomain.com/payments/webhook/monnify`
 - Stripe: `https://yourdomain.com/payments/webhook/stripe`
-- PayPal: `https://yourdomain.com/payments/webhook/paypal`
-- Square: `https://yourdomain.com/payments/webhook/square`
-- OPay: `https://yourdomain.com/payments/webhook/opay`
-- Mollie: `https://yourdomain.com/payments/webhook/mollie`
-
-### Config File
+- See routes above for all providers
 
 ```php
 // config/payments.php
 'webhook' => [
-    'verify_signature' => true, // Always true in production
-    'path' => '/payments/webhook',
+    'verify_signature' => true,
     'max_payload_size' => 1048576, // 1MB
+    'max_retries' => 3,              // Maximum webhook processing retries (default: 3)
+    'retry_backoff' => 60,           // Seconds to wait before retry (default: 60)
 ],
 ```
+
+**Environment Variables:**
+```env
+PAYMENTS_WEBHOOK_MAX_RETRIES=3      # Maximum webhook processing retries
+PAYMENTS_WEBHOOK_RETRY_BACKOFF=60   # Seconds to wait before retry
+```
+
+**Note:** Webhook retry settings control how many times a failed webhook will be retried and how long to wait between retries. These settings help ensure reliable webhook delivery even when temporary errors occur.
 
 ---
 
@@ -54,286 +54,88 @@ Add webhook URLs in each provider's dashboard:
 Webhooks are processed asynchronously. Queue workers must be running.
 
 ### Setup
-- ✅ Respond quickly to payment providers (202 Accepted)
-- ✅ Handle high webhook volumes without blocking
-- ✅ Retry failed webhooks automatically
-- ✅ Process webhooks in the background
-
-### Step 1: Configure Queue Connection
-
-In your `.env` file, set your queue connection:
 
 ```env
-# For local development (synchronous - processes immediately)
+# Development
 QUEUE_CONNECTION=sync
 
-# For production (use database, redis, or sqs)
+# Production
 QUEUE_CONNECTION=database
-# OR
-QUEUE_CONNECTION=redis
-# OR
-QUEUE_CONNECTION=sqs
 ```
 
-**💡 Recommendation:**
-- **Development:** Use `sync` for immediate processing (easier debugging)
-- **Production:** Use `database`, `redis`, or `sqs` for better performance
-
-### Step 2: Create Jobs Table (If Using Database Queue)
-
-If you're using `QUEUE_CONNECTION=database`, create the jobs table:
-
+If using `database`, create jobs table:
 ```bash
 php artisan queue:table
 php artisan migrate
 ```
 
-This creates the `jobs`, `failed_jobs`, and `job_batches` tables.
-
-### Step 3: Run Queue Workers
-
-**For Local Development:**
-
+Run queue worker:
 ```bash
-# Run queue worker (processes jobs one at a time)
 php artisan queue:work
-
-# Or run with auto-restart (recommended)
-php artisan queue:work --tries=3 --timeout=60
 ```
 
-**For Production (Using Supervisor - Recommended):**
+### Production Setup
 
-1. **Install Supervisor** (if not already installed):
-   ```bash
-   # Ubuntu/Debian
-   sudo apt-get install supervisor
-   
-   # macOS
-   brew install supervisor
-   ```
-
-2. **Create Supervisor Configuration:**
-
-   Create `/etc/supervisor/conf.d/laravel-worker.conf`:
-   ```ini
-   [program:laravel-worker]
-   process_name=%(program_name)s_%(process_num)02d
-   command=php /path/to/your/project/artisan queue:work --sleep=3 --tries=3 --max-time=3600
-   autostart=true
-   autorestart=true
-   stopasgroup=true
-   killasgroup=true
-   user=www-data
-   numprocs=2
-   redirect_stderr=true
-   stdout_logfile=/path/to/your/project/storage/logs/worker.log
-   stopwaitsecs=3600
-   ```
-
-   **⚠️ Important:** Replace `/path/to/your/project` with your actual project path!
-
-3. **Start Supervisor:**
-   ```bash
-   sudo supervisorctl reread
-   sudo supervisorctl update
-   sudo supervisorctl start laravel-worker:*
-   ```
-
-4. **Check Status:**
-   ```bash
-   sudo supervisorctl status
-   ```
-
-**For Production (Using Systemd):**
-
-Create `/etc/systemd/system/laravel-worker.service`:
+**Supervisor:**
 ```ini
-[Unit]
-Description=Laravel Queue Worker
-After=network.target
+# /etc/supervisor/conf.d/laravel-worker.conf
+[program:laravel-worker]
+command=php /path/to/project/artisan queue:work --sleep=3 --tries=3
+autostart=true
+autorestart=true
+user=www-data
+numprocs=2
+```
 
+**Systemd:**
+```ini
+# /etc/systemd/system/laravel-worker.service
 [Service]
-Type=simple
-User=www-data
-WorkingDirectory=/path/to/your/project
-ExecStart=/usr/bin/php /path/to/your/project/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+ExecStart=/usr/bin/php /path/to/project/artisan queue:work --sleep=3 --tries=3
 Restart=always
-
-[Install]
-WantedBy=multi-user.target
 ```
 
-Then:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable laravel-worker
-sudo systemctl start laravel-worker
-sudo systemctl status laravel-worker
-```
+**Verify:** `php artisan queue:monitor` or `php artisan queue:failed`
 
-### Step 4: Verify Queue Workers Are Running
-
-**Check if jobs are being processed:**
-
-```bash
-# Check queue status
-php artisan queue:monitor
-
-# Or check failed jobs
-php artisan queue:failed
-```
-
-**Monitor logs:**
-
-```bash
-# Watch queue worker logs
-tail -f storage/logs/laravel.log
-
-# Or if using Supervisor
-tail -f storage/logs/worker.log
-```
-
-### What Happens If Queue Workers Aren't Running?
-
-If queue workers aren't running:
-- ❌ Webhooks will be queued but **never processed**
-- ❌ Payment statuses won't update in your database
-- ❌ Event listeners won't fire
-- ❌ Orders won't be marked as paid
-- ❌ Confirmation emails won't be sent
-
-**The webhook controller returns 202 Accepted immediately**, so payment providers think the webhook was received, but nothing actually happens until a queue worker processes the job.
-
-### Troubleshooting Queue Issues
-
-**Problem: Jobs are queued but not processing**
-
-**Solutions:**
-1. ✅ Check if queue worker is running: `ps aux | grep queue:work`
-2. ✅ Check queue connection in `.env`: `QUEUE_CONNECTION=database`
-3. ✅ Check if jobs table exists: `php artisan migrate:status`
-4. ✅ Check failed jobs: `php artisan queue:failed`
-5. ✅ Restart queue worker: `php artisan queue:restart`
-
-**Problem: Jobs failing repeatedly**
-
-**Solutions:**
-1. ✅ Check logs: `storage/logs/laravel.log`
-2. ✅ Check failed jobs table: `php artisan queue:failed`
-3. ✅ Retry failed jobs: `php artisan queue:retry all`
-4. ✅ Check database connection
-5. ✅ Verify webhook signature validation isn't failing
+**Troubleshooting:**
+- Jobs not processing: Check `ps aux | grep queue:work`, verify `QUEUE_CONNECTION` in `.env`
+- Jobs failing: Check `storage/logs/laravel.log`, retry with `php artisan queue:retry all`
 
 ---
 
-## Handling Webhooks in Your Application
+## Handling Webhooks
 
-### Method 1: Using Event Listeners (Recommended)
-
-This is the cleanest way to handle webhooks. You create listeners that react when webhooks arrive.
-
-#### Step 1: Register Event Listeners
-
-Open `app/Providers/EventServiceProvider.php` and add:
+### Event Listeners
 
 ```php
+// app/Providers/EventServiceProvider.php
 protected $listen = [
-    // Listen for Paystack webhooks specifically
     'payments.webhook.paystack' => [
         \App\Listeners\HandlePaystackWebhook::class,
     ],
-    
-    // Listen for Flutterwave webhooks
-    'payments.webhook.flutterwave' => [
-        \App\Listeners\HandleFlutterwaveWebhook::class,
-    ],
-    
-    // Listen for Mollie webhooks
-    'payments.webhook.mollie' => [
-        \App\Listeners\HandleMollieWebhook::class,
-    ],
-    
-    // Listen for ANY webhook (from any provider)
-    'payments.webhook' => [
-        \App\Listeners\HandleAnyWebhook::class,
-    ],
 ];
-```
 
-#### Step 2: Create a Listener
-
-Create a new file: `app/Listeners/HandlePaystackWebhook.php`
-
-```php
-<?php
-
-namespace App\Listeners;
-
-use App\Models\Order;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Log;
-
+// app/Listeners/HandlePaystackWebhook.php
 class HandlePaystackWebhook
 {
-    /**
-     * Handle the webhook event.
-     * 
-     * This method is called automatically when Paystack sends a webhook.
-     * The $payload contains all the webhook data from Paystack.
-     */
     public function handle(array $payload): void
     {
-        // Get the event type (charge.success, charge.failed, etc.)
-        $event = $payload['event'] ?? null;
-        
-        // Handle different event types
-        match($event) {
-            'charge.success' => $this->handleSuccessfulPayment($payload['data']),
-            'charge.failed' => $this->handleFailedPayment($payload['data']),
-            default => Log::info("Unhandled Paystack webhook event: {$event}"),
+        match($payload['event']) {
+            'charge.success' => $this->handleSuccess($payload['data']),
+            'charge.failed' => $this->handleFailure($payload['data']),
+            default => logger()->info("Unhandled event: {$payload['event']}"),
         };
     }
     
-    /**
-     * What to do when a payment succeeds.
-     */
-    private function handleSuccessfulPayment(array $data): void
+    private function handleSuccess(array $data): void
     {
-        // Get the payment reference
-        $reference = $data['reference'];
+        $order = Order::where('payment_reference', $data['reference'])->first();
         
-        // Find the order in your database
-        $order = Order::where('payment_reference', $reference)->first();
-        
-        // Only process if order exists and hasn't been processed yet
         if ($order && $order->status === 'pending') {
-            // Update order status
-            $order->update([
-                'status' => 'paid',
-                'paid_at' => now(),
-            ]);
-            
-            // Send confirmation email to customer
+            $order->update(['status' => 'paid', 'paid_at' => now()]);
             Mail::to($order->customer_email)->send(new OrderConfirmation($order));
-            
-            // Dispatch a job to process the order (fulfillment, etc.)
-            ProcessOrder::dispatch($order);
-            
-            Log::info("Order {$order->id} marked as paid via webhook", [
-                'reference' => $reference,
-            ]);
         }
     }
-    
-    /**
-     * What to do when a payment fails.
-     */
-    private function handleFailedPayment(array $data): void
-    {
-        $reference = $data['reference'];
-        
-        $order = Order::where('payment_reference', $reference)->first();
         
         if ($order) {
             // Mark order as failed
@@ -472,7 +274,7 @@ Each payment provider sends webhook data in a slightly different format. Here's 
 - `event`: What happened (`charge.success`, `charge.failed`, etc.)
 - `data.reference`: The transaction reference you can use to verify
 - `data.status`: Payment status
-- `data.amount`: Amount in smallest currency unit (50000 = ₦500.00)
+- `data.amount`: Amount in minor currency unit (50000 = ₦500.00) - returned by provider
 
 ### Flutterwave Webhook Format
 
@@ -634,7 +436,7 @@ Each payment provider sends webhook data in a slightly different format. Here's 
 
 ---
 
-## Security Best Practices 🔒
+## Security Best Practices
 
 ### 1. Always Verify Webhook Signatures
 
@@ -667,7 +469,7 @@ if ($verification->isSuccessful()) {
 
 ### 3. Handle Duplicate Webhooks (Idempotency)
 
-Providers sometimes send the same webhook multiple times. Make sure you don't process the same payment twice:
+PayZephyr automatically protects against race conditions in transaction updates using database row locking (`lockForUpdate()`). However, providers sometimes send the same webhook multiple times, so you should still implement idempotency checks in your application logic:
 
 ```php
 $order = Order::where('payment_reference', $reference)->first();
@@ -797,21 +599,21 @@ curl -X POST http://localhost:8000/payments/webhook/paystack \
 **Symptoms:** Webhook returns 403 Forbidden error.
 
 **Solutions:**
-1. ✅ Verify webhook secret is correct in `.env` file
-2. ✅ Make sure `PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true` in config
-3. ✅ Check provider documentation for correct header name
-4. ✅ Ensure raw request body is used (not parsed JSON)
-5. ✅ Check for extra whitespace in secret key (copy/paste carefully)
+1. Verify webhook secret is correct in `.env` file
+2. Ensure `PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true` in config
+3. Check provider documentation for correct header name
+4. Ensure raw request body is used (not parsed JSON)
+5. Check for extra whitespace in secret key
 
 ### Problem: Duplicate Webhooks Processed
 
 **Symptoms:** Same order gets processed multiple times.
 
 **Solutions:**
-1. ✅ Add idempotency check (see "Security Best Practices" above)
-2. ✅ Use database transactions
-3. ✅ Check order status before processing
-4. ✅ Use database unique constraints on payment_reference
+1. Add idempotency check (see "Security Best Practices" above)
+2. Use database transactions
+3. Check order status before processing
+4. Use database unique constraints on payment_reference
 
 ### Problem: Webhook Arrives Before Customer Returns
 
@@ -835,13 +637,13 @@ public function checkout(Request $request)
 {
     $order = Order::create([
         'user_id' => auth()->id(),
-        'amount' => 50000,
+        'amount' => 500.00, // Store in major currency unit
         'status' => 'pending',
         'payment_reference' => 'ORDER_' . time(),
     ]);
     
     // Redirect to payment
-    return Payment::amount(50000)
+    return Payment::amount(500.00)
         ->currency('NGN')
         ->email($request->user()->email)
         ->reference($order->payment_reference)
@@ -977,18 +779,18 @@ Different providers send different event types. Here's what to expect:
 
 ---
 
-## Quick Start Checklist ✅
+## Quick Start Checklist
 
-1. ✅ Install package and run migrations
-2. ✅ Configure provider credentials in `.env`
-3. ✅ Add webhook URLs to provider dashboards
-4. ✅ Set `verify_signature => true` in config
-5. ✅ Create event listeners in `EventServiceProvider`
-6. ✅ Create listener classes to handle webhooks
-7. ✅ Test with ngrok (local) or deploy to production
-8. ✅ Monitor logs for webhook activity
-9. ✅ Handle errors gracefully
-10. ✅ Implement idempotency checks
+1. Install package and run migrations
+2. Configure provider credentials in `.env`
+3. Add webhook URLs to provider dashboards
+4. Set `verify_signature => true` in config
+5. Create event listeners in `EventServiceProvider`
+6. Create listener classes to handle webhooks
+7. Test with ngrok (local) or deploy to production
+8. Monitor logs for webhook activity
+9. Handle errors gracefully
+10. Implement idempotency checks
 
 ---
 

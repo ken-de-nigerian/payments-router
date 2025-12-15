@@ -11,8 +11,8 @@ use KenDeNigerian\PayZephyr\Contracts\ChannelMapperInterface;
 use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
 use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 use KenDeNigerian\PayZephyr\Http\Controllers\WebhookController;
-use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\Http\Middleware\HealthEndpointMiddleware;
+use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\Services\ChannelMapper;
 use KenDeNigerian\PayZephyr\Services\DriverFactory;
 use KenDeNigerian\PayZephyr\Services\MetadataSanitizer;
@@ -98,20 +98,23 @@ final class PaymentServiceProvider extends ServiceProvider
                 $providers = [];
                 $healthConfig = app('payments.config') ?? config('payments', []);
 
-                foreach ($healthConfig['providers'] ?? [] as $name => $providerConfig) {
-                    if ($providerConfig['enabled'] ?? false) {
-                        try {
-                            $driver = $manager->driver($name);
-                            $providers[$name] = [
-                                'healthy' => $driver->getCachedHealthCheck(),
-                                'currencies' => $driver->getSupportedCurrencies(),
-                            ];
-                        } catch (Throwable $e) {
-                            $providers[$name] = [
-                                'healthy' => false,
-                                'error' => $e->getMessage(),
-                            ];
-                        }
+                $enabledProviders = array_filter(
+                    $healthConfig['providers'] ?? [],
+                    fn ($config) => $config['enabled'] ?? false
+                );
+
+                foreach ($enabledProviders as $name => $providerConfig) {
+                    try {
+                        $driver = $manager->driver($name);
+                        $providers[$name] = [
+                            'healthy' => $driver->getCachedHealthCheck(),
+                            'currencies' => $driver->getSupportedCurrencies(),
+                        ];
+                    } catch (Throwable $e) {
+                        $providers[$name] = [
+                            'healthy' => false,
+                            'error' => $e->getMessage(),
+                        ];
                     }
                 }
 

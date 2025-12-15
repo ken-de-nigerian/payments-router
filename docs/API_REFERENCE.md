@@ -36,7 +36,7 @@ All builder methods can be called in any order and return the Payment instance f
 Set the payment amount in major currency units (e.g., 100.00 for $100.00).
 
 ```php
-Payment::amount(10000) // ₦100.00 or $100.00
+Payment::amount(100.00) // ₦100.00 or $100.00 (package handles conversion automatically)
 ```
 
 #### `currency(string $currency): Payment`
@@ -137,7 +137,7 @@ These methods execute the payment and must be called last in the chain.
 Process the payment and return the response object without redirecting.
 
 ```php
-$response = Payment::amount(10000)
+$response = Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->charge();
@@ -155,7 +155,7 @@ echo $response->reference; // Transaction reference
 Process the payment and redirect the user to the payment page.
 
 ```php
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->redirect(); // Redirects user to payment page
@@ -219,7 +219,7 @@ Process payment with automatic fallback to backup providers.
 
 ```php
 $request = ChargeRequestDTO::fromArray([
-    'amount' => 10000,
+    'amount' => 100.00, // Major currency unit (package handles conversion)
     'currency' => 'NGN',
     'email' => 'customer@example.com',
     'callback_url' => route('payment.callback'),
@@ -477,7 +477,7 @@ Create instance from array.
 
 ```php
 $request = ChargeRequestDTO::fromArray([
-    'amount' => 10000,
+    'amount' => 100.00, // Major currency unit (package handles conversion)
     'currency' => 'NGN',
     'email' => 'customer@example.com',
 ]);
@@ -1042,7 +1042,7 @@ Thrown when all providers fail (fallback exhausted).
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
 try {
-    $response = Payment::amount(10000)
+    $response = Payment::amount(100.00)
         ->email('customer@example.com')
         ->callback(route('payment.callback'))
         ->charge();
@@ -1114,7 +1114,7 @@ use KenDeNigerian\PayZephyr\Http\Resources\ChargeResource;
 #### Usage
 
 ```php
-$response = Payment::amount(10000)
+$response = Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->charge();
@@ -1278,7 +1278,7 @@ Global helper function that returns a Payment instance.
 use function KenDeNigerian\PayZephyr\payment;
 
 return payment()
-    ->amount(10000)
+    ->amount(100.00)
     ->email('customer@example.com')
     ->redirect();
 ```
@@ -1330,7 +1330,7 @@ object {
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
 // 1. Create payment
-return Payment::amount(50000)
+return Payment::amount(500.00)
     ->currency('NGN')
     ->email('customer@example.com')
     ->reference('ORDER_' . time())

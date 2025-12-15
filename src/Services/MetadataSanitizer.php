@@ -7,8 +7,11 @@ namespace KenDeNigerian\PayZephyr\Services;
 final class MetadataSanitizer
 {
     private const MAX_DEPTH = 10;
+
     private const MAX_KEY_LENGTH = 255;
+
     private const MAX_STRING_LENGTH = 10000;
+
     private const MAX_ARRAY_SIZE = 100;
 
     public function sanitize(mixed $data, int $depth = 0): mixed
@@ -88,4 +91,3 @@ final class MetadataSanitizer
         return $value;
     }
 }
-

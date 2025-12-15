@@ -73,4 +73,3 @@ final class HealthEndpointMiddleware
         return false;
     }
 }
-

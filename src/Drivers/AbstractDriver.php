@@ -11,6 +11,8 @@ use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Exception\TransferException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use InvalidArgumentException;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
@@ -360,8 +362,13 @@ abstract class AbstractDriver implements DriverInterface
         }
 
         $sanitizedContext = $this->sanitizeLogContext($context);
+        $channelName = $config['logging']['channel'] ?? 'payments';
 
-        logger()->{$level}("[{$this->getName()}] $message", $sanitizedContext);
+        try {
+            Log::channel($channelName)->{$level}("[{$this->getName()}] $message", $sanitizedContext);
+        } catch (InvalidArgumentException) {
+            Log::{$level}("[{$this->getName()}] $message", $sanitizedContext);
+        }
     }
 
     /**

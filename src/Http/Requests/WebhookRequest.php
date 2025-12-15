@@ -6,12 +6,14 @@ namespace KenDeNigerian\PayZephyr\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\PaymentManager;
+use KenDeNigerian\PayZephyr\Traits\LogsToPaymentChannel;
 use Throwable;
 
 class WebhookRequest extends FormRequest
 {
+    use LogsToPaymentChannel;
+
     /**
      * Authorize webhook request.
      */
@@ -65,18 +67,6 @@ class WebhookRequest extends FormRequest
             ]);
 
             return false;
-        }
-    }
-
-    protected function log(string $level, string $message, array $context = []): void
-    {
-        $config = app('payments.config') ?? config('payments', []);
-        $channelName = $config['logging']['channel'] ?? 'payments';
-
-        try {
-            Log::channel($channelName)->{$level}($message, $context);
-        } catch (\InvalidArgumentException) {
-            Log::{$level}($message, $context);
         }
     }
 

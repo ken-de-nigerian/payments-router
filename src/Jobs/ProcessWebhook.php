@@ -10,28 +10,34 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use InvalidArgumentException;
 use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 use KenDeNigerian\PayZephyr\Enums\PaymentStatus;
 use KenDeNigerian\PayZephyr\Events\WebhookReceived;
 use KenDeNigerian\PayZephyr\Exceptions\DriverNotFoundException;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\PaymentManager;
+use KenDeNigerian\PayZephyr\Traits\LogsToPaymentChannel;
 use Throwable;
 
 final class ProcessWebhook implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use LogsToPaymentChannel;
 
-    public int $tries = 3;
+    public int $tries;
 
-    public int $backoff = 60;
+    public int $backoff;
 
     public function __construct(
         public readonly string $provider,
         public readonly array $payload
-    ) {}
+    ) {
+        $config = app('payments.config') ?? config('payments', []);
+        $webhookConfig = $config['webhook'] ?? [];
+
+        $this->tries = (int) ($webhookConfig['max_retries'] ?? 3);
+        $this->backoff = (int) ($webhookConfig['retry_backoff'] ?? 60);
+    }
 
     public function handle(PaymentManager $manager, StatusNormalizerInterface $statusNormalizer): void
     {
@@ -77,10 +83,14 @@ final class ProcessWebhook implements ShouldQueue
         try {
             DB::transaction(function () use ($manager, $statusNormalizer, $reference) {
                 $transaction = PaymentTransaction::where('reference', $reference)
-                    ->lockForUpdate() // Prevent race conditions
+                    ->lockForUpdate()
                     ->first();
 
                 if (! $transaction) {
+                    return;
+                }
+
+                if ($transaction->isSuccessful()) {
                     return;
                 }
 
@@ -130,18 +140,6 @@ final class ProcessWebhook implements ShouldQueue
                 ?? 'unknown';
 
             return $statusNormalizer->normalize($status, $this->provider);
-        }
-    }
-
-    protected function log(string $level, string $message, array $context = []): void
-    {
-        $config = app('payments.config') ?? config('payments', []);
-        $channelName = $config['logging']['channel'] ?? 'payments';
-
-        try {
-            Log::channel($channelName)->{$level}($message, $context);
-        } catch (InvalidArgumentException) {
-            Log::{$level}($message, $context);
         }
     }
 }

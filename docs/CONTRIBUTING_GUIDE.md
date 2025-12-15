@@ -4,54 +4,54 @@ A step-by-step guide for novice developers who want to contribute to PayZephyr.
 
 ---
 
-## 🎯 Who This Guide Is For
+## Who This Guide Is For
 
-- ✅ Developers new to open source
-- ✅ First-time contributors
-- ✅ Developers who want to add features
-- ✅ Anyone who wants to help improve PayZephyr
+- Developers new to open source
+- First-time contributors
+- Developers who want to add features
+- Anyone who wants to help improve PayZephyr
 
 **Don't worry if you're a beginner!** This guide will walk you through everything step by step.
 
 ---
 
-## 🤔 What Can I Contribute?
+## What Can I Contribute?
 
 You don't need to be an expert to contribute! Here are ways you can help:
 
 ### For Complete Beginners
 
-1. **📝 Documentation**
+1. **Documentation**
    - Fix typos
    - Improve explanations
    - Add examples
    - Translate documentation
 
-2. **🐛 Bug Reports**
+2. **Bug Reports**
    - Report issues you find
    - Help reproduce bugs
    - Test bug fixes
 
-3. **💡 Suggestions**
+3. **Suggestions**
    - Suggest new features
    - Share use cases
    - Provide feedback
 
 ### For Developers
 
-1. **🔧 Code Contributions**
+1. **Code Contributions**
    - Fix bugs
    - Add new features
    - Improve code quality
    - Add tests
 
-2. **🏦 New Providers**
+2. **New Providers**
    - Add support for new payment providers
    - Improve existing provider implementations
 
 ---
 
-## 🚀 Your First Contribution (Step-by-Step)
+## Your First Contribution
 
 ### Step 1: Set Up Your Development Environment
 
@@ -126,7 +126,7 @@ PASS  Tests\Unit\DriversTest
 Tests:    150 passed
 ```
 
-**✅ If tests pass, you're ready to contribute!**
+**If tests pass, you're ready to contribute!**
 
 ### Step 3: Create a Branch
 
@@ -187,7 +187,7 @@ composer format
 composer analyse
 ```
 
-**All checks should pass!** ✅
+**All checks should pass!**
 
 ### Step 6: Commit Your Changes
 
@@ -203,15 +203,15 @@ git commit -m "fix: correct typo in README"
 ```
 
 **Good commit messages:**
-- ✅ `fix: correct typo in README`
-- ✅ `docs: add example for webhook handling`
-- ✅ `feat: add support for Square provider`
-- ✅ `test: add tests for PaystackDriver`
+- `fix: correct typo in README`
+- `docs: add example for webhook handling`
+- `feat: add support for Square provider`
+- `test: add tests for PaystackDriver`
 
 **Bad commit messages:**
-- ❌ `fix stuff`
-- ❌ `update`
-- ❌ `changes`
+- `fix stuff` (bad)
+- `update` (bad)
+- `changes` (bad)
 
 ### Step 7: Push to GitHub
 
@@ -235,7 +235,7 @@ git push origin fix/typo-in-readme
 
 ---
 
-## 📝 Pull Request Template
+## Pull Request Template
 
 Use this template for your PR description:
 
@@ -267,7 +267,7 @@ Fixes #123
 
 ---
 
-## 🏦 Adding a New Payment Provider (Advanced)
+## Adding a New Payment Provider
 
 This is a great way to contribute if you're comfortable with PHP!
 
@@ -434,7 +434,7 @@ Add Square to:
 
 ---
 
-## 🧪 Testing Guidelines
+## Testing Guidelines
 
 ### Running Tests
 
@@ -465,10 +465,10 @@ test('descriptive test name explains what is being tested', function () {
 ```
 
 **Test Checklist:**
-- ✅ Test name describes what it tests
-- ✅ Test one thing at a time
-- ✅ Test both success and failure cases
-- ✅ Test edge cases (empty values, null, etc.)
+- Test name describes what it tests
+- Test one thing at a time
+- Test both success and failure cases
+- Test edge cases (empty values, null, etc.)
 
 ---
 
@@ -505,10 +505,10 @@ This checks for potential bugs and code quality issues.
 
 3. **Descriptive names:**
    ```php
-   // ✅ Good
+   // Good
    $paymentReference = 'ref_123';
    
-   // ❌ Bad
+   // Bad
    $ref = 'ref_123';
    ```
 
@@ -526,7 +526,7 @@ This checks for potential bugs and code quality issues.
 
 ---
 
-## 🐛 Finding Issues to Fix
+## Finding Issues to Fix
 
 ### Good First Issues
 
@@ -550,9 +550,9 @@ Look for issues labeled:
 
 ### Before Asking
 
-1. ✅ Read the documentation
-2. ✅ Search existing issues
-3. ✅ Check if someone already asked
+1. Read the documentation
+2. Search existing issues
+3. Check if someone already asked
 
 ### Where to Ask
 
@@ -577,7 +577,7 @@ It doesn't work. Help!
 
 ---
 
-## ✅ Contribution Checklist
+## Contribution Checklist
 
 Before submitting your PR:
 
@@ -598,11 +598,11 @@ Contributors are recognized in:
 - GitHub contributors page
 - Release notes
 
-**Thank you for contributing!** Every contribution, no matter how small, makes PayZephyr better! 🚀
+**Thank you for contributing!** Every contribution, no matter how small, makes PayZephyr better!
 
 ---
 
-## 📚 Additional Resources
+## Additional Resources
 
 - [Full Contributing Guide](CONTRIBUTING.md) - Detailed technical guide
 - [Architecture Guide](architecture.md) - Understand the codebase

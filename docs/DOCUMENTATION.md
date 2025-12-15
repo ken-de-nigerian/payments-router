@@ -1,61 +1,34 @@
 # PayZephyr - Complete Documentation
 
+**What is PayZephyr?** A Laravel package that lets you accept payments from multiple providers (Paystack, Stripe, PayPal, etc.) using one simple API. Write your payment code once, and PayZephyr handles the complexity of different payment providers.
+
+**Key Benefits:**
+- **One API for all providers** - Switch providers without changing code
+- **Automatic fallback** - If one provider fails, automatically tries another
+- **Built-in security** - Webhook validation, replay protection, data sanitization
+- **Transaction logging** - All payments automatically saved to database
+
 ## Table of Contents
 
-1. [Introduction](#introduction)
-2. [Installation](#installation)
-3. [Configuration](#configuration)
-4. [Basic Usage](#basic-usage)
-5. [Advanced Usage](#advanced-usage)
-6. [Payment Providers](#payment-providers)
-7. [Webhooks](#webhooks)
-8. [Transaction Logging](#transaction-logging)
-9. [Error Handling](#error-handling)
-10. [Security](#security)
-11. [Testing](#testing)
-12. [API Reference](#api-reference)
-13. [Architecture](#architecture)
-14. [Troubleshooting](#troubleshooting)
+1. [Installation & Configuration](#installation--configuration)
+2. [Basic Usage](#basic-usage)
+3. [Webhooks & Events](#webhooks--events)
+4. [Payment Providers](#payment-providers)
+5. [Error Handling](#error-handling)
+6. [Security](#security)
+7. [Testing](#testing)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
-## Introduction
-
-PayZephyr is a unified payment abstraction layer for Laravel
-that supports multiple payment providers with automatic fallback,
-webhooks, and comprehensive transaction logging.
-It provides a clean, fluent API for processing payments across different providers without changing your code.
-
-### Key Features
-
-- **Multiple Payment Providers**: Paystack, Flutterwave, Monnify, Stripe, PayPal, Square, OPay, and Mollie
-- **Automatic Fallback**: Seamlessly switch to back up providers if primary fails
-- **Fluent API**: Clean, expressive syntax for payment operations
-- **Idempotency Support**: Prevent duplicate charges with unique keys
-- **Webhook Security**: Secure signature validation for all providers
-- **Transaction Logging**: Automatic database logging with status tracking
-- **Multi-Currency Support**: Support for 100+ currencies across providers
-- **Health Checks**: Automatic provider availability monitoring
-- **Production Ready**: Comprehensive error handling and security features
-
----
-
-## Installation
+## Installation & Configuration
 
 ```bash
 composer require kendenigerian/payzephyr
 php artisan payzephyr:install
 ```
 
-Requirements: PHP 8.2+, Laravel 10.x/11.x/12.x
-
----
-
-## Configuration
-
-### Required Environment Variables
-
-Add your provider credentials to `.env`. Only configure the providers you plan to use:
+Add provider credentials to `.env`:
 
 ```env
 # Default Provider
@@ -113,54 +86,45 @@ MOLLIE_ENABLED=false
 PAYMENTS_DEFAULT_CURRENCY=NGN
 PAYMENTS_LOGGING_ENABLED=true
 PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
+
+# Webhook Configuration
+PAYMENTS_WEBHOOK_MAX_RETRIES=3              # Maximum webhook processing retries
+PAYMENTS_WEBHOOK_RETRY_BACKOFF=60           # Seconds to wait before retry
+
+# Cache Configuration
+PAYMENTS_CACHE_SESSION_TTL=3600             # Cache session TTL in seconds (default: 1 hour)
 ```
 
-**Note:** `base_url` is optional and defaults to production endpoints. Only set it if using custom endpoints.
-
-### Callback URL Configuration
-
-The callback URL determines where customers are redirected after completing payment. **It is required** when using the fluent API.
-
-**Required:** You must call `->callback()` in your payment chain:
-```php
-Payment::amount(10000)
-    ->email('customer@example.com')
-    ->callback(route('payment.callback'))  // Required!
-    ->redirect();
-```
-
-**Note:** The payment will fail with an `InvalidConfigurationException` if the callback URL is not provided.
+Callback URL is required: `->callback(route('payment.callback'))`
 
 ---
 
 ## Basic Usage
+
+**Note:** Amounts are in major currency units (e.g., `100.00` for ₦100.00). The package automatically converts to minor units (kobo/cents) internally.
 
 ### Simple Payment
 
 ```php
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
-return Payment::amount(10000)
+// 100.00 = ₦100.00 (package handles conversion automatically)
+return Payment::amount(100.00)
     ->email('customer@example.com')
-    ->callback(route('payment.callback'))
-    ->redirect();
+    ->callback(route('payment.callback')) // Required: where customer returns after payment
+    ->redirect(); // Redirects customer to payment provider's page
 ```
 
 ### With Options
 
 ```php
-use Illuminate\Support\Str;
-
-return Payment::amount(50000)
+return Payment::amount(500.00) // ₦500.00
     ->currency('NGN')
     ->email('customer@example.com')
-    ->reference('ORDER_' . time())
+    ->callback(route('payment.callback'))
+    ->reference('ORDER_123') // Your order ID
     ->description('Premium subscription')
-    ->idempotency(Str::uuid()->toString())
-    ->metadata(['order_id' => 12345])
-    ->customer(['name' => 'John Doe', 'phone' => '+2348012345678'])
-    ->channels(['card', 'bank_transfer'])
-    ->with('paystack')
+    ->metadata(['order_id' => 12345]) // Custom data
     ->redirect();
 ```
 
@@ -189,7 +153,7 @@ public function callback(Request $request)
 ### Multiple Providers with Fallback
 
 ```php
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->with(['paystack', 'stripe'])
     ->redirect();
@@ -219,7 +183,7 @@ if ($driver->isCurrencySupported('NGN')) {
 ```php
 // Get payment details without redirecting
 // Note: Callback URL is still required for redirect-based providers (Stripe, Square, etc.)
-$response = Payment::amount(10000)
+$response = Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))  // Required for redirect-based providers
     ->with('stripe')
@@ -236,7 +200,7 @@ return response()->json([
 ```php
 $reference = 'ORDER_' . auth()->id() . '_' . time();
 
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->reference($reference)
@@ -251,7 +215,7 @@ Idempotency keys are **automatically generated** for every payment request to pr
 use Illuminate\Support\Str;
 
 // Option 1: Let the package auto-generate (recommended)
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->redirect();
@@ -260,7 +224,7 @@ return Payment::amount(10000)
 // Option 2: Provide your own idempotency key
 $idempotencyKey = Str::uuid()->toString();
 
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->idempotency($idempotencyKey)  // Optional: override auto-generated key
@@ -268,6 +232,11 @@ return Payment::amount(10000)
 ```
 
 **Note:** If you don't provide an idempotency key, the package automatically generates a UUID v4 key for you. This ensures consistent key formatting across all providers and simplifies driver logic.
+
+**Validation:** Custom idempotency keys are validated for format and length:
+- Must contain only alphanumeric characters, dashes, and underscores
+- Maximum length: 255 characters
+- Invalid keys will throw an `InvalidArgumentException`
 
 ---
 
@@ -285,7 +254,7 @@ The package automatically maps these unified names to provider-specific formats:
 
 ```php
 // Works across all providers
-Payment::amount(10000)
+Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->channels(['card', 'bank_transfer'])  // Unified names
@@ -327,24 +296,15 @@ Each provider has specific configuration requirements. See the [Provider Details
 
 ---
 
-## Webhooks
+---
 
-**⚠️ Important: Webhooks are processed asynchronously via Laravel's queue system. You must run queue workers for webhooks to be processed. See [Queue Workers](webhooks.md#queue-workers-required) for details.**
+## Webhooks & Events
 
-### Webhook URLs
+### Webhook Setup
 
-Configure these in your provider dashboards:
-
-- **Paystack**: `https://yourdomain.com/payments/webhook/paystack`
-- **Flutterwave**: `https://yourdomain.com/payments/webhook/flutterwave`
-- **Monnify**: `https://yourdomain.com/payments/webhook/monnify`
-- **Stripe**: `https://yourdomain.com/payments/webhook/stripe`
-- **PayPal**: `https://yourdomain.com/payments/webhook/paypal`
-- **Square**: `https://yourdomain.com/payments/webhook/square`
-- **OPay**: `https://yourdomain.com/payments/webhook/opay`
-- **Mollie**: `https://yourdomain.com/payments/webhook/mollie`
-
-### Listening to Events
+Configure webhook URLs in provider dashboards:
+- Paystack: `https://yourdomain.com/payments/webhook/paystack`
+- Stripe: `https://yourdomain.com/payments/webhook/stripe`
 
 ```php
 // app/Providers/EventServiceProvider.php
@@ -352,255 +312,70 @@ protected $listen = [
     'payments.webhook.paystack' => [
         \App\Listeners\HandlePaystackWebhook::class,
     ],
-    'payments.webhook' => [
-        \App\Listeners\HandleAnyWebhook::class,
-    ],
 ];
-```
 
-### Example Listener
-
-```php
-namespace App\Listeners;
-
-use App\Models\Order;
-
-class HandlePaystackWebhook
+// app/Listeners/HandlePaystackWebhook.php
+public function handle(array $payload): void
 {
-    public function handle(array $payload): void
-    {
-        $event = $payload['event'] ?? null;
-        
-        match($event) {
-            'charge.success' => $this->handleSuccess($payload['data']),
-            'charge.failed' => $this->handleFailure($payload['data']),
-            default => logger()->info("Unhandled event: {$event}"),
-        };
-    }
-    
-    private function handleSuccess(array $data): void
-    {
-        $reference = $data['reference'];
-        
-        $order = Order::where('payment_reference', $reference)->first();
-        
-        if ($order) {
-            $order->update(['status' => 'paid', 'paid_at' => now()]);
-            Mail::to($order->customer_email)->send(new OrderConfirmation($order));
-        }
+    if ($payload['event'] === 'charge.success') {
+        Order::where('payment_reference', $payload['data']['reference'])
+            ->update(['status' => 'paid']);
     }
 }
 ```
 
-For complete webhook documentation, see [docs/webhooks.md](webhooks.md).
-
----
-
-## Payment Events
-
-PayZephyr dispatches events for payment lifecycle stages, allowing you to react to payment actions initiated within your application.
-
-### Available Events
-
-#### PaymentInitiated
-
-Dispatched after a successful `charge()` operation, before returning `ChargeResponseDTO`. Use this to run business logic immediately after payment initialization.
+### Payment Events
 
 ```php
-use KenDeNigerian\PayZephyr\Events\PaymentInitiated;
-
-Event::listen(PaymentInitiated::class, function (PaymentInitiated $event) {
-    // Send confirmation email
-    Mail::to($event->request->email)->send(new PaymentInitiatedMail($event->response));
-    
-    // Update inventory
-    // Notify internal systems
-    // Log to analytics
+// PaymentInitiated, PaymentVerificationSuccess, PaymentVerificationFailed
+Event::listen(PaymentVerificationSuccess::class, function ($event) {
+    Order::where('reference', $event->reference)
+        ->update(['status' => 'paid']);
 });
 ```
-
-**Event Properties:**
-- `$event->request`: `ChargeRequestDTO` - The original payment request
-- `$event->response`: `ChargeResponseDTO` - The payment response
-- `$event->provider`: `string` - The provider name used
-
-#### PaymentVerificationSuccess
-
-Dispatched after a successful `verify()` operation that results in a successful state. Use this to fulfill orders, send confirmation emails, etc.
-
-```php
-use KenDeNigerian\PayZephyr\Events\PaymentVerificationSuccess;
-
-Event::listen(PaymentVerificationSuccess::class, function (PaymentVerificationSuccess $event) {
-    // Fulfill order
-    $order = Order::where('reference', $event->reference)->first();
-    $order->update(['status' => 'paid', 'paid_at' => now()]);
-    
-    // Send confirmation email
-    Mail::to($order->customer_email)->send(new OrderConfirmation($order));
-    
-    // Update inventory
-    // Notify fulfillment system
-});
-```
-
-**Event Properties:**
-- `$event->reference`: `string` - The payment reference
-- `$event->verification`: `VerificationResponseDTO` - The verification response
-- `$event->provider`: `string` - The provider name used
-
-#### PaymentVerificationFailed
-
-Dispatched after a successful `verify()` operation that results in a failed state. Use this to handle failed payments, send notifications, etc.
-
-```php
-use KenDeNigerian\PayZephyr\Events\PaymentVerificationFailed;
-
-Event::listen(PaymentVerificationFailed::class, function (PaymentVerificationFailed $event) {
-    // Update order status
-    $order = Order::where('reference', $event->reference)->first();
-    $order->update(['status' => 'failed']);
-    
-    // Send failure notification
-    Mail::to($order->customer_email)->send(new PaymentFailedMail($order));
-    
-    // Log for review
-    logger()->warning('Payment verification failed', [
-        'reference' => $event->reference,
-        'provider' => $event->provider,
-    ]);
-});
-```
-
-**Event Properties:**
-- `$event->reference`: `string` - The payment reference
-- `$event->verification`: `VerificationResponseDTO` - The verification response
-- `$event->provider`: `string` - The provider name used
-
-### Registering Event Listeners
-
-Register listeners in your `EventServiceProvider`:
-
-```php
-// app/Providers/EventServiceProvider.php
-
-use KenDeNigerian\PayZephyr\Events\PaymentInitiated;
-use KenDeNigerian\PayZephyr\Events\PaymentVerificationSuccess;
-use KenDeNigerian\PayZephyr\Events\PaymentVerificationFailed;
-
-protected $listen = [
-    PaymentInitiated::class => [
-        \App\Listeners\HandlePaymentInitiated::class,
-    ],
-    PaymentVerificationSuccess::class => [
-        \App\Listeners\HandlePaymentSuccess::class,
-    ],
-    PaymentVerificationFailed::class => [
-        \App\Listeners\HandlePaymentFailure::class,
-    ],
-];
-```
-
-### Benefits
-
-- **Decoupled Logic**: Keep payment logic separate from business logic
-- **Reactive Architecture**: Respond to payment events without coupling to the payment package
-- **Clean Hooks**: Run business logic (emails, inventory, notifications) immediately after key payment stages
-- **Testable**: Events can be easily mocked and tested
 
 ---
 
 ## Transaction Logging
 
-All transactions are automatically logged to the `payment_transactions` table:
+All transactions are automatically logged:
 
 ```php
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 
-// Query transactions
-$transactions = PaymentTransaction::where('email', 'user@example.com')
-    ->successful()
-    ->get();
-
-// Check status
-$transaction = PaymentTransaction::where('reference', 'ORDER_123')->first();
-
-if ($transaction->isSuccessful()) {
-    // Process order
-}
-
-// Available scopes
+PaymentTransaction::where('reference', 'ORDER_123')->first();
 PaymentTransaction::successful()->get();
 PaymentTransaction::failed()->get();
-PaymentTransaction::pending()->get();
 ```
-
-### Transaction Model Properties
-
-- `reference`: Unique transaction ID
-- `provider`: Payment provider used
-- `status`: Payment status (success, failed, pending)
-- `amount`: Payment amount
-- `currency`: Currency code
-- `email`: Customer email
-- `channel`: Payment method used
-- `metadata`: Custom metadata
-- `customer`: Customer information
-- `paid_at`: Payment completion timestamp
 
 ---
 
 ## Error Handling
-
-### Exception Types
-
-- `ChargeException`: Payment initialization failed
-- `VerificationException`: Payment verification failed
-- `ProviderException`: All providers failed
-- `DriverNotFoundException`: Provider not found or disabled
-- `InvalidConfigurationException`: Configuration error
-
-### Error Handling Example
 
 ```php
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 
 try {
-    return Payment::amount(10000)
-        ->email('customer@example.com')
-        ->callback(route('payment.callback'))
-        ->redirect();
+    return Payment::amount(100.00)->redirect();
 } catch (ChargeException $e) {
-    // Payment initialization failed
-    logger()->error('Payment charge failed', [
-        'error' => $e->getMessage(),
-        'context' => $e->getContext(),
-    ]);
-    
-    return back()->with('error', 'Payment initialization failed. Please try again.');
+    return back()->with('error', 'Payment initialization failed');
 } catch (ProviderException $e) {
-    // All providers failed
-    logger()->error('All payment providers failed', [
-        'error' => $e->getMessage(),
-        'context' => $e->getContext(),
-    ]);
-    
-    return back()->with('error', 'Payment service is temporarily unavailable.');
+    return back()->with('error', 'Payment service unavailable');
 }
 ```
+
+**Exception Types:** `ChargeException`, `VerificationException`, `ProviderException`, `DriverNotFoundException`, `InvalidConfigurationException`
 
 ---
 
 ## Monitoring & Health Checks
 
-### Health Check Endpoint
+**Endpoint:** `GET /payments/health` - Monitor provider availability
 
-PayZephyr provides a built-in health check endpoint to monitor provider availability and status.
+**What it does:** Checks if payment providers are working and returns their health status and supported currencies.
 
-**Endpoint:** `GET /payments/health`
-
-**Response Format:**
+**Response:**
 ```json
 {
   "status": "operational",
@@ -611,93 +386,69 @@ PayZephyr provides a built-in health check endpoint to monitor provider availabi
     },
     "stripe": {
       "healthy": true,
-      "currencies": ["USD", "EUR", "GBP", "CAD", "AUD"]
-    },
-    "flutterwave": {
-      "healthy": false,
-      "currencies": ["NGN", "USD", "EUR", "GBP"]
-    },
-    "monnify": {
-      "healthy": true,
-      "currencies": ["NGN"]
+      "currencies": ["USD", "EUR", "GBP"]
     }
   }
 }
 ```
 
-**Response Fields:**
-- `status`: Overall system status (`"operational"`)
-- `providers`: Object containing each enabled provider's status
-  - `healthy`: Boolean indicating if the provider is currently available
-  - `currencies`: Array of supported currency codes
-  - `error`: Error message (only present if `healthy` is `false`)
+**Usage:**
 
-**Usage Examples:**
+**Generate a token first:**
+```bash
+php artisan tinker
+>>> Str::random(32)
+=> "xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j"
+```
 
-1. **Monitor in Your Application:**
+**Add to `.env`:**
+```env
+PAYMENTS_HEALTH_CHECK_ALLOWED_TOKENS=xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j
+```
+
+**Then use it:**
+```bash
+# With Bearer token
+curl -H "Authorization: Bearer xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j" https://yourdomain.com/payments/health
+
+# Or query parameter
+curl https://yourdomain.com/payments/health?token=xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j
+```
+
+**Programmatic Access:**
+
 ```php
-// Check health before processing payment
-$response = Http::get(url('/payments/health'));
+// Get token from config (the one you generated and added to .env)
+$token = config('payments.health_check.allowed_tokens')[0] ?? null;
+
+// Check health endpoint
+$response = Http::withToken($token)->get(url('/payments/health'));
 $data = $response->json();
 
 if ($data['providers']['paystack']['healthy']) {
-    // Proceed with payment
-} else {
-    // Use fallback provider or show error
+    // Provider is available
 }
+
+// Check individual provider
+$driver = app(PaymentManager::class)->driver('paystack');
+$isHealthy = $driver->getCachedHealthCheck(); // Cached (recommended)
 ```
 
-2. **Set Up Uptime Monitoring:**
-   - Use services like UptimeRobot, Pingdom, or StatusCake
-   - Monitor `GET /payments/health`
-   - Set alerts if any provider becomes unhealthy
+**Security:** Configure IP whitelisting and token authentication in production. See [Security Guide](SECURITY.md#3-health-endpoint-security) for details.
 
-3. **Health Check Caching:**
-   - Health checks are cached to avoid excessive API calls
-   - Default cache TTL: 5 minutes (300 seconds)
-   - Configure in `.env`:
-   ```env
-   PAYMENTS_HEALTH_CHECK_CACHE_TTL=300
-   ```
-
-4. **Programmatic Health Check:**
-```php
-use KenDeNigerian\PayZephyr\PaymentManager;
-
-$manager = app(PaymentManager::class);
-$driver = $manager->driver('paystack');
-
-// Check cached health status
-$isHealthy = $driver->getCachedHealthCheck();
-
-// Force fresh health check (bypasses cache)
-Cache::forget('payments.health.paystack');
-$isHealthy = $driver->healthCheck();
-```
-
-**Note:** The health endpoint uses the `api` middleware and is automatically registered when the package is installed.
+**Caching:** Health checks are cached (default: 5 minutes). Configure via `PAYMENTS_HEALTH_CHECK_CACHE_TTL`.
 
 ---
 
 ## Security
 
-### Best Practices
+- Always use HTTPS for webhook URLs
+- Enable signature verification in production
+- Use environment variables for credentials
+- Rotate API keys periodically
+- Monitor failed webhooks
 
-1. ✅ Always use HTTPS for webhook URLs
-2. ✅ Enable signature verification in production
-3. ✅ Rotate API keys periodically
-4. ✅ Use environment variables for credentials
-5. ✅ Monitor failed webhooks for attacks
-6. ✅ Implement rate limiting on webhooks
-7. ✅ Keep the package updated
-
-### Webhook Security
-
-Webhooks are automatically validated using provider-specific signature verification. Never disable signature verification in production.
-
-### API Key Security
-
-Never commit API keys to version control. Always use environment variables and `.env` files (which should be in `.gitignore`).
+See [Security Guide](SECURITY.md) for details.
 
 ---
 
@@ -725,7 +476,7 @@ composer format
 use KenDeNigerian\PayZephyr\Facades\Payment;
 
 test('payment charge works', function () {
-    $response = Payment::amount(10000)
+    $response = Payment::amount(100.00)
         ->email('test@example.com')
         ->with('paystack')
         ->charge();
@@ -745,141 +496,40 @@ test('payment verification works', function () {
 
 ## API Reference
 
-For complete API documentation, see **[API Reference](API_REFERENCE.md)**.
+**Payment Facade:**
+- Builder: `amount()`, `email()`, `callback()`, `reference()`, `metadata()`, `with()`
+- Actions: `charge()`, `redirect()`, `verify()`
 
-The API Reference includes:
-- Complete method signatures and parameters
-- Return types and exceptions
-- All classes, interfaces, and services
-- Data Transfer Objects (DTOs)
-- Enums and constants
-- Examples and usage patterns
+**Response Objects:**
+- `ChargeResponseDTO`: `reference`, `authorizationUrl`, `status`, `isSuccessful()`
+- `VerificationResponseDTO`: `reference`, `status`, `amount`, `isSuccessful()`
 
-### Quick Reference
-
-#### Payment Facade Methods
-
-**Builder Methods** (chainable in any order):
-- `amount()`, `currency()`, `email()`, `reference()`, `callback()`, `metadata()`, `idempotency()`, `description()`, `customer()`, `channels()`, `with()`, `using()`
-
-**Action Methods** (must be called last):
-- `charge()` - Returns ChargeResponseDTO
-- `redirect()` - Redirects to payment page
-
-**Verification Method** (standalone):
-- `verify($reference, $provider)` - Returns VerificationResponseDTO
-
-#### Response Objects
-
-**ChargeResponseDTO:**
-- `reference`, `authorizationUrl`, `accessCode`, `status`, `metadata`, `provider`
-- Methods: `isSuccessful()`, `isPending()`
-
-**VerificationResponseDTO:**
-- `reference`, `status`, `amount`, `currency`, `paidAt`, `channel`, `customer`, `metadata`, `provider`
-- Methods: `isSuccessful()`, `isPending()`
-
-**📖 See [API Reference](API_REFERENCE.md) for complete documentation.**
+See [API Reference](API_REFERENCE.md) for complete documentation.
 
 ---
 
 ## Architecture
 
-For detailed architecture documentation, see **[Architecture Guide](architecture.md)**.
-
-The architecture guide covers:
-- System design and component relationships
-- Data flow diagrams
-- Design patterns used
-- SOLID principles
-- Extensibility and customization
-- Performance considerations
-
 **Key Components:**
-- **Payment Facade** - Fluent API entry point
-- **PaymentManager** - Coordinates drivers and fallback logic
-- **Drivers** - Provider-specific implementations
-- **Services** - StatusNormalizer, ChannelMapper, ProviderDetector, DriverFactory
-- **DTOs** - Type-safe data objects
-- **Contracts** - Interfaces for dependency injection
+- Payment Facade → PaymentManager → Drivers → External APIs
+- Services: StatusNormalizer, ChannelMapper, ProviderDetector
+- DTOs: Type-safe data objects
 
-**📖 See [Architecture Guide](architecture.md) for complete details.**
-
-```
-┌─────────────────────────────────────────────┐
-│           Facades & Helpers                  │
-│     (Payment::, payment())                   │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│          Payment (Fluent API)                │
-│    Builds ChargeRequest & calls Manager      │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│         PaymentManager                       │
-│   - Manages driver instances                 │
-│   - Handles fallback logic                   │
-│   - Logs transactions                        │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│           Drivers Layer                      │
-│  AbstractDriver ← DriverInterface            │
-│         ├─ PaystackDriver                    │
-│         ├─ FlutterwaveDriver                 │
-│         ├─ MonnifyDriver                     │
-│         ├─ StripeDriver                      │
-│         └─ PayPalDriver                     │
-└──────────────┬──────────────────────────────┘
-               │
-┌──────────────▼──────────────────────────────┐
-│      External Payment APIs                   │
-└──────────────────────────────────────────────┘
-```
-
-For detailed architecture, see [docs/architecture.md](architecture.md).
+See [Architecture Guide](architecture.md) for details.
 
 ---
 
 ## Troubleshooting
 
-### Common Issues
+**Payment initialization fails:** Check credentials in `.env`, verify provider enabled, check currency support
 
-#### Payment Initialization Fails
+**Webhook not received:** Verify webhook URL, check signature verification, ensure queue workers running
 
-1. Check provider credentials in `.env`
-2. Verify provider is enabled in config
-3. Check currency support
-4. Review error logs
+**Verification fails:** Check reference format, verify transaction exists on provider
 
-#### Webhook Not Received
+**Fallback not working:** Verify fallback provider configured, check health status, ensure currency support
 
-1. Verify webhook URL is correct
-2. Check webhook signature verification
-3. Ensure webhook endpoint is accessible
-4. Check provider dashboard for webhook status
-
-#### Verification Fails
-
-1. Ensure reference is correct
-2. Check if provider supports verification
-3. Verify transaction exists on provider
-4. Review error logs
-
-#### Fallback Not Working
-
-1. Verify fallback provider is configured
-2. Check provider health status
-3. Ensure both providers support the currency
-4. Review error logs
-
-### Getting Help
-
-- 📧 **Email**: ken.de.nigerian@payzephyr.dev
-- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
-- 📖 **Documentation**: [GitHub Wiki](https://github.com/ken-de-nigerian/payzephyr/wiki)
+**Need help?** [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
 
 ---
 
@@ -889,4 +539,4 @@ The MIT License (MIT). Please see [LICENSE](../LICENSE) for more information.
 
 ---
 
-**Built with ❤️ for the Laravel community by [Ken De Nigerian](https://github.com/ken-de-nigerian)**
+**Built for the Laravel community by [Ken De Nigerian](https://github.com/ken-de-nigerian)**

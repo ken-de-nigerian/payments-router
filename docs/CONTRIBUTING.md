@@ -41,7 +41,7 @@ Please report unacceptable behavior to ken.de.nigerian@payzephyr.dev.
 
 ## How Can I Contribute?
 
-### 🐛 Reporting Bugs
+### Reporting Bugs
 
 Before creating bug reports, please check existing issues to avoid duplicates. When creating a bug report, include as many details as possible:
 
@@ -76,7 +76,7 @@ Add any other context, logs, or screenshots.
 (Optional) Suggest a fix or reason for the bug.
 ```
 
-### 💡 Suggesting Enhancements
+### Suggesting Enhancements
 
 Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion, include:
 
@@ -99,7 +99,7 @@ Any alternative solutions or features you've considered.
 Add any other context, mockups, or examples.
 ```
 
-### 📝 Improving Documentation
+### Improving Documentation
 
 Documentation improvements are always welcome! This includes:
 - Fixing typos or grammatical errors
@@ -348,7 +348,7 @@ test('driver can check currency support', function () {
 
 ### Writing Good Tests
 
-✅ **DO:**
+**DO:**
 - Use descriptive test names
 - Test one thing per test
 - Use meaningful assertions
@@ -356,7 +356,7 @@ test('driver can check currency support', function () {
 - Test edge cases
 - Test error conditions
 
-❌ **DON'T:**
+**DON'T:**
 - Test implementation details
 - Have tests depend on each other
 - Use actual API calls (except in sandbox tests)
@@ -437,7 +437,7 @@ test('new provider validates webhook signature', function () {
 
 ### Before Submitting
 
-✅ **Checklist:**
+**Checklist:**
 - [ ] Tests pass (`composer test`)
 - [ ] Code is formatted (`composer format`)
 - [ ] Static analysis passes (`composer analyse`)
@@ -669,12 +669,12 @@ Add to README.md:
 
 ### Error Messages
 
-✅ Good:
+Good:
 ```php
 throw new InvalidConfigurationException('Stripe secret key is required');
 ```
 
-❌ Bad:
+Bad:
 ```php
 throw new Exception('Error!');
 ```
@@ -682,11 +682,11 @@ throw new Exception('Error!');
 ### Comments
 
 ```php
-// ✅ Good: Explains WHY
+// Good: Explains WHY
 // Convert to kobo (Paystack uses minor units)
 $amountInKobo = $request->amount * 100;
 
-// ❌ Bad: Explains WHAT (obvious)
+// Bad: Explains WHAT (obvious)
 // Multiply amount by 100
 $amountInKobo = $request->amount * 100;
 ```
@@ -694,14 +694,14 @@ $amountInKobo = $request->amount * 100;
 ### Logging
 
 ```php
-// ✅ Good: Structured logging
+// Good: Structured logging
 $this->log('error', 'Payment charge failed', [
     'provider' => $this->getName(),
     'reference' => $reference,
     'error' => $e->getMessage(),
 ]);
 
-// ❌ Bad: Unstructured logging
+// Bad: Unstructured logging
 logger('Error: ' . $e->getMessage());
 ```
 

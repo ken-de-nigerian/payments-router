@@ -11,6 +11,9 @@ enum PaymentChannel: string
     case USSD = 'ussd';
     case MOBILE_MONEY = 'mobile_money';
     case QR_CODE = 'qr_code';
+    case DIGITAL_WALLET = 'digital_wallet';
+    case PAYPAL = 'paypal';
+    case BANK_ACCOUNT = 'bank_account';
 
     public function label(): string
     {
@@ -20,6 +23,9 @@ enum PaymentChannel: string
             self::USSD => 'USSD',
             self::MOBILE_MONEY => 'Mobile Money',
             self::QR_CODE => 'QR Code',
+            self::DIGITAL_WALLET => 'Digital Wallet',
+            self::PAYPAL => 'PayPal',
+            self::BANK_ACCOUNT => 'Bank Account',
         };
     }
 

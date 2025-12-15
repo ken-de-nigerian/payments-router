@@ -24,8 +24,8 @@ test('payment channel enum values method returns all values', function () {
     $values = PaymentChannel::values();
 
     expect($values)->toBeArray()
-        ->and($values)->toContain('card', 'bank_transfer', 'ussd', 'mobile_money', 'qr_code')
-        ->and(count($values))->toBe(5);
+        ->and($values)->toContain('card', 'bank_transfer', 'ussd', 'mobile_money', 'qr_code', 'digital_wallet', 'paypal', 'bank_account')
+        ->and(count($values))->toBe(8);
 });
 
 test('payment channel enum can be created from value', function () {

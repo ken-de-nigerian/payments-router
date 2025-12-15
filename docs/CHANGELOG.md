@@ -6,16 +6,60 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.4.1] - 2025-01-XX
+
+### Fixed
+
+- **Race Condition Protection**: Fixed race condition vulnerability in transaction updates
+  - Added database row locking (`lockForUpdate()`) with status re-check after lock acquisition
+  - Prevents concurrent webhook/verification requests from causing duplicate processing
+  - Applied to both `PaymentManager::updateTransactionFromVerification()` and `ProcessWebhook::updateTransactionFromWebhook()`
+- **Inconsistent Logging**: Fixed logging inconsistency in `AbstractDriver`
+  - Now uses consistent `Log::channel()` method instead of `logger()` helper
+  - Respects configured log channel from config with proper fallback
+- **Cache Key Generation**: Optimized cache context resolution in `PaymentManager`
+  - Cache context is now cached per instance to avoid repeated function calls
+  - Improves performance for applications making multiple cache operations
+- **Idempotency Key Validation**: Added validation for custom idempotency keys
+  - Validates format (alphanumeric, dashes, underscores only)
+  - Validates length (max 255 characters)
+  - Throws `InvalidArgumentException` for invalid keys
+
+### Improved
+
+- **Code Organization**: Extracted logging functionality to `LogsToPaymentChannel` trait
+  - Eliminates code duplication across multiple classes
+  - Used by: `PaymentManager`, `WebhookController`, `PaymentTransaction`, `ProcessWebhook`, `WebhookRequest`
+- **ChannelMapper Refactoring**: Replaced magic method usage with PHP 8 `match` expressions
+  - More type-safe and IDE-friendly
+  - Better refactoring support
+- **Error Context**: Enhanced error logging with comprehensive context
+  - Includes error class, stack trace, request context, and provider configuration
+  - Improves debugging and monitoring capabilities
+- **Configuration**: Made webhook retry settings configurable
+  - Added `PAYMENTS_WEBHOOK_MAX_RETRIES` (default: 3)
+  - Added `PAYMENTS_WEBHOOK_RETRY_BACKOFF` (default: 60 seconds)
+  - Added `PAYMENTS_CACHE_SESSION_TTL` (default: 3600 seconds)
+
+### Documentation
+
+- Updated documentation to reflect code review fixes
+- Added idempotency key validation details
+- Documented webhook retry configuration options
+- Added race condition protection details to security guide
+- Enhanced configuration examples with new environment variables
+
+---
 ## [1.4.0] - 2025-12-15
 
-### 🔒 Security Enhancements
+### Security Enhancements
 
 - **Metadata Sanitization**: Automatic XSS protection for metadata and customer data before storage
 - **Health Endpoint Security**: IP whitelisting and token authentication for `/payments/health` endpoint
 - **Webhook Payload Size Limits**: Configurable maximum payload size to prevent DoS attacks (default: 1MB)
 - Enhanced input validation and sanitization throughout the package
 
-### 🔧 Code Quality
+### Code Quality
 
 - **Final Classes**: Core classes marked as `final` for better encapsulation and performance
 - **Readonly DTOs**: Data transfer objects use `readonly` properties for immutability
@@ -24,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Minimized Docblocks**: Streamlined documentation comments for better readability
 - **Removed Deprecations**: Cleaned up non-code-breaking deprecations
 
-### ✅ Added
+### Added
 
 - `MetadataSanitizer` service for automatic data sanitization
 - `HealthEndpointMiddleware` for securing health check endpoint
@@ -38,13 +82,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Health endpoint now requires authentication/IP whitelisting in production (configurable)
 - Webhook requests validate payload size before processing
 
-### 🧪 Testing
+### Testing
 
 - Updated test suite to work with `final` classes (917 tests, 1,808 assertions)
 - Added tests for metadata sanitization
 - Enhanced security test coverage
 
-### 📚 Documentation
+### Documentation
 
 - Updated logging documentation with configurable channel details
 - Enhanced security guide with new features
@@ -53,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.3.0] - 2025-12-14
 
-### ✅ Added
+### Added
 
 - **Mollie Payment Provider Support**
   - Full integration with Mollie payment gateway
@@ -76,7 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `MollieDriverEdgeCasesTest.php` with 14 edge case tests
 - All tests passing with proper mocking and assertions
 
-### 🔧 Technical Details
+### Technical Details
 
 - Mollie webhook validation fetches payment details from API instead of signature verification
 - Proper error handling for 404, network timeouts, and API failures
@@ -84,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Currency formatting with proper decimal handling
 - Channel mapping support for payment methods
 
-### 📝 Documentation
+### Documentation
 
 - Added Mollie configuration guide
 - Updated provider documentation
@@ -94,7 +138,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.2.1] - 2025-12-12
 
-### 🔧 Fixed
+### Fixed
 
 - Fixed PHPStan static analysis errors by improving code quality
   - Replaced nullsafe operators with direct property access where appropriate
@@ -107,7 +151,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved type safety across the codebase
 - Enhanced code quality and maintainability
 
-### ✅ Added
+### Added
 
 - Comprehensive test coverage improvements
   - Added `SquareDriverEdgeCasesTest` for error handling scenarios
@@ -125,7 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved coverage for previously untested code paths
 - All new test files passing successfully
 
-### 🛠️ Developer Experience
+### Developer Experience
 
 - Added `composer analyse` command for PHPStan static analysis
 - Improved code quality and type safety
@@ -134,7 +178,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 ## [1.2.0] - 2025-12-12
 
-### 🔒 Security
+### Security
 
 - **CRITICAL:** Added SQL injection prevention in table name validation
   - Table names are validated against strict regex pattern
@@ -162,7 +206,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HTTPS enforcement for production callback URLs
   - Reference format validation prevents SQL injection
 
-### ✅ Added
+### Added
 
 - Security configuration section in `config/payments.php`
   - `webhook_timestamp_tolerance` - Configurable webhook timestamp tolerance
@@ -186,7 +230,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Rate limiting tests
   - Input validation tests
 
-### 📚 Documentation
+### Documentation
 
 - Added comprehensive security guide (`docs/SECURITY.md`)
   - Security features overview
@@ -202,7 +246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced testing documentation
 - Added webhook async processing warnings
 
-### 🧪 Tests
+### Tests
 
 - Added 50+ new security tests
   - SQL injection prevention tests
@@ -214,7 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Test coverage increased to 90%+
 - All security tests passing
 
-### 🐛 Fixed
+### Fixed
 
 - Cache poisoning vulnerability in multi-tenant scenarios
 - Missing validation in PaymentTransaction::getTable()

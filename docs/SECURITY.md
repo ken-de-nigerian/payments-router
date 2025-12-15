@@ -6,7 +6,7 @@ PayZephyr implements multiple security layers to protect your application and cu
 
 ---
 
-## 🔒 Security Features
+## Security Features
 
 ### 1. SQL Injection Prevention
 
@@ -19,10 +19,10 @@ PayZephyr implements multiple security layers to protect your application and cu
 
 **Example:**
 ```php
-// ❌ This will be rejected
+// This will be rejected
 config(['payments.logging.table' => 'payment_transactions; DROP TABLE users--']);
 
-// ✅ This will be accepted
+// This will be accepted
 config(['payments.logging.table' => 'custom_payment_transactions']);
 ```
 
@@ -60,28 +60,155 @@ config(['payments.logging.table' => 'custom_payment_transactions']);
 
 ### 3. Health Endpoint Security
 
-**Protection:** IP whitelisting and token authentication for the health check endpoint.
+**What it does:** The `/payments/health` endpoint checks if your payment providers are working. It returns the health status and supported currencies for each enabled provider.
+
+**Why secure it:** The endpoint exposes provider names and currencies. In production, you should restrict access to prevent information disclosure.
+
+**Protection:** IP whitelisting and token authentication.
 
 **Configuration:**
+
 ```env
-# Require authentication
+# Require authentication (forces token or IP check)
 PAYMENTS_HEALTH_CHECK_REQUIRE_AUTH=true
 
 # IP whitelist (comma-separated)
+# Supports single IPs: 127.0.0.1
+# Supports CIDR notation: 10.0.0.0/8 (entire 10.x.x.x range)
 PAYMENTS_HEALTH_CHECK_ALLOWED_IPS=127.0.0.1,192.168.1.100,10.0.0.0/8
 
-# Token authentication (comma-separated)
+# Token authentication (comma-separated, multiple tokens allowed)
+# Generate your own secure tokens (see below)
 PAYMENTS_HEALTH_CHECK_ALLOWED_TOKENS=your-secret-token-1,your-secret-token-2
+
+# Cache duration in seconds (default: 300 = 5 minutes)
+PAYMENTS_HEALTH_CHECK_CACHE_TTL=300
 ```
 
-**Usage:**
+**Generating Tokens:**
+
+You need to generate your own secure tokens. Here are several ways:
+
+**Option 1: Using Laravel (Recommended)**
 ```bash
-# With token
-curl -H "Authorization: Bearer your-secret-token-1" https://yourdomain.com/payments/health
-
-# Or query parameter
-curl https://yourdomain.com/payments/health?token=your-secret-token-1
+php artisan tinker
 ```
+```php
+Str::random(32) // Generates: "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
+```
+
+**Option 2: Using OpenSSL**
+```bash
+openssl rand -hex 32
+```
+
+**Option 3: Using PHP**
+```php
+bin2hex(random_bytes(32))
+```
+
+**Option 4: Using Online Generator**
+Use a secure random string generator (at least 32 characters).
+
+**Example Setup:**
+```bash
+# Generate a token
+php artisan tinker
+>>> Str::random(32)
+=> "xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j"
+
+# Add to .env
+PAYMENTS_HEALTH_CHECK_ALLOWED_TOKENS=xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j,another-token-here
+
+# Clear config cache
+php artisan config:clear
+```
+
+**How to use:**
+
+**1. With Bearer Token (Recommended):**
+```bash
+# Replace 'your-secret-token-1' with the token you generated
+curl -H "Authorization: Bearer xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j" https://yourdomain.com/payments/health
+```
+
+**2. With Custom Header:**
+```bash
+curl -H "X-Health-Token: xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j" https://yourdomain.com/payments/health
+```
+
+**3. With Query Parameter:**
+```bash
+curl https://yourdomain.com/payments/health?token=xK9mP2qR7vT4wY8zA1bC3dE5fG6hI0j
+```
+
+**4. From IP Whitelist (No token needed):**
+```bash
+# If your IP is in ALLOWED_IPS, no token required
+curl https://yourdomain.com/payments/health
+```
+
+**Response Format:**
+```json
+{
+  "status": "operational",
+  "providers": {
+    "paystack": {
+      "healthy": true,
+      "currencies": ["NGN", "USD", "GHS", "ZAR"]
+    },
+    "stripe": {
+      "healthy": true,
+      "currencies": ["USD", "EUR", "GBP", "CAD", "AUD"]
+    },
+    "flutterwave": {
+      "healthy": false,
+      "error": "Connection timeout"
+    }
+  }
+}
+```
+
+**Programmatic Access:**
+
+```php
+// Check health from your application
+// Use the token you generated and added to .env
+$token = config('payments.health_check.allowed_tokens')[0] ?? 'your-token';
+$response = Http::withToken($token)
+    ->get(url('/payments/health'));
+
+$data = $response->json();
+
+if ($data['providers']['paystack']['healthy']) {
+    // Paystack is available - proceed with payment
+} else {
+    // Use fallback provider
+}
+
+// Check individual provider programmatically
+$manager = app(PaymentManager::class);
+$driver = $manager->driver('paystack');
+
+// Cached check (recommended - uses cache)
+$isHealthy = $driver->getCachedHealthCheck();
+
+// Direct check (bypasses cache - use sparingly)
+$isHealthy = $driver->healthCheck();
+```
+
+**Use Cases:**
+- Monitor provider availability before processing payments
+- Set up uptime monitoring (UptimeRobot, Pingdom, StatusCake)
+- Check provider health in your dashboard
+- Automatically switch to backup providers when primary is down
+
+**Security Best Practices:**
+- Always enable authentication in production
+- Use strong, random tokens
+- Rotate tokens periodically
+- Restrict IP access to your monitoring services
+- Use HTTPS only
 
 ### 4. Webhook Payload Size Limits
 
@@ -258,12 +385,12 @@ Too many payment attempts. Please try again in {seconds} seconds.
 
 **Example:**
 ```php
-// ❌ Rejected
+// Rejected
 'user..name@example.com'  // Double dots
 'user@.example.com'       // Dot after @
 'user@example.com.'        // Trailing dot
 
-// ✅ Accepted
+// Accepted
 'user.name@example.com'
 'user+tag@example.com'
 ```
@@ -277,10 +404,10 @@ Too many payment attempts. Please try again in {seconds} seconds.
 
 **Example:**
 ```php
-// ❌ Rejected in production
+// Rejected in production
 'http://example.com/callback'
 
-// ✅ Accepted
+// Accepted
 'https://example.com/callback'
 ```
 
@@ -295,12 +422,12 @@ Too many payment attempts. Please try again in {seconds} seconds.
 
 **Example:**
 ```php
-// ❌ Rejected
+// Rejected
 'ORDER_123; DROP TABLE users--'
 'ORDER 123'
 'ORDER@123'
 
-// ✅ Accepted
+// Accepted
 'ORDER_123'
 'ORDER-123-ABC'
 'ORDER123ABC'
@@ -308,7 +435,7 @@ Too many payment attempts. Please try again in {seconds} seconds.
 
 ---
 
-## 🛡️ Security Best Practices
+## Security Best Practices
 
 ### 1. Environment Variables
 
@@ -333,10 +460,10 @@ Too many payment attempts. Please try again in {seconds} seconds.
 
 **Key Storage:**
 ```env
-# ✅ Good - Environment variables
+# Good - Environment variables
 PAYSTACK_SECRET_KEY=sk_live_xxxxx
 
-# ❌ Bad - Hardcoded in code
+# Bad - Hardcoded in code
 $secretKey = 'sk_live_xxxxx';
 ```
 
@@ -344,12 +471,12 @@ $secretKey = 'sk_live_xxxxx';
 
 **Always validate signatures:**
 ```php
-// ✅ Good - Validation enabled
+// Good - Validation enabled
 'webhook' => [
     'verify_signature' => true,
 ],
 
-// ❌ Bad - Never disable in production
+// Bad - Never disable in production
 'webhook' => [
     'verify_signature' => false,
 ],
@@ -357,10 +484,10 @@ $secretKey = 'sk_live_xxxxx';
 
 **Use HTTPS endpoints:**
 ```php
-// ✅ Good
+// Good
 'https://yourdomain.com/payments/webhook/paystack'
 
-// ❌ Bad
+// Bad
 'http://yourdomain.com/payments/webhook/paystack'
 ```
 
@@ -380,17 +507,23 @@ $secretKey = 'sk_live_xxxxx';
 - Max 64 characters
 - No special characters
 
+**Race Condition Protection:**
+- Transaction updates use database row locking (`lockForUpdate()`)
+- Status is re-checked after lock acquisition to prevent race conditions
+- Ensures concurrent webhook/verification requests don't cause duplicate processing
+- Protects against simultaneous updates from multiple sources (webhooks, callbacks, manual verification)
+
 ### 5. Logging Security
 
 **Never log sensitive data:**
 ```php
-// ❌ Bad
+// Bad
 logger()->info('Payment processed', [
     'api_key' => $apiKey,  // Will be redacted, but don't log it
     'card_number' => $cardNumber,  // Never log this
 ]);
 
-// ✅ Good
+// Good
 logger()->info('Payment processed', [
     'reference' => $reference,
     'amount' => $amount,
@@ -555,9 +688,4 @@ If you discover a security vulnerability, please report it responsibly:
    - Suggested fix (if any)
 
 We take security seriously and will respond promptly to all reports.
-
----
-
-**Last Updated:** 2025-12-12  
-**Version:** 1.2.0
 

@@ -8,7 +8,6 @@ use ArrayObject;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\Contracts\ProviderDetectorInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
@@ -23,10 +22,13 @@ use KenDeNigerian\PayZephyr\Exceptions\ProviderException;
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
 use KenDeNigerian\PayZephyr\Services\DriverFactory;
 use KenDeNigerian\PayZephyr\Services\MetadataSanitizer;
+use KenDeNigerian\PayZephyr\Traits\LogsToPaymentChannel;
 use Throwable;
 
 final class PaymentManager
 {
+    use LogsToPaymentChannel;
+
     protected array $drivers = [];
 
     protected array $config;
@@ -36,6 +38,8 @@ final class PaymentManager
     protected DriverFactory $driverFactory;
 
     protected MetadataSanitizer $metadataSanitizer;
+
+    protected ?string $cachedContext = null;
 
     public function __construct(
         ?ProviderDetectorInterface $providerDetector = null,
@@ -113,7 +117,17 @@ final class PaymentManager
                 $exceptions[$providerName] = $e;
                 $this->log('error', "Provider [$providerName] failed", [
                     'error' => $e->getMessage(),
+                    'error_class' => get_class($e),
                     'trace' => $e->getTraceAsString(),
+                    'request_context' => [
+                        'amount' => $request->amount,
+                        'currency' => $request->currency,
+                        'reference' => $request->reference,
+                    ],
+                    'provider_config' => [
+                        'name' => $providerName,
+                        'enabled' => ($this->config['providers'][$providerName]['enabled'] ?? true),
+                    ],
                 ]);
             }
         }
@@ -186,6 +200,13 @@ final class PaymentManager
                 return $response;
             } catch (Throwable $e) {
                 $exceptions[$providerName] = $e;
+                $this->log('error', "Provider [$providerName] verification failed", [
+                    'error' => $e->getMessage(),
+                    'error_class' => get_class($e),
+                    'reference' => $reference,
+                    'provider' => $providerName,
+                    'trace' => $e->getTraceAsString(),
+                ]);
             }
         }
 
@@ -197,13 +218,16 @@ final class PaymentManager
 
     protected function cacheSessionData(string $reference, string $provider, string $providerId): void
     {
+        $config = app('payments.config') ?? config('payments', []);
+        $cacheTtl = $config['cache']['session_ttl'] ?? 3600;
+
         Cache::put(
             $this->cacheKey('session', $reference),
             [
                 'provider' => $provider,
                 'id' => $providerId,
             ],
-            now()->addHour()
+            now()->addSeconds($cacheTtl)
         );
     }
 
@@ -221,20 +245,30 @@ final class PaymentManager
 
     protected function getCacheContext(): ?string
     {
+        if ($this->cachedContext !== null) {
+            return $this->cachedContext;
+        }
+
         try {
             if (function_exists('auth') && auth()->check()) {
-                return 'user_'.auth()->id();
+                $this->cachedContext = 'user_'.auth()->id();
+
+                return $this->cachedContext;
             }
 
             if (app()->bound('request')) {
                 $request = app('request');
 
                 if ($request->user()) {
-                    return 'user_'.$request->user()->id;
+                    $this->cachedContext = 'user_'.$request->user()->id;
+
+                    return $this->cachedContext;
                 }
 
                 if ($request->session() && $request->session()->has('user_id')) {
-                    return 'user_'.$request->session()->get('user_id');
+                    $this->cachedContext = 'user_'.$request->session()->get('user_id');
+
+                    return $this->cachedContext;
                 }
             }
         } catch (Throwable $e) {
@@ -242,6 +276,8 @@ final class PaymentManager
                 'error' => $e->getMessage(),
             ]);
         }
+
+        $this->cachedContext = null;
 
         return null;
     }
@@ -337,14 +373,20 @@ final class PaymentManager
                     ->lockForUpdate()
                     ->first();
 
-                if ($transaction && ! $transaction->isSuccessful()) {
-                    $statusEnum = PaymentStatus::tryFromString($response->status);
-                    $transaction->update([
-                        'status' => $response->status,
-                        'channel' => $response->channel,
-                        'paid_at' => $statusEnum?->isSuccessful() ? ($response->paidAt ?? now()) : null,
-                    ]);
+                if (! $transaction) {
+                    return;
                 }
+
+                if ($transaction->isSuccessful()) {
+                    return;
+                }
+
+                $statusEnum = PaymentStatus::tryFromString($response->status);
+                $transaction->update([
+                    'status' => $response->status,
+                    'channel' => $response->channel,
+                    'paid_at' => $statusEnum?->isSuccessful() ? ($response->paidAt ?? now()) : null,
+                ]);
             });
         } catch (Throwable $e) {
             $this->log('error', 'Failed to update transaction from verification', [
@@ -377,17 +419,5 @@ final class PaymentManager
             $this->config['providers'] ?? [],
             fn ($config) => $config['enabled'] ?? true
         );
-    }
-
-    protected function log(string $level, string $message, array $context = []): void
-    {
-        $config = app('payments.config') ?? config('payments', []);
-        $channelName = $config['logging']['channel'] ?? 'payments';
-
-        try {
-            Log::channel($channelName)->{$level}($message, $context);
-        } catch (\InvalidArgumentException) {
-            Log::{$level}($message, $context);
-        }
     }
 }

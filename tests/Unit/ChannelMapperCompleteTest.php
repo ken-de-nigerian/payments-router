@@ -157,8 +157,11 @@ test('channel mapper getUnifiedChannels returns all enum values', function () {
         PaymentChannel::BANK_TRANSFER->value,
         PaymentChannel::USSD->value,
         PaymentChannel::MOBILE_MONEY->value,
-        PaymentChannel::QR_CODE->value
-    )->and($channels)->toHaveCount(5);
+        PaymentChannel::QR_CODE->value,
+        PaymentChannel::DIGITAL_WALLET->value,
+        PaymentChannel::PAYPAL->value,
+        PaymentChannel::BANK_ACCOUNT->value
+    )->and($channels)->toHaveCount(8);
 });
 
 test('channel mapper handles qr code for all providers', function () {

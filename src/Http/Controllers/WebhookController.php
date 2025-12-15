@@ -6,18 +6,21 @@ namespace KenDeNigerian\PayZephyr\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
-use Illuminate\Support\Facades\Log;
-use InvalidArgumentException;
 use KenDeNigerian\PayZephyr\Http\Requests\WebhookRequest;
 use KenDeNigerian\PayZephyr\Jobs\ProcessWebhook;
+use KenDeNigerian\PayZephyr\Traits\LogsToPaymentChannel;
 use Throwable;
 
 final class WebhookController extends Controller
 {
+    use LogsToPaymentChannel;
+
     public function handle(WebhookRequest $request, string $provider): JsonResponse
     {
         try {
-            ProcessWebhook::dispatch($provider, $request->all());
+            $payload = $request->all();
+
+            ProcessWebhook::dispatch($provider, $payload);
 
             $this->log('info', 'Webhook queued for processing', [
                 'provider' => $provider,
@@ -33,18 +36,6 @@ final class WebhookController extends Controller
             ]);
 
             return response()->json(['message' => 'Webhook received but queuing failed internally'], 500);
-        }
-    }
-
-    protected function log(string $level, string $message, array $context = []): void
-    {
-        $config = app('payments.config') ?? config('payments', []);
-        $channelName = $config['logging']['channel'] ?? 'payments';
-
-        try {
-            Log::channel($channelName)->{$level}($message, $context);
-        } catch (InvalidArgumentException) {
-            Log::{$level}($message, $context);
         }
     }
 }

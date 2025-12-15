@@ -63,8 +63,6 @@ The package follows clean architecture principles with clear separation of conce
 │  Paystack • Stripe • PayPal • Square • etc. │
 └──────────────────────────────────────────────┘
 ```
-<｜tool▁calls▁begin｜><｜tool▁call▁begin｜>
-read_file
 
 ## Core Components
 

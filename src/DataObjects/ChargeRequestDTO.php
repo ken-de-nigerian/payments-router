@@ -127,6 +127,14 @@ final readonly class ChargeRequestDTO
 
         $idempotencyKey = $data['idempotency_key'] ?? self::generateIdempotencyKey();
 
+        if (isset($data['idempotency_key'])) {
+            $key = $data['idempotency_key'];
+            if (strlen($key) > 255 || ! preg_match('/^[a-zA-Z0-9_-]+$/', $key)) {
+                throw new InvalidArgumentException('Invalid idempotency key format. Must be alphanumeric with dashes/underscores and max 255 characters.');
+            }
+            $idempotencyKey = $key;
+        }
+
         return new self(
             amount: $amount,
             currency: strtoupper($data['currency'] ?? ''),

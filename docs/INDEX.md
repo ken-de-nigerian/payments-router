@@ -77,7 +77,7 @@ use KenDeNigerian\PayZephyr\Facades\Payment;
 
 // Builder methods can be chained in any order
 // redirect() must be called last to execute
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->redirect();
@@ -87,7 +87,7 @@ return Payment::amount(10000)
 
 ```php
 // All builder methods are chainable in any order
-return Payment::amount(50000)
+return Payment::amount(500.00)
     ->currency('NGN')
     ->email('customer@example.com')
     ->reference('ORDER_' . time())
@@ -106,7 +106,7 @@ return Payment::amount(50000)
 ```php
 // Try Paystack, fallback to Stripe
 // with() or using() can be called anywhere in the chain
-return Payment::amount(10000)
+return Payment::amount(100.00)
     ->email('customer@example.com')
     ->with(['paystack', 'stripe']) // or ->using(['paystack', 'stripe'])
     ->redirect(); // Must be called last
@@ -154,7 +154,7 @@ public function callback(Request $request)
 // The payment() helper works exactly like the Payment facade
 // All builder methods are chainable in any order
 return payment()
-    ->amount(10000)
+    ->amount(100.00)
     ->email('customer@example.com')
     ->callback(route('payment.callback'))
     ->redirect(); // Must be called last
@@ -255,7 +255,7 @@ use KenDeNigerian\PayZephyr\Exceptions\{
 };
 
 try {
-    $response = Payment::amount(10000)
+    $response = Payment::amount(100.00)
         ->email('customer@example.com')
         ->charge();
         
@@ -322,7 +322,7 @@ use KenDeNigerian\PayZephyr\Facades\Payment;
 
 test('payment charge works', function () {
     // Builder methods can be chained in any order
-    $response = Payment::amount(10000)
+    $response = Payment::amount(100.00)
         ->email('test@example.com')
         ->with('paystack') // or ->using('paystack')
         ->charge(); // Must be called last
@@ -510,39 +510,39 @@ Enable detailed logging:
 ## Best Practices
 
 ### 1. Security
-- ✅ Always enable webhook signature verification in production
-- ✅ Use HTTPS for all webhook URLs
-- ✅ Rotate API keys periodically
-- ✅ Never commit credentials to version control
-- ✅ Use environment variables for all sensitive data
+- Always enable webhook signature verification in production
+- Use HTTPS for all webhook URLs
+- Rotate API keys periodically
+- Never commit credentials to version control
+- Use environment variables for all sensitive data
 
 ### 2. Error Handling
-- ✅ Always wrap payment operations in try-catch blocks
-- ✅ Log errors with context for debugging
-- ✅ Show user-friendly error messages
-- ✅ Implement retry logic for transient failures
-- ✅ Monitor failed payments
+- Always wrap payment operations in try-catch blocks
+- Log errors with context for debugging
+- Show user-friendly error messages
+- Implement retry logic for transient failures
+- Monitor failed payments
 
 ### 3. Testing
-- ✅ Test with sandbox/test credentials first
-- ✅ Test all payment flows (success, failure, timeout)
-- ✅ Test webhook handling
-- ✅ Test with different currencies
-- ✅ Test fallback mechanisms
+- Test with sandbox/test credentials first
+- Test all payment flows (success, failure, timeout)
+- Test webhook handling
+- Test with different currencies
+- Test fallback mechanisms
 
 ### 4. Performance
-- ✅ Enable health check caching
-- ✅ Use queue workers for webhook processing
-- ✅ Implement rate limiting
-- ✅ Monitor provider response times
-- ✅ Cache provider availability status
+- Enable health check caching
+- Use queue workers for webhook processing
+- Implement rate limiting
+- Monitor provider response times
+- Cache provider availability status
 
 ### 5. Monitoring
-- ✅ Set up alerts for failed payments
-- ✅ Monitor webhook delivery success rate
-- ✅ Track provider uptime
-- ✅ Review transaction logs regularly
-- ✅ Set up exception monitoring (Sentry, Bugsnag)
+- Set up alerts for failed payments
+- Monitor webhook delivery success rate
+- Track provider uptime
+- Review transaction logs regularly
+- Set up exception monitoring (Sentry, Bugsnag)
 
 ---
 
@@ -551,7 +551,7 @@ Enable detailed logging:
 ### Getting Help
 
 - 📧 **Email**: ken.de.nigerian@payzephyr.dev
-- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions)
+- [GitHub Discussions](https://github.com/ken-de-nigerian/payzephyr/discussions) - Feature requests
 - 📖 **Wiki**: [GitHub Wiki](https://github.com/ken-de-nigerian/payzephyr/wiki)
 
 ### Provider Documentation
@@ -578,4 +578,4 @@ Enable detailed logging:
 
 ---
 
-**Happy Coding! 🚀**
+Happy coding!
