@@ -92,7 +92,6 @@ final class NowPaymentsDriver extends AbstractDriver
 
             $data = $this->parseResponse($response);
 
-            // NOWPayments invoice endpoint returns 'id' field (invoice ID)
             if (! isset($data['id'])) {
                 throw new ChargeException(
                     $data['message'] ?? 'Failed to initialize Nowpayments transaction'
@@ -104,7 +103,6 @@ final class NowPaymentsDriver extends AbstractDriver
                 'invoice_id' => $data['id'],
             ]);
 
-            // Invoice endpoint returns invoice_url for redirect-based payment
             if (! isset($data['invoice_url'])) {
                 throw new ChargeException(
                     $data['message'] ?? 'Failed to initialize Nowpayments transaction: invoice_url missing'
@@ -118,7 +116,7 @@ final class NowPaymentsDriver extends AbstractDriver
                 status: 'pending',
                 metadata: array_merge($request->metadata, [
                     'invoice_id' => $data['id'],
-                    'payment_status' => 'waiting', // Invoice starts in waiting state
+                    'payment_status' => 'waiting',
                 ]),
                 provider: $this->getName(),
             );
@@ -149,13 +147,9 @@ final class NowPaymentsDriver extends AbstractDriver
     public function verify(string $reference): VerificationResponseDTO
     {
         try {
-            // Try to verify using the reference as payment_id/invoice_id first
-            // If that fails, we'll need to search by order_id
-            // For invoices that become payments, the invoice_id might work as payment lookup
             $response = $this->makeRequest('GET', "/v1/payment/$reference");
             $data = $this->parseResponse($response);
 
-            // NOWPayments payment endpoint returns payment_id
             if (! isset($data['payment_id'])) {
                 throw new VerificationException(
                     $data['message'] ?? 'Failed to verify Nowpayments transaction'
@@ -171,7 +165,6 @@ final class NowPaymentsDriver extends AbstractDriver
 
             $status = $data['payment_status'] ?? 'unknown';
 
-            // Handle timestamp conversion - NOWPayments returns ISO 8601 strings
             $paidAt = null;
             if (isset($data['updated_at'])) {
                 $timestamp = is_string($data['updated_at'])
@@ -319,7 +312,6 @@ final class NowPaymentsDriver extends AbstractDriver
     {
         $reference = $payload['order_id'] ?? $payload['payment_id'] ?? null;
 
-        // Convert to string if it's an integer (payment_id can be numeric)
         if ($reference !== null && ! is_string($reference)) {
             $reference = (string) $reference;
         }
@@ -351,9 +343,6 @@ final class NowPaymentsDriver extends AbstractDriver
      */
     public function resolveVerificationId(string $reference, string $providerId): string
     {
-        // For NOWPayments invoices, we verify using order_id (reference)
-        // The invoice_id in providerId might work, but order_id is the standard way
-        // Try invoice_id first if available, otherwise use order_id (reference)
         return ! empty($providerId) ? $providerId : $reference;
     }
 }

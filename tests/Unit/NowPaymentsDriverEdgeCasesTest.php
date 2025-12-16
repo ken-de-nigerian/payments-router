@@ -221,7 +221,6 @@ test('nowpayments driver handles response without invoice_url', function () {
             'price_currency' => 'usd',
             'created_at' => '2020-12-22T15:05:58.290Z',
             'updated_at' => '2020-12-22T15:05:58.290Z',
-            // Missing invoice_url - this should throw an exception
         ])),
     ]);
 
@@ -249,7 +248,6 @@ test('nowpayments driver handles charge with missing callback url', function () 
 
     $request = new ChargeRequestDTO(100.00, 'USD', 'test@example.com');
 
-    // Should still work, callback URLs will be null
     $response = $driver->charge($request);
     expect($response->reference)->toStartWith('NOW_');
 });
@@ -369,7 +367,6 @@ test('nowpayments driver handles verify with missing updated_at timestamp', func
             'payment_status' => 'finished',
             'price_amount' => 100.00,
             'price_currency' => 'usd',
-            // Missing updated_at
         ])),
     ]);
 
@@ -596,11 +593,8 @@ test('nowpayments driver handles webhook with replay attack (old timestamp)', fu
     $body = json_encode($payload);
     $signature = hash_hmac('sha512', $body, $this->config['ipn_secret']);
 
-    // Mock validateWebhookTimestamp to return false for old timestamps
     $result = $driver->validateWebhook(['x-nowpayments-sig' => [$signature]], $body);
 
-    // Should still validate signature but timestamp validation might fail
-    // The actual timestamp validation depends on the AbstractDriver implementation
     expect($result)->toBeBool();
 });
 
@@ -610,10 +604,8 @@ test('nowpayments driver handles webhook with malformed json body', function () 
     $body = 'invalid json {';
     $signature = hash_hmac('sha512', $body, $this->config['ipn_secret']);
 
-    // Should still validate signature, but payload parsing will fail
     $result = $driver->validateWebhook(['x-nowpayments-sig' => [$signature]], $body);
 
-    // Signature validation should pass, but timestamp validation might fail due to invalid JSON
     expect($result)->toBeBool();
 });
 
@@ -625,7 +617,6 @@ test('nowpayments driver handles webhook with empty body', function () {
 
     $result = $driver->validateWebhook(['x-nowpayments-sig' => [$signature]], $body);
 
-    // Should validate signature even with empty body
     expect($result)->toBeBool();
 });
 
@@ -633,7 +624,6 @@ test('nowpayments driver handles webhook signature with wrong algorithm attempt'
     $driver = new NowPaymentsDriver($this->config);
 
     $body = '{"payment_id": 12345678, "payment_status": "finished"}';
-    // Try SHA256 instead of SHA512 (wrong algorithm)
     $wrongSignature = hash_hmac('sha256', $body, $this->config['ipn_secret']);
 
     $result = $driver->validateWebhook(['x-nowpayments-sig' => [$wrongSignature]], $body);
@@ -745,7 +735,6 @@ test('nowpayments driver resolveVerificationId uses reference when providerId is
 test('nowpayments driver resolveVerificationId uses reference when providerId is null', function () {
     $driver = new NowPaymentsDriver($this->config);
 
-    // Empty string is considered empty, so it falls back
     $result = $driver->resolveVerificationId('NOW_1234567890_abc123def456', '');
 
     expect($result)->toBe('NOW_1234567890_abc123def456');

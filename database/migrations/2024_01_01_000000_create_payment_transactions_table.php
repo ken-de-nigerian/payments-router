@@ -33,7 +33,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        // Drop the table if it exists
         Schema::dropIfExists(config('payments.logging.table', 'payment_transactions'));
     }
 };
