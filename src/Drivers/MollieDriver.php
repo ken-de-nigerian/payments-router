@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -361,7 +362,7 @@ final class MollieDriver extends AbstractDriver
             $response = $this->makeRequest('GET', '/v2/methods');
             $statusCode = $response->getStatusCode();
 
-            return $statusCode < 500;
+            return ! HttpStatusCodes::isServerError($statusCode);
         } catch (Throwable $e) {
             $previous = $e->getPrevious();
             if (
@@ -370,7 +371,7 @@ final class MollieDriver extends AbstractDriver
             ) {
                 $response = $previous->getResponse();
                 $statusCode = $response->getStatusCode();
-                if (in_array($statusCode, [400, 404], true)) {
+                if (in_array($statusCode, [HttpStatusCodes::BAD_REQUEST, HttpStatusCodes::NOT_FOUND], true)) {
                     $this->log('info', 'Health check successful (expected 400/404 response)');
 
                     return true;

@@ -6,6 +6,7 @@ namespace KenDeNigerian\PayZephyr\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use Symfony\Component\HttpFoundation\Response;
 
 final class HealthEndpointMiddleware
@@ -41,7 +42,7 @@ final class HealthEndpointMiddleware
                 ?? $request->query('token');
 
             if (empty($token) || ! in_array($token, $allowedTokens, true)) {
-                return response()->json(['error' => 'Unauthorized'], 401);
+                return response()->json(['error' => 'Unauthorized'], HttpStatusCodes::UNAUTHORIZED);
             }
         }
 

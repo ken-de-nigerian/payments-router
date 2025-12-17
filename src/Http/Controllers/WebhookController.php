@@ -6,6 +6,7 @@ namespace KenDeNigerian\PayZephyr\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\Http\Requests\WebhookRequest;
 use KenDeNigerian\PayZephyr\Jobs\ProcessWebhook;
 use KenDeNigerian\PayZephyr\Traits\LogsToPaymentChannel;
@@ -35,7 +36,7 @@ final class WebhookController extends Controller
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json(['message' => 'Webhook received but queuing failed internally'], 500);
+            return response()->json(['message' => 'Webhook received but queuing failed internally'], HttpStatusCodes::INTERNAL_SERVER_ERROR);
         }
     }
 }

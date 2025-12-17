@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -269,7 +270,7 @@ final class NowPaymentsDriver extends AbstractDriver
             $response = $this->makeRequest('GET', '/v1/status');
             $statusCode = $response->getStatusCode();
 
-            return $statusCode < 500;
+            return ! HttpStatusCodes::isServerError($statusCode);
         } catch (Throwable $e) {
             $previous = $e->getPrevious();
 
@@ -286,7 +287,7 @@ final class NowPaymentsDriver extends AbstractDriver
             if ($clientException !== null) {
                 $response = $clientException->getResponse();
                 $statusCode = $response->getStatusCode();
-                if (in_array($statusCode, [400, 404, 401], true)) {
+                if (in_array($statusCode, [HttpStatusCodes::BAD_REQUEST, HttpStatusCodes::NOT_FOUND, HttpStatusCodes::UNAUTHORIZED], true)) {
                     $this->log('info', 'Health check successful (expected 400/404/401 response)', [
                         'status_code' => $statusCode,
                     ]);

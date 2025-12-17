@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -223,7 +224,7 @@ final class PaystackDriver extends AbstractDriver
             $response = $this->makeRequest('GET', '/transaction/verify/invalid_ref_test');
             $statusCode = $response->getStatusCode();
 
-            return $statusCode < 500;
+            return ! HttpStatusCodes::isServerError($statusCode);
         } catch (Throwable $e) {
             $previous = $e->getPrevious();
 
@@ -240,7 +241,7 @@ final class PaystackDriver extends AbstractDriver
             if ($clientException !== null) {
                 $response = $clientException->getResponse();
                 $statusCode = $response->getStatusCode();
-                if (in_array($statusCode, [400, 404], true)) {
+                if (in_array($statusCode, [HttpStatusCodes::BAD_REQUEST, HttpStatusCodes::NOT_FOUND], true)) {
                     $this->log('info', 'Health check successful (expected 400/404 response)', [
                         'status_code' => $statusCode,
                     ]);

@@ -6,6 +6,7 @@ namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\ConnectException;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -138,7 +139,7 @@ final class SquareDriver extends AbstractDriver
             $isSandboxUrl = str_contains($baseUrl, 'squareupsandbox.com');
             $isProductionUrl = str_contains($baseUrl, 'squareup.com') && ! $isSandboxUrl;
 
-            if ($statusCode === 401 || $statusCode === 403) {
+            if ($statusCode === HttpStatusCodes::UNAUTHORIZED || $statusCode === HttpStatusCodes::FORBIDDEN) {
                 $hint = '';
                 if ($isSandboxUrl) {
                     $hint = ' Make sure you are using a sandbox access token. Check Square Dashboard → Applications → Your App → Sandbox → Access Tokens.';
@@ -249,7 +250,7 @@ final class SquareDriver extends AbstractDriver
             $previous = $e->getPrevious();
             if ($previous instanceof ClientException) {
                 $response = $previous->getResponse();
-                if ($response->getStatusCode() === 404) {
+                if ($response->getStatusCode() === HttpStatusCodes::NOT_FOUND) {
                     return null;
                 }
             }
@@ -297,7 +298,7 @@ final class SquareDriver extends AbstractDriver
             $previous = $e->getPrevious();
             if ($previous instanceof ClientException) {
                 $response = $previous->getResponse();
-                if ($response->getStatusCode() === 404) {
+                if ($response->getStatusCode() === HttpStatusCodes::NOT_FOUND) {
                     return null;
                 }
             }
@@ -370,7 +371,7 @@ final class SquareDriver extends AbstractDriver
             $previous = $e->getPrevious();
             if ($previous instanceof ClientException) {
                 $response = $previous->getResponse();
-                if ($response->getStatusCode() === 404) {
+                if ($response->getStatusCode() === HttpStatusCodes::NOT_FOUND) {
                     throw new VerificationException('Payment not found');
                 }
             }
@@ -540,7 +541,7 @@ final class SquareDriver extends AbstractDriver
         try {
             $response = $this->makeRequest('GET', '/v2/locations');
 
-            return $response->getStatusCode() === 200;
+            return $response->getStatusCode() === HttpStatusCodes::OK;
         } catch (ChargeException $e) {
             $previous = $e->getPrevious();
             if ($previous instanceof ClientException) {

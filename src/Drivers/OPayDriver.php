@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
-use KenDeNigerian\PayZephyr\Exceptions\PaymentException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
 use Throwable;
 
@@ -279,17 +279,26 @@ final class OPayDriver extends AbstractDriver
     {
         try {
             $response = $this->makeRequest('POST', '/api/v1/international/cashier/status');
+            $statusCode = $response->getStatusCode();
 
-            return $response->getStatusCode() < 500;
+            return ! HttpStatusCodes::isServerError($statusCode);
         } catch (Throwable $e) {
             $previous = $e->getPrevious();
-            if (
-                ($e instanceof PaymentException)
-                && ($previous instanceof ClientException)
-            ) {
-                $response = $previous->getResponse();
+
+            $clientException = null;
+            $current = $e;
+            while ($current !== null) {
+                if ($current instanceof ClientException) {
+                    $clientException = $current;
+                    break;
+                }
+                $current = $current->getPrevious();
+            }
+
+            if ($clientException !== null) {
+                $response = $clientException->getResponse();
                 $statusCode = $response->getStatusCode();
-                if (in_array($statusCode, [400, 404], true)) {
+                if (in_array($statusCode, [HttpStatusCodes::BAD_REQUEST, HttpStatusCodes::NOT_FOUND], true)) {
                     $this->log('info', 'Health check successful (expected 400/404 response)');
 
                     return true;

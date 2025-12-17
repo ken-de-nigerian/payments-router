@@ -4,24 +4,18 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Services;
 
+use KenDeNigerian\PayZephyr\Constants\PaymentConstants;
+
 final class MetadataSanitizer
 {
-    private const MAX_DEPTH = 10;
-
-    private const MAX_KEY_LENGTH = 255;
-
-    private const MAX_STRING_LENGTH = 10000;
-
-    private const MAX_ARRAY_SIZE = 100;
-
     public function sanitize(mixed $data, int $depth = 0): mixed
     {
-        if ($depth > self::MAX_DEPTH) {
+        if ($depth > PaymentConstants::METADATA_MAX_DEPTH) {
             return null;
         }
 
         if (is_array($data)) {
-            if (count($data) > self::MAX_ARRAY_SIZE) {
+            if (count($data) > PaymentConstants::METADATA_MAX_ARRAY_SIZE) {
                 return [];
             }
 
@@ -56,7 +50,7 @@ final class MetadataSanitizer
 
     private function sanitizeKey(string $key): ?string
     {
-        if (strlen($key) > self::MAX_KEY_LENGTH) {
+        if (strlen($key) > PaymentConstants::MAX_KEY_LENGTH) {
             return null;
         }
 
@@ -69,8 +63,8 @@ final class MetadataSanitizer
 
     private function sanitizeString(string $value): string
     {
-        if (strlen($value) > self::MAX_STRING_LENGTH) {
-            $value = substr($value, 0, self::MAX_STRING_LENGTH);
+        if (strlen($value) > PaymentConstants::METADATA_MAX_STRING_LENGTH) {
+            $value = substr($value, 0, PaymentConstants::METADATA_MAX_STRING_LENGTH);
         }
 
         $value = strip_tags($value);

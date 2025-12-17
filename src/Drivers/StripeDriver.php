@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use Exception;
+use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
@@ -314,7 +315,7 @@ final class StripeDriver extends AbstractDriver
         } catch (ApiErrorException $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
 
-            return $e->getHttpStatus() < 500;
+            return ! HttpStatusCodes::isServerError($e->getHttpStatus());
         }
     }
 

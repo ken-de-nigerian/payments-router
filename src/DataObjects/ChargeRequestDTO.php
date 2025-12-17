@@ -6,6 +6,7 @@ namespace KenDeNigerian\PayZephyr\DataObjects;
 
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use KenDeNigerian\PayZephyr\Constants\PaymentConstants;
 
 final readonly class ChargeRequestDTO
 {
@@ -113,7 +114,7 @@ final readonly class ChargeRequestDTO
 
     private function isValidReference(string $reference): bool
     {
-        return preg_match('/^[a-zA-Z0-9_-]{1,255}$/', $reference) === 1;
+        return preg_match('/^[a-zA-Z0-9_-]{1,'.PaymentConstants::MAX_REFERENCE_LENGTH.'}$/', $reference) === 1;
     }
 
     public function getAmountInMinorUnits(): int
@@ -129,8 +130,8 @@ final readonly class ChargeRequestDTO
 
         if (isset($data['idempotency_key'])) {
             $key = $data['idempotency_key'];
-            if (strlen($key) > 255 || ! preg_match('/^[a-zA-Z0-9_-]+$/', $key)) {
-                throw new InvalidArgumentException('Invalid idempotency key format. Must be alphanumeric with dashes/underscores and max 255 characters.');
+            if (strlen($key) > PaymentConstants::MAX_REFERENCE_LENGTH || ! preg_match('/^[a-zA-Z0-9_-]+$/', $key)) {
+                throw new InvalidArgumentException('Invalid idempotency key format. Must be alphanumeric with dashes/underscores and max '.PaymentConstants::MAX_REFERENCE_LENGTH.' characters.');
             }
             $idempotencyKey = $key;
         }

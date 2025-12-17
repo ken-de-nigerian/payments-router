@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Exception\ServerException;
-use GuzzleHttp\Exception\TransferException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
@@ -19,6 +15,9 @@ use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Services\ChannelMapper;
 use KenDeNigerian\PayZephyr\Services\StatusNormalizer;
+use KenDeNigerian\PayZephyr\Traits\HasLogSanitization;
+use KenDeNigerian\PayZephyr\Traits\HasNetworkErrorHandling;
+use KenDeNigerian\PayZephyr\Traits\HasWebhookValidation;
 use Psr\Http\Message\ResponseInterface;
 use Random\RandomException;
 
@@ -31,6 +30,10 @@ use Random\RandomException;
  */
 abstract class AbstractDriver implements DriverInterface
 {
+    use HasLogSanitization;
+    use HasNetworkErrorHandling;
+    use HasWebhookValidation;
+
     protected Client $client;
 
     protected array $config;
@@ -54,24 +57,6 @@ abstract class AbstractDriver implements DriverInterface
      * Can be injected for testing or to use custom mapper.
      */
     protected ?ChannelMapper $channelMapper = null;
-
-    /**
-     * Sensitive keys to redact from logs
-     */
-    protected array $sensitiveKeys = [
-        'password',
-        'secret',
-        'token',
-        'api_key',
-        'access_token',
-        'refresh_token',
-        'card_number',
-        'cvv',
-        'pin',
-        'ssn',
-        'account_number',
-        'routing_number',
-    ];
 
     /**
      * Create a new payment driver instance.
@@ -165,96 +150,6 @@ abstract class AbstractDriver implements DriverInterface
     }
 
     /**
-     * Handle network errors gracefully with better logging and context.
-     *
-     * This method distinguishes between different types of network errors
-     * and provides user-friendly error messages and logging.
-     *
-     * @param  GuzzleException  $exception  The network exception that occurred
-     * @param  string  $method  HTTP method that was attempted
-     * @param  string  $uri  URI that was requested
-     */
-    protected function handleNetworkError(GuzzleException $exception, string $method, string $uri): void
-    {
-        $errorType = 'network_error';
-        $userMessage = 'Network error occurred while communicating with payment provider';
-        $context = [
-            'method' => $method,
-            'uri' => $uri,
-            'provider' => $this->getName(),
-            'error_class' => get_class($exception),
-        ];
-
-        if ($exception instanceof ConnectException) {
-            $errorType = 'connection_error';
-            $userMessage = 'Unable to connect to payment provider. Please check your internet connection and try again.';
-            $context['error_type'] = 'connection_failure';
-            $context['hint'] = 'This could be due to network timeout, DNS resolution failure, or the payment provider being temporarily unavailable.';
-        } elseif ($exception instanceof ServerException) {
-            $errorType = 'server_error';
-            $userMessage = 'Payment provider server error. Please try again later.';
-            $response = $exception->getResponse();
-            $context['status_code'] = $response->getStatusCode();
-            $context['response_body'] = (string) $response->getBody();
-        } elseif ($exception instanceof RequestException) {
-            $errorType = 'request_error';
-            $userMessage = 'Request to payment provider failed. Please check your request and try again.';
-            $response = $exception->getResponse();
-            if ($response !== null) {
-                $context['status_code'] = $response->getStatusCode();
-            }
-        } elseif ($exception instanceof TransferException) {
-            $errorType = 'transfer_error';
-            $userMessage = 'Data transfer error occurred. Please try again.';
-        }
-
-        $this->log('error', "Network error during $method request to $uri", array_merge($context, [
-            'error_message' => $exception->getMessage(),
-            'error_type' => $errorType,
-            'user_message' => $userMessage,
-        ]));
-    }
-
-    /**
-     * Get a user-friendly error message from a GuzzleException.
-     *
-     * This method provides better error messages for different types of network errors,
-     * making it easier for users to understand what went wrong.
-     *
-     * @param  GuzzleException  $exception  The network exception
-     * @return string User-friendly error message
-     */
-    protected function getNetworkErrorMessage(GuzzleException $exception): string
-    {
-        if ($exception instanceof ConnectException) {
-            return 'Unable to connect to payment provider. This may be due to a network timeout, connection issue, or the provider being temporarily unavailable. Please try again.';
-        }
-
-        if ($exception instanceof ServerException) {
-            $response = $exception->getResponse();
-            $statusCode = $response->getStatusCode();
-            if ($statusCode >= 500) {
-                return 'Payment provider server error. The provider is experiencing issues. Please try again later.';
-            }
-        }
-
-        if ($exception instanceof RequestException) {
-            $response = $exception->getResponse();
-            if ($response !== null) {
-                $statusCode = $response->getStatusCode();
-                if ($statusCode === 429) {
-                    return 'Too many requests. Please wait a moment and try again.';
-                }
-                if ($statusCode >= 400 && $statusCode < 500) {
-                    return 'Invalid request to payment provider. Please check your payment details and try again.';
-                }
-            }
-        }
-
-        return 'Network error occurred while processing payment. Please check your connection and try again.';
-    }
-
-    /**
      * Get the HTTP header name and value for idempotency.
      * Most providers use 'Idempotency-Key', but some might use different names.
      * Override this in specific drivers if needed.
@@ -340,7 +235,7 @@ abstract class AbstractDriver implements DriverInterface
     {
         $cacheKey = 'payments.health.'.$this->getName();
         $config = app('payments.config') ?? config('payments', []);
-        $cacheTtl = $config['health_check']['cache_ttl'] ?? 300;
+        $cacheTtl = $config['health_check']['cache_ttl'] ?? PaymentConstants::HEALTH_CHECK_CACHE_TTL_SECONDS;
 
         return Cache::remember($cacheKey, $cacheTtl, function () {
             return $this->healthCheck();
@@ -369,57 +264,6 @@ abstract class AbstractDriver implements DriverInterface
         } catch (InvalidArgumentException) {
             Log::{$level}("[{$this->getName()}] $message", $sanitizedContext);
         }
-    }
-
-    /**
-     * Recursively sanitize log context
-     */
-    protected function sanitizeLogContext(mixed $data): mixed
-    {
-        if (is_array($data)) {
-            $sanitized = [];
-            foreach ($data as $key => $value) {
-                if ($this->isSensitiveKey($key)) {
-                    $sanitized[$key] = '[REDACTED]';
-                } else {
-                    $sanitized[$key] = $this->sanitizeLogContext($value);
-                }
-            }
-
-            return $sanitized;
-        }
-
-        if (is_object($data)) {
-            $array = method_exists($data, 'toArray')
-                ? $data->toArray()
-                : (array) $data;
-
-            return $this->sanitizeLogContext($array);
-        }
-
-        if (is_string($data) && strlen($data) > 20) {
-            if (preg_match('/^(sk_|pk_|whsec_|Bearer\s+)/i', $data)) {
-                return '[REDACTED_TOKEN]';
-            }
-        }
-
-        return $data;
-    }
-
-    /**
-     * Check if a key is considered sensitive
-     */
-    protected function isSensitiveKey(string $key): bool
-    {
-        $key = strtolower($key);
-
-        foreach ($this->sensitiveKeys as $sensitiveKey) {
-            if (str_contains($key, strtolower($sensitiveKey))) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -530,75 +374,6 @@ abstract class AbstractDriver implements DriverInterface
 
         if (! empty($request->channels)) {
             return $mapper->mapChannels($request->channels, $this->getName());
-        }
-
-        return null;
-    }
-
-    /**
-     * Validate webhook timestamp to prevent replay attacks
-     *
-     * @param  array  $payload  Webhook payload
-     * @param  int  $toleranceSeconds  Allowed time difference (default: 300 = 5 minutes)
-     */
-    protected function validateWebhookTimestamp(array $payload, int $toleranceSeconds = 300): bool
-    {
-        $timestamp = $this->extractWebhookTimestamp($payload);
-
-        if ($timestamp === null) {
-            $this->log('warning', 'Webhook timestamp missing', [
-                'hint' => 'Consider rejecting webhooks without timestamps to prevent replay attacks',
-            ]);
-
-            return true;
-        }
-
-        $currentTime = time();
-        $timeDifference = abs($currentTime - $timestamp);
-
-        if ($timeDifference > $toleranceSeconds) {
-            $this->log('warning', 'Webhook timestamp outside tolerance window', [
-                'timestamp' => $timestamp,
-                'current_time' => $currentTime,
-                'difference_seconds' => $timeDifference,
-                'tolerance_seconds' => $toleranceSeconds,
-            ]);
-
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Extract timestamp from webhook payload
-     * Override in specific drivers if needed
-     *
-     * @return int|null Unix timestamp
-     */
-    protected function extractWebhookTimestamp(array $payload): ?int
-    {
-        $timestampFields = [
-            'timestamp',
-            'created_at',
-            'createdAt',
-            'event_time',
-            'eventTime',
-            'time',
-        ];
-
-        foreach ($timestampFields as $field) {
-            if (isset($payload[$field])) {
-                $value = $payload[$field];
-
-                if (is_string($value) && strtotime($value) !== false) {
-                    return strtotime($value);
-                }
-
-                if (is_numeric($value)) {
-                    return (int) $value;
-                }
-            }
         }
 
         return null;
