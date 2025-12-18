@@ -8,10 +8,10 @@ use KenDeNigerian\PayZephyr\Contracts\StatusNormalizerInterface;
 
 final class StatusNormalizer implements StatusNormalizerInterface
 {
-    /** @var array<string, array<string, string>> */
+    /** @var array<string, array<string, array<int, string>>> */
     protected array $providerMappings = [];
 
-    /** @var array<string, array<string>> */
+    /** @var array<string, array<int, string>> */
     protected array $defaultMappings = [
         'success' => [
             'SUCCESS', 'SUCCEEDED', 'COMPLETED', 'SUCCESSFUL', 'PAID', 'OVERPAID', 'CAPTURED',
@@ -32,7 +32,7 @@ final class StatusNormalizer implements StatusNormalizerInterface
         if ($provider && isset($this->providerMappings[$provider])) {
             $mapping = $this->providerMappings[$provider];
             foreach ($mapping as $normalizedStatus => $providerStatuses) {
-                if (in_array($status, (array) $providerStatuses, true)) {
+                if (in_array($status, $providerStatuses, true)) {
                     return $normalizedStatus;
                 }
             }
@@ -47,6 +47,9 @@ final class StatusNormalizer implements StatusNormalizerInterface
         return strtolower($status);
     }
 
+    /**
+     * @param  array<string, array<int, string>>  $mappings
+     */
     public function registerProviderMappings(string $provider, array $mappings): self
     {
         $this->providerMappings[$provider] = $mappings;
@@ -54,11 +57,17 @@ final class StatusNormalizer implements StatusNormalizerInterface
         return $this;
     }
 
+    /**
+     * @return array<string, array<string, array<int, string>>>
+     */
     public function getProviderMappings(): array
     {
         return $this->providerMappings;
     }
 
+    /**
+     * @return array<string, array<int, string>>
+     */
     public function getDefaultMappings(): array
     {
         return $this->defaultMappings;

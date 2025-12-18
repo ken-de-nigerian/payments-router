@@ -40,6 +40,8 @@ final class OPayDriver extends AbstractDriver
      * Note: These headers are used for the Create Payment API.
      * The Status API requires different authentication (HMAC-SHA512 signature)
      * and should override these headers in the verify() method.
+     *
+     * @return array<string, string>
      */
     protected function getDefaultHeaders(): array
     {
@@ -53,6 +55,8 @@ final class OPayDriver extends AbstractDriver
 
     /**
      * OPay uses 'Idempotency-Key' header.
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {

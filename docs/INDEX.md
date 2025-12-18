@@ -6,6 +6,7 @@
 - [Installation](../README.md)
 - [Configuration](#configuration)
 - [Basic Usage](#basic-usage)
+- [Subscriptions](SUBSCRIPTIONS.md) ⭐ **New!**
 - [Webhooks](webhooks.md)
 - [Providers](providers.md)
 - [API Reference](API_REFERENCE.md)

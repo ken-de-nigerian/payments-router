@@ -9,6 +9,9 @@ use InvalidArgumentException;
 
 trait LogsToPaymentChannel
 {
+    /**
+     * @param  array<string, mixed>  $context
+     */
     protected function log(string $level, string $message, array $context = []): void
     {
         $config = app('payments.config') ?? config('payments', []);

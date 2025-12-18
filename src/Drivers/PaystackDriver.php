@@ -6,19 +6,23 @@ namespace KenDeNigerian\PayZephyr\Drivers;
 
 use GuzzleHttp\Exception\ClientException;
 use KenDeNigerian\PayZephyr\Constants\HttpStatusCodes;
+use KenDeNigerian\PayZephyr\Contracts\SupportsSubscriptionsInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
 use KenDeNigerian\PayZephyr\Exceptions\InvalidConfigurationException;
 use KenDeNigerian\PayZephyr\Exceptions\VerificationException;
+use KenDeNigerian\PayZephyr\Traits\PaystackSubscriptionMethods;
 use Throwable;
 
 /**
  * Driver implementation for the Paystack payment gateway.
  */
-final class PaystackDriver extends AbstractDriver
+final class PaystackDriver extends AbstractDriver implements SupportsSubscriptionsInterface
 {
+    use PaystackSubscriptionMethods;
+
     protected string $name = 'paystack';
 
     /**
@@ -34,6 +38,8 @@ final class PaystackDriver extends AbstractDriver
     /**
      * Get the HTTP headers needed for Paystack API requests.
      * Paystack uses Bearer token authentication (your secret key).
+     *
+     * @return array<string, string>
      */
     protected function getDefaultHeaders(): array
     {
@@ -46,6 +52,8 @@ final class PaystackDriver extends AbstractDriver
 
     /**
      * Paystack uses the standard 'Idempotency-Key' header.
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {
@@ -156,6 +164,7 @@ final class PaystackDriver extends AbstractDriver
                     'email' => $result['customer']['email'] ?? null,
                     'code' => $result['customer']['customer_code'] ?? null,
                 ],
+                authorizationCode: $result['authorization']['authorization_code'] ?? null,
             );
         } catch (VerificationException $e) {
             throw $e;

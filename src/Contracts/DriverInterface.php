@@ -21,18 +21,33 @@ interface DriverInterface
      */
     public function verify(string $reference): VerificationResponseDTO;
 
+    /**
+     * @param  array<string, array<int, string>>  $headers
+     */
     public function validateWebhook(array $headers, string $body): bool;
 
     public function healthCheck(): bool;
 
     public function getName(): string;
 
+    /**
+     * @return array<int, string>
+     */
     public function getSupportedCurrencies(): array;
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public function extractWebhookReference(array $payload): ?string;
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public function extractWebhookStatus(array $payload): string;
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public function extractWebhookChannel(array $payload): ?string;
 
     public function resolveVerificationId(string $reference, string $providerId): string;

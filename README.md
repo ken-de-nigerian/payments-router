@@ -147,6 +147,50 @@ See [Webhook Guide](docs/webhooks.md) for complete setup.
 
 ---
 
+## Subscriptions
+
+**Currently, only PaystackDriver supports subscriptions.** Support for other providers will be added in future releases.
+
+### Quick Example
+
+```php
+use KenDeNigerian\PayZephyr\Facades\Payment;
+use KenDeNigerian\PayZephyr\DataObjects\SubscriptionPlanDTO;
+
+// Create a subscription plan (using facade)
+$planDTO = new SubscriptionPlanDTO(
+    name: 'Monthly Premium',
+    amount: 5000.00,  // ₦5,000.00
+    interval: 'monthly',
+    currency: 'NGN',
+);
+
+$plan = Payment::subscription()
+    ->planData($planDTO)
+    ->with('paystack')  // Currently only PaystackDriver supports subscriptions
+    ->createPlan();
+
+// Create a subscription (using helper function - both work!)
+$subscription = payment()->subscription()
+    ->customer('customer@example.com')
+    ->plan($plan['plan_code'])
+    ->with('paystack')
+    ->subscribe();  // Final action method (create() is also available as an alias)
+
+// Save subscription details
+DB::table('subscriptions')->insert([
+    'subscription_code' => $subscription->subscriptionCode,
+    'email_token' => $subscription->emailToken,  // Important for cancel/enable
+    'status' => $subscription->status,
+]);
+```
+
+**📖 See [Subscriptions Guide](docs/SUBSCRIPTIONS.md) for complete documentation**
+
+**👨‍💻 Developers**: Want to add subscription support for a new driver? See the [Developer Guide](docs/SUBSCRIPTIONS.md#developer-guide-adding-subscription-support-to-a-driver).
+
+---
+
 ## Supported Providers
 
 | Provider    | Charge | Verify | Webhooks | Idempotency | Channels | Currencies                                            |
@@ -260,7 +304,7 @@ Contributions welcome! See [Contributing Guide](docs/CONTRIBUTING.md).
 
 See [CHANGELOG.md](docs/CHANGELOG.md) for version history.
 
-**Latest: v1.4.1** - Code review fixes: race condition protection, improved logging, cache optimization
+**Latest: v1.7.0** - Subscription support for PaystackDriver with complete API, tests, and documentation
 
 ---
 

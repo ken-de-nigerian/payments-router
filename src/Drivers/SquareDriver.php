@@ -38,6 +38,8 @@ final class SquareDriver extends AbstractDriver
 
     /**
      * Get the HTTP headers needed for Square API requests.
+     *
+     * @return array<string, string>
      */
     protected function getDefaultHeaders(): array
     {
@@ -50,6 +52,8 @@ final class SquareDriver extends AbstractDriver
 
     /**
      * Square uses the standard 'Idempotency-Key' header.
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {
@@ -344,7 +348,7 @@ final class SquareDriver extends AbstractDriver
     /**
      * Search orders using Square's order search API.
      *
-     * @return array List of orders
+     * @return array<int, array<string, mixed>>
      *
      * @throws VerificationException|ChargeException
      */
@@ -388,7 +392,7 @@ final class SquareDriver extends AbstractDriver
     /**
      * Retrieve an order by ID.
      *
-     * @return array Order data
+     * @return array<string, mixed> Order data
      *
      * @throws VerificationException|ChargeException
      */
@@ -408,6 +412,7 @@ final class SquareDriver extends AbstractDriver
     /**
      * Extract payment ID from an order's tenders.
      *
+     * @param  array<string, mixed>  $order
      * @return string Payment ID
      *
      * @throws VerificationException
@@ -430,7 +435,7 @@ final class SquareDriver extends AbstractDriver
     /**
      * Retrieve payment details by payment ID.
      *
-     * @return array Payment data
+     * @return array<string, mixed> Payment data
      *
      * @throws ChargeException
      */
@@ -458,6 +463,8 @@ final class SquareDriver extends AbstractDriver
 
     /**
      * Map Square payment data to VerificationResponseDTO.
+     *
+     * @param  array<string, mixed>  $payment
      */
     private function mapFromPayment(array $payment, string $reference): VerificationResponseDTO
     {

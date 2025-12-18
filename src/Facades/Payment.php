@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Facade;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
+use KenDeNigerian\PayZephyr\Subscription;
 
 /**
  * Main Facade for the PayZephyr payment processing system.
@@ -29,6 +30,7 @@ use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
  * @method static ChargeResponseDTO charge()
  * @method static RedirectResponse redirect()
  * @method static VerificationResponseDTO verify(string $reference, ?string $provider = null)
+ * @method static Subscription subscription(?string $code = null)
  *
  * @see \KenDeNigerian\PayZephyr\Payment
  */

@@ -10,6 +10,13 @@ use KenDeNigerian\PayZephyr\Constants\PaymentConstants;
 
 final readonly class ChargeRequestDTO
 {
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @param  array<string, mixed>|null  $customer
+     * @param  array<string, mixed>|null  $customFields
+     * @param  array<string, mixed>|null  $split
+     * @param  array<int, string>|null  $channels
+     */
     public function __construct(
         public float $amount,
         public string $currency,
@@ -122,6 +129,9 @@ final readonly class ChargeRequestDTO
         return (int) round($this->amount * 100);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromArray(array $data): ChargeRequestDTO
     {
         $amount = isset($data['amount']) ? round((float) $data['amount'], 2) : 0.0;
@@ -157,6 +167,9 @@ final readonly class ChargeRequestDTO
         return Str::uuid()->toString();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

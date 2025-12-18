@@ -10,5 +10,8 @@ interface ProviderDetectorInterface
 
     public function registerPrefix(string $prefix, string $provider): self;
 
+    /**
+     * @return array<string, string>
+     */
     public function getPrefixes(): array;
 }

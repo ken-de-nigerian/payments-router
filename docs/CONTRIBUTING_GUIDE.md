@@ -276,6 +276,8 @@ This is a great way to contribute if you're comfortable with PHP!
 Look at an existing driver:
 - `src/Drivers/PaystackDriver.php` - Good example to follow
 
+**Note**: If the provider supports subscriptions, see the [Subscriptions Guide](SUBSCRIPTIONS.md#developer-guide-adding-subscription-support-to-a-driver) for adding subscription support.
+
 ### Step 2: Create Your Driver
 
 Create `src/Drivers/SquareDriver.php`:

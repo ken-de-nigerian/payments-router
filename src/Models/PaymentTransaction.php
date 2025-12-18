@@ -146,7 +146,10 @@ final class PaymentTransaction extends Model
         return parent::getConnectionName() ?? (app()->environment('testing') ? 'testing' : null);
     }
 
-    /** @param  Builder<self>  $query */
+    /**
+     * @param  Builder<PaymentTransaction>  $query
+     * @return Builder<PaymentTransaction>
+     */
     public function scopeSuccessful(Builder $query): Builder
     {
         $successStatuses = [
@@ -161,7 +164,10 @@ final class PaymentTransaction extends Model
         return $query->whereIn('status', $successStatuses);
     }
 
-    /** @param  Builder<self>  $query */
+    /**
+     * @param  Builder<PaymentTransaction>  $query
+     * @return Builder<PaymentTransaction>
+     */
     public function scopeFailed(Builder $query): Builder
     {
         $failedStatuses = [
@@ -178,7 +184,10 @@ final class PaymentTransaction extends Model
         return $query->whereIn('status', $failedStatuses);
     }
 
-    /** @param  Builder<self>  $query */
+    /**
+     * @param  Builder<PaymentTransaction>  $query
+     * @return Builder<PaymentTransaction>
+     */
     public function scopePending(Builder $query): Builder
     {
         return $query->where('status', PaymentStatus::PENDING->value);

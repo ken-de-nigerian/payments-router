@@ -28,6 +28,9 @@ enum PaymentStatus: string
         return $this === self::PENDING;
     }
 
+    /**
+     * @return array<int, string>
+     */
     public static function all(): array
     {
         return array_column(self::cases(), 'value');

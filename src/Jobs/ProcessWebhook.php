@@ -28,6 +28,9 @@ final class ProcessWebhook implements ShouldQueue
 
     public int $backoff;
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public function __construct(
         public readonly string $provider,
         public readonly array $payload

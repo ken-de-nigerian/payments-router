@@ -65,6 +65,8 @@ final class StripeDriver extends AbstractDriver
      *
      * Note: The Stripe SDK handles headers internally, but this is kept
      * for consistency with the AbstractDriver interface or manual fallback requests.
+     *
+     * @return array<string, string>
      */
     protected function getDefaultHeaders(): array
     {
@@ -76,6 +78,8 @@ final class StripeDriver extends AbstractDriver
 
     /**
      * Stripe uses standard 'Idempotency-Key' header
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {
@@ -319,9 +323,13 @@ final class StripeDriver extends AbstractDriver
         }
     }
 
-    private function mapFromCheckoutSession($session): VerificationResponseDTO
+    /**
+     * @param  object{payment_intent?: object{amount?: int}, payment_status: string, client_reference_id?: string, id: string, amount_total?: int, currency: string, created: int, metadata?: array<string, mixed>, payment_method_types?: array<int, string>, customer_email?: string}  $session
+     */
+    private function mapFromCheckoutSession(object $session): VerificationResponseDTO
     {
         $pi = $session->payment_intent ?? null;
+        $piAmount = isset($pi->amount) && is_object($pi) ? $pi->amount : null;
 
         $status = match ($session->payment_status) {
             'paid' => 'success',
@@ -332,7 +340,7 @@ final class StripeDriver extends AbstractDriver
         return new VerificationResponseDTO(
             reference: $session->client_reference_id ?? $session->id,
             status: $status,
-            amount: ($session->amount_total ?? $pi?->amount) / 100,
+            amount: ($session->amount_total ?? $piAmount ?? 0) / 100,
             currency: strtoupper((string) $session->currency),
             paidAt: $session->payment_status === 'paid'
                 ? date('Y-m-d H:i:s', $session->created)
@@ -341,12 +349,15 @@ final class StripeDriver extends AbstractDriver
             provider: $this->getName(),
             channel: implode(',', $session->payment_method_types ?? []),
             customer: [
-                'email' => $session->customer_email,
+                'email' => $session->customer_email ?? null,
             ],
         );
     }
 
-    private function mapFromPaymentIntent($intent): VerificationResponseDTO
+    /**
+     * @param  object{metadata: array<string, mixed>, id: string, status: string, amount: int, currency: string, created: int, payment_method_types: array<int, string>, receipt_email?: string}  $intent
+     */
+    private function mapFromPaymentIntent(object $intent): VerificationResponseDTO
     {
         return new VerificationResponseDTO(
             reference: $intent->metadata['reference'] ?? $intent->id,
@@ -360,7 +371,7 @@ final class StripeDriver extends AbstractDriver
             provider: $this->getName(),
             channel: $intent->payment_method_types[0] ?? null,
             customer: [
-                'email' => $intent->receipt_email,
+                'email' => $intent->receipt_email ?? null,
             ],
         );
     }

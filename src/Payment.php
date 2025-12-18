@@ -17,8 +17,10 @@ final class Payment
 {
     protected PaymentManager $manager;
 
+    /** @var array<string, mixed> */
     protected array $data = [];
 
+    /** @var array<int, string> */
     protected array $providers = [];
 
     public function __construct(PaymentManager $manager)
@@ -61,6 +63,9 @@ final class Payment
         return $this;
     }
 
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
     public function metadata(array $metadata): Payment
     {
         $this->data['metadata'] = $metadata;
@@ -82,6 +87,9 @@ final class Payment
         return $this;
     }
 
+    /**
+     * @param  array<string, mixed>  $customer
+     */
     public function customer(array $customer): Payment
     {
         $this->data['customer'] = $customer;
@@ -89,6 +97,9 @@ final class Payment
         return $this;
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     */
     public function channels(array $channels): Payment
     {
         $this->data['channels'] = $channels;
@@ -96,6 +107,9 @@ final class Payment
         return $this;
     }
 
+    /**
+     * @param  string|array<int, string>  $providers
+     */
     public function with(string|array $providers): Payment
     {
         $this->providers = is_array($providers) ? $providers : [$providers];
@@ -103,6 +117,9 @@ final class Payment
         return $this;
     }
 
+    /**
+     * @param  string|array<int, string>  $providers
+     */
     public function using(string|array $providers): Payment
     {
         return $this->with($providers);
@@ -172,10 +189,21 @@ final class Payment
     }
 
     /**
-     * @throws ProviderException
+     * @throws ProviderException|Exceptions\DriverNotFoundException
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponseDTO
     {
         return $this->manager->verify($reference, $provider);
+    }
+
+    public function subscription(?string $code = null): Subscription
+    {
+        $subscription = new Subscription($this->manager);
+
+        if ($code) {
+            $subscription->code($code);
+        }
+
+        return $subscription;
     }
 }

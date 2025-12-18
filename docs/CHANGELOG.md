@@ -6,6 +6,94 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.7.0] - 2025-12-18
+
+### Added
+
+- **Subscription Support for PaystackDriver**
+  - Full subscription management API with fluent builder pattern
+  - Create, update, get, and list subscription plans
+  - Create, get, cancel, enable, and list subscriptions
+  - Support for trial periods, custom start dates, and quantities
+  - Authorization code support for immediate subscription activation
+  - Comprehensive test coverage (100+ subscription tests)
+  - Complete documentation with workflow examples
+
+- **Subscription Data Transfer Objects**
+  - `SubscriptionPlanDTO` - Type-safe plan creation
+  - `SubscriptionRequestDTO` - Type-safe subscription requests
+  - `SubscriptionResponseDTO` - Normalized subscription responses
+  - Automatic validation and amount conversion
+
+- **Subscription Exceptions**
+  - `PlanException` - Plan-specific errors
+  - `SubscriptionException` - Subscription-specific errors
+  - Better error handling and debugging
+
+- **Recommended Subscription Flow**
+  - Redirect-to-payment flow for better user experience
+  - Authorization code extraction from payment verification
+  - Complete controller examples and documentation
+
+### Changed
+
+- **VerificationResponseDTO**: Added `authorizationCode` property
+  - Enables subscription creation with saved payment methods
+  - Extracted from Paystack transaction verification response
+  - Supports recommended subscription flow pattern
+
+- **PaystackDriver**: Enhanced verification to include authorization code
+  - Extracts authorization code from transaction verification
+  - Available in `VerificationResponseDTO` for subscription creation
+
+### Documentation
+
+- **New Subscription Guide** (`docs/SUBSCRIPTIONS.md`)
+  - Complete subscription workflow documentation
+  - Plan management examples
+  - Subscription management examples
+  - Recommended redirect-to-payment flow
+  - Error handling patterns
+  - Security considerations
+  - Developer guide for adding subscription support to new drivers
+
+- **Updated README**: Added subscription quick start example
+- **Updated Documentation Index**: Added subscription guide reference
+- **Updated Contributing Guide**: Added note about subscription support
+
+### Technical Details
+
+- **Architecture**: Subscription methods extracted to `PaystackSubscriptionMethods` trait
+  - Follows Single Responsibility Principle (SRP)
+  - Easy to extend for other providers
+  - Maintains consistency with payment driver architecture
+
+- **PHPStan Level 6**: All subscription code passes strict type checking
+  - Explicit array type specifications
+  - No ignored errors
+  - Full type safety
+
+### Tests
+
+- **PaystackSubscriptionTest**: 9 comprehensive tests for subscription operations
+- **SubscriptionCompleteTest**: 100+ tests for fluent API and edge cases
+- **SubscriptionSecurityTest**: 30+ security-focused tests
+- **SubscriptionEdgeCasesTest**: 25+ edge case tests
+- All 1,165 tests passing (2,240 assertions)
+
+### Developer Experience
+
+- **Fluent API**: Consistent with payment API
+  - `Payment::subscription()->customer()->plan()->subscribe()`
+  - `payment()->subscription()` helper function support
+  - Method chaining and builder pattern
+
+- **Provider Support**: Currently only PaystackDriver supports subscriptions
+  - Clear documentation about current limitations
+  - Developer guide for adding support to other providers
+  - Future support planned for other providers
+
+---
 ## [1.4.1] - 2025-12-16
 
 ### Fixed

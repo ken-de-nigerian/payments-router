@@ -47,6 +47,8 @@ final class FlutterwaveDriver extends AbstractDriver
 
     /**
      * Flutterwave uses standard 'Idempotency-Key' header
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {

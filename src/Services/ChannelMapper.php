@@ -9,6 +9,10 @@ use KenDeNigerian\PayZephyr\Enums\PaymentChannel;
 
 final class ChannelMapper implements ChannelMapperInterface
 {
+    /**
+     * @param  array<int, string>|null  $channels
+     * @return array<int, string>|null
+     */
     public function mapChannels(?array $channels, string $provider): ?array
     {
         if (empty($channels)) {
@@ -28,6 +32,10 @@ final class ChannelMapper implements ChannelMapperInterface
         };
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToPaystack(array $channels): array
     {
         $mapping = [
@@ -45,6 +53,10 @@ final class ChannelMapper implements ChannelMapperInterface
         );
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToMonnify(array $channels): array
     {
         $mapping = [
@@ -64,6 +76,10 @@ final class ChannelMapper implements ChannelMapperInterface
         return array_filter($mapped, fn ($channel) => in_array($channel, ['CARD', 'ACCOUNT_TRANSFER', 'USSD', 'PHONE_NUMBER']));
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToFlutterwave(array $channels): array
     {
         $mapping = [
@@ -94,6 +110,10 @@ final class ChannelMapper implements ChannelMapperInterface
         return array_filter($mapped, fn ($option) => in_array($option, $validOptions));
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToStripe(array $channels): array
     {
         $mapping = [
@@ -120,11 +140,19 @@ final class ChannelMapper implements ChannelMapperInterface
         return array_filter($mapped, fn ($type) => in_array($type, $validTypes));
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>|null
+     */
     protected function mapToPayPal(array $channels): ?array
     {
         return null;
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToSquare(array $channels): array
     {
         $mapping = [
@@ -146,6 +174,10 @@ final class ChannelMapper implements ChannelMapperInterface
         return array_filter($mapped, fn ($method) => in_array($method, $validMethods));
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToOpay(array $channels): array
     {
         $mapping = [
@@ -168,6 +200,10 @@ final class ChannelMapper implements ChannelMapperInterface
         return array_filter($mapped, fn ($option) => in_array($option, $validOptions));
     }
 
+    /**
+     * @param  array<int, string>  $channels
+     * @return array<int, string>
+     */
     protected function mapToMollie(array $channels): array
     {
         $mapping = [
@@ -196,6 +232,9 @@ final class ChannelMapper implements ChannelMapperInterface
         return array_filter($mapped, fn ($method) => in_array($method, $validMethods));
     }
 
+    /**
+     * @param  array<int, string>|null  $channels
+     */
     public function shouldIncludeChannels(string $provider, ?array $channels): bool
     {
         if (empty($channels)) {
@@ -205,6 +244,9 @@ final class ChannelMapper implements ChannelMapperInterface
         return $this->supportsChannels($provider);
     }
 
+    /**
+     * @return array<int, string>
+     */
     public static function getUnifiedChannels(): array
     {
         return PaymentChannel::values();

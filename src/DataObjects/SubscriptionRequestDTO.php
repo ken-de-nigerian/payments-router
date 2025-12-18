@@ -1,0 +1,76 @@
+<?php
+
+declare(strict_types=1);
+
+namespace KenDeNigerian\PayZephyr\DataObjects;
+
+use InvalidArgumentException;
+
+final readonly class SubscriptionRequestDTO
+{
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    public function __construct(
+        public string $customer,
+        public string $plan,
+        public ?int $quantity = 1,
+        public ?string $startDate = null,
+        public ?int $trialDays = null,
+        public array $metadata = [],
+        public ?string $authorization = null,
+    ) {
+        $this->validate();
+    }
+
+    private function validate(): void
+    {
+        if (empty($this->customer)) {
+            throw new InvalidArgumentException('Customer is required');
+        }
+
+        if (empty($this->plan)) {
+            throw new InvalidArgumentException('Plan is required');
+        }
+
+        if ($this->quantity !== null && $this->quantity < 1) {
+            throw new InvalidArgumentException('Quantity must be at least 1');
+        }
+
+        if ($this->trialDays !== null && $this->trialDays < 0) {
+            throw new InvalidArgumentException('Trial days cannot be negative');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public static function fromArray(array $data): self
+    {
+        return new self(
+            customer: $data['customer'] ?? '',
+            plan: $data['plan'] ?? '',
+            quantity: $data['quantity'] ?? 1,
+            startDate: $data['start_date'] ?? null,
+            trialDays: $data['trial_days'] ?? null,
+            metadata: $data['metadata'] ?? [],
+            authorization: $data['authorization'] ?? null,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return array_filter([
+            'customer' => $this->customer,
+            'plan' => $this->plan,
+            'quantity' => $this->quantity,
+            'start_date' => $this->startDate,
+            'trial_days' => $this->trialDays,
+            'metadata' => $this->metadata,
+            'authorization' => $this->authorization,
+        ], fn ($value) => $value !== null);
+    }
+}

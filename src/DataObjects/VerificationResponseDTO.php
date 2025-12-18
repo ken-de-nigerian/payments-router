@@ -10,6 +10,10 @@ use Throwable;
 
 final readonly class VerificationResponseDTO
 {
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @param  array<string, mixed>|null  $customer
+     */
     public function __construct(
         public string $reference,
         public string $status,
@@ -22,6 +26,7 @@ final readonly class VerificationResponseDTO
         public ?string $cardType = null,
         public ?string $bank = null,
         public ?array $customer = null,
+        public ?string $authorizationCode = null,
     ) {}
 
     protected function getNormalizedStatus(): string
@@ -38,6 +43,9 @@ final readonly class VerificationResponseDTO
         return StatusNormalizer::normalizeStatic($this->status);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromArray(array $data): VerificationResponseDTO
     {
         return new self(
@@ -52,9 +60,13 @@ final readonly class VerificationResponseDTO
             cardType: $data['card_type'] ?? null,
             bank: $data['bank'] ?? null,
             customer: $data['customer'] ?? null,
+            authorizationCode: $data['authorization_code'] ?? null,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [
@@ -69,6 +81,7 @@ final readonly class VerificationResponseDTO
             'card_type' => $this->cardType,
             'bank' => $this->bank,
             'customer' => $this->customer,
+            'authorization_code' => $this->authorizationCode,
         ];
     }
 

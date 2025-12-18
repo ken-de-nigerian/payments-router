@@ -29,8 +29,10 @@ final class PaymentManager
 {
     use LogsToPaymentChannel;
 
+    /** @var array<string, DriverInterface> */
     protected array $drivers = [];
 
+    /** @var array<string, mixed> */
     protected array $config;
 
     protected ProviderDetectorInterface $providerDetector;
@@ -76,6 +78,8 @@ final class PaymentManager
     }
 
     /**
+     * @param  array<int, string>|null  $providers
+     *
      * @throws ProviderException
      */
     public function chargeWithFallback(ChargeRequestDTO $request, ?array $providers = null): ChargeResponseDTO
@@ -173,7 +177,7 @@ final class PaymentManager
     }
 
     /**
-     * @throws ProviderException
+     * @throws ProviderException|DriverNotFoundException
      */
     public function verify(string $reference, ?string $provider = null): VerificationResponseDTO
     {
@@ -282,6 +286,11 @@ final class PaymentManager
         return null;
     }
 
+    /**
+     * @return array<string, mixed>
+     *
+     * @throws DriverNotFoundException
+     */
     protected function resolveVerificationContext(string $reference, ?string $explicitProvider): array
     {
         $cached = Cache::get($this->cacheKey('session', $reference));
@@ -401,6 +410,9 @@ final class PaymentManager
         return $this->config['default'] ?? array_key_first($this->config['providers'] ?? []);
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function getFallbackChain(): array
     {
         $chain = [$this->getDefaultDriver()];
@@ -413,6 +425,9 @@ final class PaymentManager
         return array_unique(array_filter($chain));
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function getEnabledProviders(): array
     {
         return array_filter(

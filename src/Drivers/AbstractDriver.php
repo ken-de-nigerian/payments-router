@@ -9,6 +9,7 @@ use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use KenDeNigerian\PayZephyr\Constants\PaymentConstants;
 use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeRequestDTO;
 use KenDeNigerian\PayZephyr\Exceptions\ChargeException;
@@ -36,6 +37,7 @@ abstract class AbstractDriver implements DriverInterface
 
     protected Client $client;
 
+    /** @var array<string, mixed> */
     protected array $config;
 
     protected string $name;
@@ -60,6 +62,8 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Create a new payment driver instance.
+     *
+     * @param  array<string, mixed>  $config
      *
      * @throws InvalidConfigurationException If required, config is missing.
      */
@@ -94,6 +98,8 @@ abstract class AbstractDriver implements DriverInterface
     /**
      * Get the default HTTP headers needed for API requests (like Authorization).
      * Each driver implements this with their provider's specific headers.
+     *
+     * @return array<string, string>
      */
     abstract protected function getDefaultHeaders(): array;
 
@@ -105,6 +111,8 @@ abstract class AbstractDriver implements DriverInterface
      *
      * Network errors are caught and wrapped with more user-friendly messages
      * to prevent crashes and provide better error context.
+     *
+     * @param  array<string, mixed>  $options  Additional Guzzle options (json, query, etc.)
      *
      * @throws ChargeException If the HTTP request fails.
      */
@@ -153,6 +161,8 @@ abstract class AbstractDriver implements DriverInterface
      * Get the HTTP header name and value for idempotency.
      * Most providers use 'Idempotency-Key', but some might use different names.
      * Override this in specific drivers if needed.
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {
@@ -177,6 +187,8 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Convert the HTTP response body from JSON to a PHP array.
+     *
+     * @return array<string, mixed>
      */
     protected function parseResponse(ResponseInterface $response): array
     {
@@ -195,6 +207,9 @@ abstract class AbstractDriver implements DriverInterface
 
     /**
      * Get the list of currencies this provider supports (e.g., ['NGN', 'USD', 'EUR']).
+     */
+    /**
+     * @return array<int, string>
      */
     public function getSupportedCurrencies(): array
     {
@@ -247,7 +262,7 @@ abstract class AbstractDriver implements DriverInterface
      *
      * @param  string  $level  Log level: 'info', 'warning', 'error', etc.
      * @param  string  $message  The log message
-     * @param  array  $context  Extra data to include in the log
+     * @param  array<string, mixed>  $context  Extra data to include in the log
      */
     protected function log(string $level, string $message, array $context = []): void
     {
@@ -383,6 +398,9 @@ abstract class AbstractDriver implements DriverInterface
      * Get the transaction reference from a raw webhook payload.
      * Default implementation that can be overridden by specific drivers.
      */
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public function extractWebhookReference(array $payload): ?string
     {
         return $payload['reference'] ?? $payload['transactionReference'] ?? null;
@@ -393,6 +411,9 @@ abstract class AbstractDriver implements DriverInterface
      * The normalizer will take care of converting this to standard format.
      * Default implementation that can be overridden by specific drivers.
      */
+    /**
+     * @param  array<string, mixed>  $payload
+     */
     public function extractWebhookStatus(array $payload): string
     {
         return $payload['status'] ?? $payload['paymentStatus'] ?? 'unknown';
@@ -401,6 +422,9 @@ abstract class AbstractDriver implements DriverInterface
     /**
      * Get the payment channel (e.g., 'card', 'bank_transfer') from a raw webhook payload.
      * Default implementation that can be overridden by specific drivers.
+     */
+    /**
+     * @param  array<string, mixed>  $payload
      */
     public function extractWebhookChannel(array $payload): ?string
     {

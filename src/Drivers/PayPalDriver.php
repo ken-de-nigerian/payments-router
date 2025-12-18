@@ -42,6 +42,9 @@ final class PayPalDriver extends AbstractDriver
         }
     }
 
+    /**
+     * @return array<string, string>
+     */
     protected function getDefaultHeaders(): array
     {
         return ['Content-Type' => 'application/json', 'Accept' => 'application/json'];
@@ -49,6 +52,8 @@ final class PayPalDriver extends AbstractDriver
 
     /**
      * PayPal uses 'PayPal-Request-Id' header instead of standard 'Idempotency-Key'.
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {
@@ -188,8 +193,10 @@ final class PayPalDriver extends AbstractDriver
                 throw new ChargeException('Failed to create PayPal order');
             }
 
-            $approveLink = collect($data['links'] ?? [])->firstWhere('rel', 'approve')
-                ?? collect($data['links'] ?? [])->firstWhere('rel', 'payer-action');
+            /** @var array<int, array<string, mixed>> $links */
+            $links = $data['links'] ?? [];
+            $approveLink = collect($links)->firstWhere('rel', 'approve')
+                ?? collect($links)->firstWhere('rel', 'payer-action');
 
             if (! $approveLink) {
                 throw new ChargeException('No approval link found in PayPal response');
@@ -420,6 +427,9 @@ final class PayPalDriver extends AbstractDriver
         }
     }
 
+    /**
+     * @return array<string, mixed>|null
+     */
     private function captureOrder(string $orderId): ?array
     {
         try {

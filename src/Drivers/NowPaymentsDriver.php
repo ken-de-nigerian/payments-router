@@ -46,6 +46,8 @@ final class NowPaymentsDriver extends AbstractDriver
 
     /**
      * Nowpayments uses the standard 'Idempotency-Key' header.
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {

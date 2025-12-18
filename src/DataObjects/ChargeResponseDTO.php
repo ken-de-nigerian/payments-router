@@ -10,6 +10,9 @@ use Throwable;
 
 final readonly class ChargeResponseDTO
 {
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
     public function __construct(
         public string $reference,
         public string $authorizationUrl,
@@ -33,6 +36,9 @@ final readonly class ChargeResponseDTO
         return StatusNormalizer::normalizeStatic($this->status);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromArray(array $data): ChargeResponseDTO
     {
         return new self(
@@ -45,6 +51,9 @@ final readonly class ChargeResponseDTO
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

@@ -44,6 +44,9 @@ final class MonnifyDriver extends AbstractDriver
         }
     }
 
+    /**
+     * @return array<string, string>
+     */
     protected function getDefaultHeaders(): array
     {
         return ['Content-Type' => 'application/json'];
@@ -51,6 +54,8 @@ final class MonnifyDriver extends AbstractDriver
 
     /**
      * Monnify uses 'Idempotency-Key' header
+     *
+     * @return array<string, string>
      */
     protected function getIdempotencyHeader(string $key): array
     {

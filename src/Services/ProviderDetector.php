@@ -16,6 +16,9 @@ final class ProviderDetector implements ProviderDetectorInterface
         $this->prefixes = $this->loadPrefixesFromConfig();
     }
 
+    /**
+     * @return array<string, string>
+     */
     protected function loadPrefixesFromConfig(): array
     {
         $config = app('payments.config') ?? config('payments', []);

@@ -13,6 +13,8 @@ final class DriverFactory
     protected array $drivers = [];
 
     /**
+     * @param  array<string, mixed>  $config
+     *
      * @throws DriverNotFoundException
      */
     public function create(string $name, array $config): DriverInterface
@@ -74,6 +76,9 @@ final class DriverFactory
         return $this;
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function getRegisteredDrivers(): array
     {
         return array_keys($this->drivers);

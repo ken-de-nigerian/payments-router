@@ -2,13 +2,13 @@
 
 namespace Tests\Helpers;
 
+use KenDeNigerian\PayZephyr\Contracts\DriverInterface;
 use KenDeNigerian\PayZephyr\PaymentManager;
-use Mockery\MockInterface;
 use ReflectionClass;
 
 class PaymentManagerTestHelper
 {
-    public static function withMockDriver(PaymentManager $manager, string $provider, MockInterface $mockDriver): PaymentManager
+    public static function withMockDriver(PaymentManager $manager, string $provider, DriverInterface $mockDriver): PaymentManager
     {
         $reflection = new ReflectionClass($manager);
         $driversProperty = $reflection->getProperty('drivers');
