@@ -10,6 +10,7 @@ use Tests\Helpers\SubscriptionTestHelper;
 
 test('subscription handles maximum quantity value', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -33,6 +34,7 @@ test('subscription handles maximum quantity value', function () {
 
 test('subscription handles minimum quantity value', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -56,6 +58,7 @@ test('subscription handles minimum quantity value', function () {
 
 test('subscription handles maximum trial days', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -79,6 +82,7 @@ test('subscription handles maximum trial days', function () {
 
 test('subscription handles zero trial days', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -104,6 +108,7 @@ test('subscription handles zero trial days', function () {
 
 test('subscription handles past start date', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Start date cannot be in the past',
@@ -118,6 +123,7 @@ test('subscription handles past start date', function () {
 
 test('subscription handles far future start date', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -143,6 +149,7 @@ test('subscription handles far future start date', function () {
 
 test('subscription handles invalid date format', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Invalid date format',
@@ -192,7 +199,7 @@ test('subscription handles currency case variations', function () {
 
     $result = $subscription->planData($planDTO)->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });
 
 // ==================== Interval Edge Cases ====================
@@ -216,8 +223,8 @@ test('subscription handles all valid intervals', function () {
 
         $result = $subscription->planData($planDTO)->createPlan();
 
-        expect($result)->toBeArray()
-            ->and($result['plan_code'])->toBe("PLN_$interval");
+        expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class)
+            ->and($result->planCode)->toBe("PLN_$interval");
     }
 });
 
@@ -289,7 +296,7 @@ test('subscription handles nested customer object in response', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->customer)->toBe('test@example.com');
 });
@@ -314,7 +321,7 @@ test('subscription handles nested plan object in response', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->plan)->toBe('Test Plan');
 });
@@ -334,7 +341,7 @@ test('subscription handles missing nested objects gracefully', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->customer)->toBe('')
         ->and($result->plan)->toBe('');
@@ -344,6 +351,7 @@ test('subscription handles missing nested objects gracefully', function () {
 
 test('subscription handles empty metadata array', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -362,7 +370,8 @@ test('subscription handles empty metadata array', function () {
         ->metadata([])
         ->create();
 
-    expect($result->metadata)->toBeArray()->toBeEmpty();
+    // Metadata will contain plan_code even if empty array was passed
+    expect($result->metadata)->toBeArray()->toHaveKey('plan_code');
 });
 
 test('subscription handles null metadata in response', function () {
@@ -381,13 +390,14 @@ test('subscription handles null metadata in response', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->metadata)->toBeArray();
 });
 
 test('subscription handles deeply nested metadata', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -419,6 +429,19 @@ test('subscription handles deeply nested metadata', function () {
 
 test('subscription handles rapid sequential creates', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        // Plan fetch for validation (first create)
+        new Response(200, [], json_encode([
+            'status' => true,
+            'data' => [
+                'plan_code' => 'PLN_123',
+                'name' => 'Test Plan',
+                'amount' => 500000,
+                'interval' => 'monthly',
+                'currency' => 'NGN',
+                'status' => 'active',
+            ],
+        ])),
+        // Subscription creation (first create)
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -430,6 +453,19 @@ test('subscription handles rapid sequential creates', function () {
                 'currency' => 'NGN',
             ],
         ])),
+        // Plan fetch for validation (second create)
+        new Response(200, [], json_encode([
+            'status' => true,
+            'data' => [
+                'plan_code' => 'PLN_123',
+                'name' => 'Test Plan',
+                'amount' => 500000,
+                'interval' => 'monthly',
+                'currency' => 'NGN',
+                'status' => 'active',
+            ],
+        ])),
+        // Subscription creation (second create)
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -473,7 +509,7 @@ test('subscription handles status transitions correctly', function () {
         ])),
     ]);
 
-    $result1 = $subscription1->code('SUB_123')->get();
+    $result1 = $subscription1->code('SUB_123')->fetch();
     expect($result1->isCancelled())->toBeTrue();
 
     // Cancelled -> Active (enable)
@@ -496,7 +532,7 @@ test('subscription handles status transitions correctly', function () {
     ]);
 
     $result2 = $subscription2->code('SUB_123')
-        ->token('token_123')
+        ->token('token_12345')
         ->enable();
 
     expect($result2->isActive())->toBeTrue();
@@ -515,7 +551,7 @@ test('subscription handles partial response data', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->subscriptionCode)->toBe('SUB_123')
         ->and($result->status)->toBe('unknown')
@@ -537,7 +573,7 @@ test('subscription handles malformed status values', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     // Should handle unknown status gracefully
     expect($result->status)->toBe('UNKNOWN_STATUS_XYZ')
@@ -566,13 +602,13 @@ test('subscription handles provider-specific response formats', function () {
                 'amount' => 500000,
                 'currency' => 'NGN',
                 'next_payment_date' => '2024-02-01T00:00:00.000Z',
-                'email_token' => 'token_123',
+                'email_token' => 'token_12345',
                 'metadata' => [],
             ],
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO::class)
         ->and($result->subscriptionCode)->toBe('SUB_123')
@@ -603,7 +639,7 @@ test('subscription handles large response payloads', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->metadata)->toBeArray()->toHaveCount(100);
 });
@@ -627,7 +663,7 @@ test('subscription handles multiple rapid status checks', function () {
     $subscription = SubscriptionTestHelper::createWithMock($responses);
 
     for ($i = 0; $i < 10; $i++) {
-        $result = $subscription->code('SUB_123')->get();
+        $result = $subscription->code('SUB_123')->fetch();
         expect($result->status)->toBe('active');
     }
 });

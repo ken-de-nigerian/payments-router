@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr;
 
+use Illuminate\Support\Str;
+use KenDeNigerian\PayZephyr\Contracts\SubscriptionLifecycleHooks;
 use KenDeNigerian\PayZephyr\Contracts\SupportsSubscriptionsInterface;
+use KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\SubscriptionPlanDTO;
 use KenDeNigerian\PayZephyr\DataObjects\SubscriptionRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO;
 use KenDeNigerian\PayZephyr\Exceptions\PaymentException;
+use KenDeNigerian\PayZephyr\Services\SubscriptionValidator;
 
 final class Subscription
 {
@@ -137,6 +141,18 @@ final class Subscription
     }
 
     /**
+     * Set idempotency key for subscription operations
+     *
+     * @param  string|null  $key  Idempotency key. If null, a UUID will be generated automatically.
+     */
+    public function idempotency(?string $key = null): self
+    {
+        $this->data['idempotency_key'] = $key ?? Str::uuid()->toString();
+
+        return $this;
+    }
+
+    /**
      * Create a new subscription
      */
     public function create(): SubscriptionResponseDTO
@@ -145,13 +161,29 @@ final class Subscription
 
         if (! ($driver instanceof SupportsSubscriptionsInterface)) {
             throw new PaymentException(
-                "Provider [{$this->getProviderName()}] does not support subscriptions"
+                'Provider does not support subscriptions'
             );
         }
 
         $request = SubscriptionRequestDTO::fromArray($this->data);
 
-        return $driver->createSubscription($request);
+        if ($driver instanceof SubscriptionLifecycleHooks) {
+            $request = $driver->beforeSubscriptionCreate($request);
+        }
+
+        $config = app('payments.config') ?? config('payments', []);
+        if ($config['subscriptions']['validation']['enabled'] ?? true) {
+            $validator = app(SubscriptionValidator::class);
+            $validator->validateCreation($request, $driver);
+        }
+
+        $response = $driver->createSubscription($request);
+
+        if ($driver instanceof SubscriptionLifecycleHooks) {
+            $driver->afterSubscriptionCreate($response);
+        }
+
+        return $response;
     }
 
     /**
@@ -163,9 +195,9 @@ final class Subscription
     }
 
     /**
-     * Get subscription details
+     * Fetch subscription details
      */
-    public function get(): SubscriptionResponseDTO
+    public function fetch(): SubscriptionResponseDTO
     {
         if (! $this->subscriptionCode) {
             throw new PaymentException('Subscription code is required. Use ->code($code)');
@@ -179,7 +211,7 @@ final class Subscription
             );
         }
 
-        return $driver->getSubscription($this->subscriptionCode);
+        return $driver->fetchSubscription($this->subscriptionCode);
     }
 
     /**
@@ -214,7 +246,23 @@ final class Subscription
             );
         }
 
-        return $driver->cancelSubscription($this->subscriptionCode, $token);
+        if ($driver instanceof SubscriptionLifecycleHooks) {
+            $driver->beforeSubscriptionCancel($this->subscriptionCode);
+        }
+
+        $config = app('payments.config') ?? config('payments', []);
+        if ($config['subscriptions']['validation']['enabled'] ?? true) {
+            $validator = app(SubscriptionValidator::class);
+            $validator->validateCancellation($this->subscriptionCode, $token, $driver);
+        }
+
+        $response = $driver->cancelSubscription($this->subscriptionCode, $token);
+
+        if ($driver instanceof SubscriptionLifecycleHooks) {
+            $driver->afterSubscriptionCancel($response);
+        }
+
+        return $response;
     }
 
     /**
@@ -310,11 +358,10 @@ final class Subscription
     /**
      * Create a subscription plan
      *
-     * @return array<string, mixed>
      *
      * @throws PaymentException
      */
-    public function createPlan(): array
+    public function createPlan(): PlanResponseDTO
     {
         if (! isset($this->data['plan_data'])) {
             throw new PaymentException('Plan data is required. Use ->planData($planDTO)');
@@ -334,11 +381,10 @@ final class Subscription
     /**
      * Update a subscription plan
      *
-     * @return array<string, mixed>
      *
      * @throws PaymentException
      */
-    public function updatePlan(): array
+    public function updatePlan(): PlanResponseDTO
     {
         if (! $this->planCode) {
             throw new PaymentException('Plan code is required. Use ->plan($planCode)');
@@ -360,13 +406,12 @@ final class Subscription
     }
 
     /**
-     * Get a subscription plan
+     * Fetch a subscription plan
      *
-     * @return array<string, mixed>
      *
      * @throws PaymentException
      */
-    public function getPlan(): array
+    public function fetchPlan(): PlanResponseDTO
     {
         if (! $this->planCode) {
             throw new PaymentException('Plan code is required. Use ->plan($planCode)');
@@ -380,7 +425,7 @@ final class Subscription
             );
         }
 
-        return $driver->getPlan($this->planCode);
+        return $driver->fetchPlan($this->planCode);
     }
 
     /**

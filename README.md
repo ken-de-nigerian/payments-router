@@ -12,6 +12,13 @@
 - **Automatic fallback** - If one provider fails, PayZephyr automatically tries another
 - **Built-in security** - Webhook signature validation, replay protection, and data sanitization
 - **Production ready** - Comprehensive error handling, transaction logging, and extensive testing
+- **Enterprise subscriptions** - Enhanced subscription management with automatic transaction logging and lifecycle events
+- **Transaction logging** - All subscription operations automatically logged to database with full audit trail
+- **Idempotency support** - Prevent duplicate subscriptions with automatic UUID generation or custom keys
+- **Lifecycle events** - Webhook events for subscription created, renewed, cancelled, and payment failed
+- **Business validation** - Built-in validation prevents duplicate subscriptions and validates plan eligibility
+- **State management** - Comprehensive subscription status enum with state machine logic and transition validation
+- **Query builder** - Advanced subscription filtering with fluent interface for complex queries
 
 See [Provider Details](docs/providers.md) for currency and channel support.
 
@@ -79,7 +86,7 @@ return Payment::amount(100.00)
     ->callback(route('payment.callback')) // Where to return after payment
     ->redirect(); // Sends customer to payment page
 
-// With more options
+// With more options (including idempotency for retry safety)
 return Payment::amount(500.00) // ₦500.00
     ->currency('NGN')
     ->email('customer@example.com')
@@ -87,6 +94,7 @@ return Payment::amount(500.00) // ₦500.00
     ->reference('ORDER_123') // Your order ID
     ->description('Premium subscription')
     ->metadata(['order_id' => 12345]) // Custom data
+    ->idempotency('unique-key-123') // Prevents duplicate charges on retries
     ->with('paystack') // Optional: force specific provider
     ->redirect();
 ```
@@ -151,6 +159,8 @@ See [Webhook Guide](docs/webhooks.md) for complete setup.
 
 **Currently, only PaystackDriver supports subscriptions.** Support for other providers will be added in future releases.
 
+PayZephyr provides enterprise-grade subscription management with automatic transaction logging, idempotency support, lifecycle events, business validation, and comprehensive state management. All subscription operations are automatically logged to the database for audit and analytics.
+
 ### Quick Example
 
 ```php
@@ -170,20 +180,41 @@ $plan = Payment::subscription()
     ->with('paystack')  // Currently only PaystackDriver supports subscriptions
     ->createPlan();
 
-// Create a subscription (using helper function - both work!)
+// Create a subscription with idempotency (prevents duplicates on retries)
 $subscription = payment()->subscription()
     ->customer('customer@example.com')
     ->plan($plan['plan_code'])
+    ->idempotency() // Auto-generates UUID, or pass custom key
     ->with('paystack')
     ->subscribe();  // Final action method (create() is also available as an alias)
 
-// Save subscription details
+// Query subscriptions using query builder
+$activeSubscriptions = Payment::subscriptions()
+    ->forCustomer('customer@example.com')
+    ->active()
+    ->from('paystack')
+    ->get();
+
+// Subscription automatically logged to subscription_transactions table
+// Access logged subscription:
+use KenDeNigerian\PayZephyr\Models\SubscriptionTransaction;
+$logged = SubscriptionTransaction::where('subscription_code', $subscription->subscriptionCode)->first();
+
+// Save subscription details to your own table
 DB::table('subscriptions')->insert([
     'subscription_code' => $subscription->subscriptionCode,
     'email_token' => $subscription->emailToken,  // Important for cancel/enable
     'status' => $subscription->status,
 ]);
 ```
+
+**Key Features:**
+- **Automatic transaction logging** - All subscriptions logged to database automatically with full audit trail
+- **Idempotency support** - Prevent duplicate subscriptions with automatic UUID generation or custom keys
+- **Lifecycle events** - Webhook events for subscription created, renewed, cancelled, and payment failed
+- **Business validation** - Built-in validation prevents duplicates and validates plan eligibility
+- **State management** - Comprehensive subscription status enum with state machine logic and transition validation
+- **Query builder** - Advanced subscription filtering with fluent interface: `Payment::subscriptions()->forCustomer()->active()->get()`
 
 **📖 See [Subscriptions Guide](docs/SUBSCRIPTIONS.md) for complete documentation**
 
@@ -193,16 +224,16 @@ DB::table('subscriptions')->insert([
 
 ## Supported Providers
 
-| Provider    | Charge | Verify | Webhooks | Idempotency | Channels | Currencies                                            |
-|-------------|:------:|:------:|:--------:|:-----------:|:--------:|-------------------------------------------------------|
-| Paystack    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD                                    |
-| Flutterwave |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | NGN, USD, EUR, GBP, KES, UGX, TZS                     |
-| Monnify     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN                                                   |
-| Stripe      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies                                       |
-| PayPal      |   ✅    |   ✅    |    ✅     |      ✅      |    1     | USD, EUR, GBP, CAD, AUD                               |
-| Square      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD                                    |
-| OPay        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN                                                   |
-| Mollie      |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
+| Provider    | Charge | Verify | Webhooks | Idempotency | Channels | Currencies                                                                                 |
+|-------------|:------:|:------:|:--------:|:-----------:|:--------:|--------------------------------------------------------------------------------------------|
+| Paystack    |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN, GHS, ZAR, USD                                                                         |
+| Flutterwave |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | NGN, USD, EUR, GBP, KES, UGX, TZS                                                          |
+| Monnify     |   ✅    |   ✅    |    ✅     |      ✅      |    4     | NGN                                                                                        |
+| Stripe      |   ✅    |   ✅    |    ✅     |      ✅      |    6+    | 135+ currencies                                                                            |
+| PayPal      |   ✅    |   ✅    |    ✅     |      ✅      |    1     | USD, EUR, GBP, CAD, AUD                                                                    |
+| Square      |   ✅    |   ✅    |    ✅     |      ✅      |    4     | USD, CAD, GBP, AUD                                                                         |
+| OPay        |   ✅    |   ✅    |    ✅     |      ✅      |    5     | NGN                                                                                        |
+| Mollie      |   ✅    |   ✅    |    ✅     |      ✅      |   10+    | EUR, USD, GBP, CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+                                      |
 | NOWPayments |   ✅    |   ✅    |    ✅     |      ✅      |   100+   | USD, NGN, EUR, GBP, BTC, ETH, USDT, USDC, BNB, ADA, DOT, MATIC, SOL, 100+ cryptocurrencies |
 
 **Notes:**
@@ -217,14 +248,22 @@ DB::table('subscriptions')->insert([
 
 ## Transaction Logging
 
-All transactions are automatically logged:
+All payment and subscription transactions are automatically logged:
 
 ```php
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
+use KenDeNigerian\PayZephyr\Models\SubscriptionTransaction;
 
+// Payment transactions
 PaymentTransaction::where('reference', 'ORDER_123')->first();
 PaymentTransaction::successful()->get();
 PaymentTransaction::failed()->get();
+
+// Subscription transactions (automatically logged on create/update/cancel)
+SubscriptionTransaction::where('subscription_code', 'SUB_xyz')->first();
+SubscriptionTransaction::active()->get();
+SubscriptionTransaction::forCustomer('user@example.com')->get();
+SubscriptionTransaction::forPlan('PLN_abc123')->get();
 ```
 
 ---
@@ -304,7 +343,18 @@ Contributions welcome! See [Contributing Guide](docs/CONTRIBUTING.md).
 
 See [CHANGELOG.md](docs/CHANGELOG.md) for version history.
 
-**Latest: v1.7.0** - Subscription support for PaystackDriver with complete API, tests, and documentation
+**Latest: v1.8.0** - Major subscription enhancements with enterprise-grade features
+
+**v1.8.0 Highlights**:
+- **Subscription Transaction Logging** - Automatic logging of all subscription operations to database
+- **Idempotency Support** - Prevent duplicate subscriptions with automatic UUID generation or custom keys
+- **Lifecycle Events** - Comprehensive webhook events (SubscriptionCreated, SubscriptionRenewed, SubscriptionCancelled, SubscriptionPaymentFailed)
+- **Business Validation** - Built-in validation prevents duplicate subscriptions and validates plan eligibility
+- **State Management** - Subscription status enum with state machine logic and transition validation
+- **Query Builder** - Advanced subscription filtering with fluent interface for complex queries
+- **Lifecycle Hooks** - Optional interface for custom drivers to hook into subscription lifecycle events
+
+See [Changelog](docs/CHANGELOG.md) for complete release notes.
 
 ---
 

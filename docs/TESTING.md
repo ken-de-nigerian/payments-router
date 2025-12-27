@@ -46,6 +46,7 @@ Tests that verify:
 Tests that verify:
 - ChargeResource transformation
 - VerificationResource transformation
+- PlanResource transformation
 - Proper handling of null values
 
 ### Install Command Tests (`InstallCommandTest.php`)

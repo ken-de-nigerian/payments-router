@@ -6,6 +6,171 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [1.8.0] - 2025-12-27
+
+### Added
+
+- **Subscription Transaction Logging**
+  - Automatic logging of all subscription operations to `subscription_transactions` table
+  - `SubscriptionTransaction` model with query scopes (active, cancelled, forCustomer, forPlan)
+  - Full audit trail of subscription lifecycle events
+  - Configurable table name and enable/disable logging
+  - Automatic logging on create, update, cancel, and status changes
+
+- **Idempotency Support for Subscriptions**
+  - Automatic UUID generation for idempotency keys
+  - Custom idempotency key support
+  - Prevents duplicate subscriptions from network retries
+  - Idempotency header support in subscription creation
+  - Key format validation and best practices
+
+- **Subscription Lifecycle Events**
+  - `SubscriptionCreated` event - Fired when subscription is created
+  - `SubscriptionRenewed` event - Fired when subscription renews successfully
+  - `SubscriptionCancelled` event - Fired when subscription is cancelled
+  - `SubscriptionPaymentFailed` event - Fired when subscription payment fails
+  - Complete webhook integration for all events
+  - Event listener examples and documentation
+
+- **Business Logic Validation**
+  - `SubscriptionValidator` service for comprehensive validation
+  - Plan existence and active status validation
+  - Duplicate subscription prevention (configurable)
+  - Authorization code format validation
+  - Cancellation eligibility validation
+  - Validation occurs before API calls to prevent errors
+
+- **Subscription State Management**
+  - `SubscriptionStatus` enum with state machine logic
+  - States: ACTIVE, NON_RENEWING, CANCELLED, COMPLETED, ATTENTION, EXPIRED
+  - State transition validation (`canTransitionTo()`)
+  - Helper methods: `canBeCancelled()`, `canBeResumed()`, `isBilling()`
+  - Provider status normalization (`fromString()`, `tryFromString()`)
+  - State transition diagram and documentation
+
+- **Subscription Query Builder**
+  - `SubscriptionQuery` class with fluent interface
+  - Filter methods: `forCustomer()`, `forPlan()`, `whereStatus()`, `active()`, `cancelled()`
+  - Date filtering: `createdAfter()`, `createdBefore()`
+  - Pagination: `take()`, `page()`
+  - Provider filtering: `from()`
+  - Execution methods: `get()`, `first()`, `count()`, `exists()`
+  - Comprehensive query examples and use cases
+
+- **PlanResponseDTO**
+  - Type-safe plan response data transfer object
+  - Implements `JsonSerializable` for Laravel responses
+  - Consistent plan data structure across providers
+  - Amount conversion (minor to major units)
+  - `toArray()` method for array conversion
+
+- **PlanResource**
+  - Laravel resource for plan JSON responses
+  - Consistent API response format
+  - Matches pattern of `ChargeResource` and `VerificationResource`
+  - Comprehensive test coverage
+
+- **Subscription Configuration**
+  - `prevent_duplicates` - Prevent duplicate active subscriptions
+  - `validation.enabled` - Enable/disable business validation
+  - `logging.enabled` - Enable/disable transaction logging
+  - `logging.table` - Custom table name for logging
+  - `webhook_events` - Configure which webhook events to handle
+  - `retry.*` - Automatic retry configuration for failed payments
+  - `grace_period` - Grace period for failed payments
+  - `notifications.*` - Email notification configuration
+
+- **Lifecycle Hooks Interface**
+  - `SubscriptionLifecycleHooks` interface for custom drivers
+  - Hook into subscription lifecycle events
+  - Custom driver integration examples
+
+### Changed
+
+- **Paystack Plan Creation**
+  - Removed unsupported `metadata` parameter from plan creation
+  - Only sends parameters supported by Paystack API (name, interval, amount, currency, description, invoice_limit, send_invoices, send_sms)
+  - Fixed array filter to preserve boolean `false` values for `send_invoices` and `send_sms`
+
+- **Documentation**
+  - Complete overhaul of `SUBSCRIPTIONS.md` with comprehensive sections
+  - Added Transaction Logging, Idempotency, Lifecycle Events, Validation, Subscription States, and Querying sections
+  - Updated all code examples to reflect current best practices
+  - Added configuration documentation
+  - Enhanced developer guide with new features
+
+- **Return Types**
+  - Updated documentation to reflect `PlanResponseDTO` return types (was incorrectly showing `array`)
+  - All subscription methods now consistently return DTOs
+
+### Fixed
+
+- **Paystack API Compliance**
+  - Fixed "Unknown/Unexpected parameter: metadata" error in plan creation
+  - Plan creation now only sends supported parameters per Paystack documentation
+
+- **Array Filter Consistency**
+  - Fixed array filter to only filter `null` values (not empty strings)
+  - Preserves boolean `false` values for `send_invoices` and `send_sms` options
+
+- **Documentation Accuracy**
+  - Fixed return type documentation inconsistencies
+  - Updated method signatures to match actual implementation
+  - Corrected endpoint paths in examples
+
+### Upgrade Notes
+
+**This is a MINOR version release (1.8.0) - fully backward compatible with v1.7.0**
+
+**No Breaking Changes:**
+- All existing subscription code continues to work without modification
+- All new features are opt-in or enabled by default with sensible defaults
+- No API changes to existing methods
+
+**Optional Setup Steps:**
+
+1. **Run Migrations** (if using subscription transaction logging)
+   ```bash
+   php artisan migrate
+   ```
+   This creates the `subscription_transactions` table if it doesn't exist.
+
+2. **Update Configuration** (optional - defaults work out of the box)
+   Add subscription configuration to `config/payments.php` if you want to customize:
+   ```php
+   'subscriptions' => [
+       'prevent_duplicates' => env('PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES', false),
+       'logging' => [
+           'enabled' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED', true),
+           'table' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE', 'subscription_transactions'),
+       ],
+       // ... other settings
+   ],
+   ```
+
+3. **Update Event Listeners** (optional - only if using lifecycle events)
+   If you want to use the new lifecycle events:
+   ```php
+   // app/Providers/EventServiceProvider.php
+   protected $listen = [
+       \KenDeNigerian\PayZephyr\Events\SubscriptionCreated::class => [
+           \App\Listeners\HandleSubscriptionCreated::class,
+       ],
+       // ... other events
+   ];
+   ```
+
+**New Features (All Opt-in):**
+- Transaction logging (enabled by default, can be disabled via config)
+- Idempotency (optional, use `->idempotency()` method)
+- Query builder (new `Payment::subscriptions()` method)
+- Lifecycle events (optional, register listeners if needed)
+
+**Upgrade Time:**
+- **0 minutes** - Works immediately with existing code
+- **5-10 minutes** - If you want to configure new features
+
+---
 ## [1.7.0] - 2025-12-18
 
 ### Added

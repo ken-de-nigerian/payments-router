@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use Illuminate\Http\Request;
 use KenDeNigerian\PayZephyr\DataObjects\ChargeResponseDTO;
+use KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\VerificationResponseDTO;
 use KenDeNigerian\PayZephyr\Http\Resources\ChargeResource;
+use KenDeNigerian\PayZephyr\Http\Resources\PlanResource;
 use KenDeNigerian\PayZephyr\Http\Resources\VerificationResource;
 
 test('charge resource transforms dto correctly', function () {
@@ -104,4 +106,53 @@ test('charge resource handles missing amount in metadata', function () {
 
     expect($array['amount']['value'])->toBeNull()
         ->and($array['amount']['currency'])->toBeNull();
+});
+
+test('plan resource transforms dto correctly', function () {
+    $dto = new PlanResponseDTO(
+        planCode: 'PLN_abc123xyz',
+        name: 'Monthly Premium',
+        amount: 5000.0,
+        interval: 'monthly',
+        currency: 'NGN',
+        description: 'Premium monthly subscription',
+        invoiceLimit: 12,
+        metadata: ['key' => 'value'],
+        provider: 'paystack'
+    );
+
+    $resource = new PlanResource($dto);
+    $array = $resource->toArray(new Request);
+
+    expect($array)->toHaveKeys(['plan_code', 'name', 'amount', 'interval', 'description', 'invoice_limit', 'metadata', 'provider', 'created_at'])
+        ->and($array['plan_code'])->toBe('PLN_abc123xyz')
+        ->and($array['name'])->toBe('Monthly Premium')
+        ->and($array['interval'])->toBe('monthly')
+        ->and($array['amount'])->toBeArray()
+        ->and($array['amount']['value'])->toBe(5000.0)
+        ->and($array['amount']['currency'])->toBe('NGN')
+        ->and($array['description'])->toBe('Premium monthly subscription')
+        ->and($array['invoice_limit'])->toBe(12)
+        ->and($array['provider'])->toBe('paystack');
+});
+
+test('plan resource handles null values', function () {
+    $dto = new PlanResponseDTO(
+        planCode: 'PLN_abc123xyz',
+        name: 'Basic Plan',
+        amount: 1000.0,
+        interval: 'monthly',
+        currency: 'NGN',
+        description: null,
+        invoiceLimit: null,
+        metadata: [],
+        provider: null
+    );
+
+    $resource = new PlanResource($dto);
+    $array = $resource->toArray(new Request);
+
+    expect($array['description'])->toBeNull()
+        ->and($array['invoice_limit'])->toBeNull()
+        ->and($array['provider'])->toBeNull();
 });

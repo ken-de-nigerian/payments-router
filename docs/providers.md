@@ -25,6 +25,7 @@ PAYSTACK_ENABLED=true
 - USSD
 - Mobile money
 - Recurring payments
+- **Subscriptions** - Full subscription management (plans, subscriptions, lifecycle events)
 
 ### Usage Example
 
@@ -48,6 +49,24 @@ Paystack sends webhooks for:
 - charge.failed
 - transfer.success
 - transfer.failed
+- subscription.create
+- subscription.disable
+- subscription.enable
+- subscription.not_renew
+- invoice.payment_failed
+- invoice.payment_success
+
+### Subscription Support
+
+PaystackDriver provides full subscription management:
+- Create, update, and manage subscription plans
+- Create and manage subscriptions
+- Subscription lifecycle events (created, renewed, cancelled, payment failed)
+- Automatic transaction logging
+- Idempotency support
+- Query builder for advanced filtering
+
+See [Subscriptions Guide](SUBSCRIPTIONS.md) for complete documentation.
 
 ### Testing
 
@@ -280,6 +299,95 @@ Payment::amount(100.00)
 | OPay        |  ✅  |  ❌  |  ❌  |  ❌  |  ❌  | -                                      |
 | Mollie      |  ❌  |  ✅  |  ✅  |  ✅  |  ❌  | CHF, SEK, NOK, DKK, PLN, CZK, HUF, 30+ |
 | NOWPayments |  ✅  |  ✅  |  ✅  |  ✅  |  ❌  | BTC, ETH, USDT, USDC, BNB, ADA, DOT, MATIC, SOL, 100+ cryptocurrencies |
+
+---
+
+## Feature Comparison Matrix
+
+| Provider    | Charge | Verify | Webhooks | Idempotency | Subscriptions | Channels | Currencies |
+|-------------|:------:|:------:|:--------:|:-----------:|:-------------:|:--------:|:----------:|
+| Paystack    |   ✅    |   ✅    |    ✅     |      ✅      |      ✅        |    5     |     4      |
+| Flutterwave |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |   10+    |     7+     |
+| Monnify     |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |    4     |     1      |
+| Stripe      |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |    6+    |    135+    |
+| PayPal      |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |    1     |     5+     |
+| Square      |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |    4     |     4      |
+| OPay        |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |    5     |     1      |
+| Mollie      |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |   10+    |    30+     |
+| NOWPayments |   ✅    |   ✅    |    ✅     |      ✅      |      ❌        |   100+   |    100+    |
+
+**Legend:**
+- ✅ = Fully supported
+- ❌ = Not supported
+- **Subscriptions**: Plan management, subscription creation, lifecycle management
+- **Channels**: Number of payment methods (card, bank transfer, USSD, etc.)
+- **Currencies**: Number of supported currencies
+
+**Subscription Support Notes:**
+- **Paystack**: Full subscription support including plans, subscriptions, lifecycle events, and webhooks
+- **Other Providers**: Subscription support coming in future releases
+
+---
+
+## Subscription Support Details
+
+### Paystack Subscription Features
+
+PaystackDriver provides comprehensive subscription management:
+
+#### Plan Management
+- ✅ Create subscription plans
+- ✅ Update plans
+- ✅ Fetch plan details
+- ✅ List all plans
+- ✅ Plan validation
+
+#### Subscription Management
+- ✅ Create subscriptions
+- ✅ Fetch subscription details
+- ✅ Cancel subscriptions (requires email token)
+- ✅ Enable cancelled subscriptions (requires email token)
+- ✅ List subscriptions
+- ✅ Filter by customer
+
+#### Subscription Features
+- ✅ Trial periods
+- ✅ Custom start dates
+- ✅ Quantity support (multi-seat subscriptions)
+- ✅ Authorization code support (immediate activation)
+- ✅ Metadata support
+- ✅ Idempotency support
+
+#### Subscription Webhooks
+- ✅ `subscription.create` - New subscription created
+- ✅ `subscription.disable` - Subscription cancelled
+- ✅ `subscription.enable` - Subscription reactivated
+- ✅ `subscription.not_renew` - Set to non-renewing
+- ✅ `invoice.payment_failed` - Payment failed
+- ✅ `invoice.payment_success` - Payment succeeded (renewal)
+
+#### Paystack-Specific Requirements
+
+**Email Token for Cancel/Enable:**
+- Paystack requires an email token for cancel and enable operations
+- Token is provided in the subscription creation response (`emailToken`)
+- **Important**: Always save the `emailToken` immediately after subscription creation
+- Token format: Minimum 10 characters
+
+**Plan Code Format:**
+- Paystack plan codes start with `PLN_` prefix
+- Example: `PLN_abc123xyz`
+
+**Subscription Intervals:**
+- Supported intervals: `daily`, `weekly`, `monthly`, `annually`
+- Must match Paystack's interval format exactly
+
+**Plan Creation Parameters:**
+- Required: `name`, `interval`, `amount`
+- Optional: `currency`, `description`, `invoice_limit`, `send_invoices`, `send_sms`
+- **Not Supported**: `metadata` (Paystack doesn't accept metadata in plan creation)
+
+See [Subscriptions Guide](SUBSCRIPTIONS.md) for complete documentation.
 
 ---
 

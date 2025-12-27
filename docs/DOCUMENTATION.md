@@ -92,6 +92,17 @@ PAYMENTS_DEFAULT_CURRENCY=NGN
 PAYMENTS_LOGGING_ENABLED=true
 PAYMENTS_WEBHOOK_VERIFY_SIGNATURE=true
 
+# Subscription Configuration
+PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES=false
+PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED=true
+PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE=subscription_transactions
+PAYMENTS_SUBSCRIPTIONS_VALIDATION_ENABLED=true
+PAYMENTS_SUBSCRIPTIONS_RETRY_ENABLED=false
+PAYMENTS_SUBSCRIPTIONS_RETRY_MAX_ATTEMPTS=3
+PAYMENTS_SUBSCRIPTIONS_RETRY_DELAY_HOURS=24
+PAYMENTS_SUBSCRIPTIONS_GRACE_PERIOD=7
+PAYMENTS_SUBSCRIPTIONS_NOTIFICATIONS_ENABLED=false
+
 # Webhook Configuration
 PAYMENTS_WEBHOOK_MAX_RETRIES=3              # Maximum webhook processing retries
 PAYMENTS_WEBHOOK_RETRY_BACKOFF=60           # Seconds to wait before retry
@@ -344,15 +355,25 @@ Event::listen(PaymentVerificationSuccess::class, function ($event) {
 
 ## Transaction Logging
 
-All transactions are automatically logged:
+All payment and subscription transactions are automatically logged:
 
 ```php
 use KenDeNigerian\PayZephyr\Models\PaymentTransaction;
+use KenDeNigerian\PayZephyr\Models\SubscriptionTransaction;
 
+// Payment transactions
 PaymentTransaction::where('reference', 'ORDER_123')->first();
 PaymentTransaction::successful()->get();
 PaymentTransaction::failed()->get();
+
+// Subscription transactions (automatically logged on create/update/cancel)
+SubscriptionTransaction::where('subscription_code', 'SUB_xyz')->first();
+SubscriptionTransaction::active()->get();
+SubscriptionTransaction::forCustomer('user@example.com')->get();
+SubscriptionTransaction::forPlan('PLN_abc123')->get();
 ```
+
+See [Subscriptions Guide](SUBSCRIPTIONS.md#transaction-logging) for complete subscription logging documentation.
 
 ---
 
@@ -498,9 +519,138 @@ test('payment verification works', function () {
 });
 ```
 
+### Testing Subscriptions
+
+```php
+use KenDeNigerian\PayZephyr\Facades\Payment;
+use KenDeNigerian\PayZephyr\DataObjects\SubscriptionPlanDTO;
+
+test('subscription plan creation works', function () {
+    $planDTO = new SubscriptionPlanDTO(
+        name: 'Test Plan',
+        amount: 1000.00,
+        interval: 'monthly',
+        currency: 'NGN'
+    );
+    
+    $plan = Payment::subscription()
+        ->planData($planDTO)
+        ->with('paystack')
+        ->createPlan();
+    
+    expect($plan)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class)
+        ->and($plan->planCode)->toBeString()
+        ->and($plan->name)->toBe('Test Plan');
+});
+
+test('subscription creation works', function () {
+    $subscription = Payment::subscription()
+        ->customer('test@example.com')
+        ->plan('PLN_test123')
+        ->with('paystack')
+        ->subscribe();
+    
+    expect($subscription)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO::class)
+        ->and($subscription->subscriptionCode)->toBeString()
+        ->and($subscription->status)->toBeString();
+});
+
+test('subscription transaction logging works', function () {
+    use KenDeNigerian\PayZephyr\Models\SubscriptionTransaction;
+    
+    $subscription = Payment::subscription()
+        ->customer('test@example.com')
+        ->plan('PLN_test123')
+        ->with('paystack')
+        ->subscribe();
+    
+    // Verify transaction was logged
+    $logged = SubscriptionTransaction::where('subscription_code', $subscription->subscriptionCode)->first();
+    
+    expect($logged)->not->toBeNull()
+        ->and($logged->status)->toBe($subscription->status);
+});
+
+test('subscription webhook events fire', function () {
+    Event::fake();
+    
+    // Simulate webhook payload
+    $payload = [
+        'event' => 'subscription.create',
+        'data' => [
+            'subscription_code' => 'SUB_test123',
+            'status' => 'active',
+            'customer' => ['email' => 'test@example.com'],
+            'plan' => ['plan_code' => 'PLN_test', 'name' => 'Test Plan'],
+        ],
+    ];
+    
+    // Dispatch event (simulating webhook handler)
+    \KenDeNigerian\PayZephyr\Events\SubscriptionCreated::dispatch(
+        $payload['data']['subscription_code'],
+        'paystack',
+        $payload['data']
+    );
+    
+    Event::assertDispatched(\KenDeNigerian\PayZephyr\Events\SubscriptionCreated::class);
+});
+```
+
+### Mocking Subscription Operations
+
+```php
+use Mockery;
+use KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO;
+use KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO;
+
+test('subscription with mocked driver', function () {
+    $mockDriver = Mockery::mock(\KenDeNigerian\PayZephyr\Contracts\SupportsSubscriptionsInterface::class);
+    
+    $mockDriver->shouldReceive('createPlan')
+        ->once()
+        ->andReturn(new PlanResponseDTO(
+            planCode: 'PLN_test',
+            name: 'Test Plan',
+            amount: 1000.0,
+            interval: 'monthly',
+            currency: 'NGN'
+        ));
+    
+    // Inject mock driver for testing
+    // ... test implementation
+});
+```
+
 ---
 
 ## API Reference
+
+**Payment Facade:**
+- Builder: `amount()`, `email()`, `callback()`, `reference()`, `metadata()`, `with()`
+- Actions: `charge()`, `redirect()`, `verify()`
+
+**Subscription Facade:**
+- Builder: `customer()`, `plan()`, `planData()`, `trialDays()`, `startDate()`, `quantity()`, `authorization()`, `idempotency()`, `token()`, `with()`
+- Actions: `subscribe()`, `create()`, `createPlan()`, `get()`, `cancel()`, `enable()`, `list()`
+- Query Builder: `Payment::subscriptions()` - `forCustomer()`, `forPlan()`, `active()`, `cancelled()`, `whereStatus()`, `createdAfter()`, `createdBefore()`, `from()`, `take()`, `page()`, `get()`, `first()`, `count()`, `exists()`
+
+**Response Objects:**
+- `ChargeResponseDTO`: `reference`, `authorizationUrl`, `status`, `isSuccessful()`
+- `VerificationResponseDTO`: `reference`, `status`, `amount`, `isSuccessful()`, `authorizationCode`
+- `PlanResponseDTO`: `planCode`, `name`, `amount`, `interval`, `currency`, `toArray()`, `jsonSerialize()`
+- `SubscriptionResponseDTO`: `subscriptionCode`, `status`, `customer`, `plan`, `amount`, `currency`, `nextPaymentDate`, `emailToken`, `metadata`
+
+**Models:**
+- `PaymentTransaction`: Payment transaction logging
+- `SubscriptionTransaction`: Subscription transaction logging with scopes (`active()`, `cancelled()`, `forCustomer()`, `forPlan()`)
+
+**Events:**
+- `SubscriptionCreated`: Fired when subscription is created
+- `SubscriptionRenewed`: Fired when subscription renews
+- `SubscriptionCancelled`: Fired when subscription is cancelled
+- `SubscriptionPaymentFailed`: Fired when subscription payment fails
+
+See [API Reference](API_REFERENCE.md) for complete documentation.
 
 **Payment Facade:**
 - Builder: `amount()`, `email()`, `callback()`, `reference()`, `metadata()`, `with()`
@@ -527,6 +677,8 @@ See [Architecture Guide](architecture.md) for details.
 
 ## Troubleshooting
 
+### Payment Issues
+
 **Payment initialization fails:** Check credentials in `.env`, verify provider enabled, check currency support
 
 **Webhook not received:** Verify webhook URL, check signature verification, ensure queue workers running
@@ -534,6 +686,48 @@ See [Architecture Guide](architecture.md) for details.
 **Verification fails:** Check reference format, verify transaction exists on provider
 
 **Fallback not working:** Verify fallback provider configured, check health status, ensure currency support
+
+### Subscription Issues
+
+**"Subscription not found" error:**
+- **Cause**: Subscription code doesn't exist or incorrect format
+- **Solution**: Verify subscription code format (Paystack: starts with `SUB_`), check if subscription exists in provider dashboard
+- **Prevention**: Always save subscription codes immediately after creation
+
+**"Unknown/Unexpected parameter: metadata" error:**
+- **Cause**: Attempting to send metadata in plan creation (not supported by Paystack)
+- **Solution**: Remove metadata from plan creation - metadata is only supported for subscriptions, not plans
+- **Status**: Fixed in v1.8.0
+
+**Duplicate subscription prevention:**
+- **Cause**: `prevent_duplicates` enabled and customer already has active subscription
+- **Solution**: Cancel existing subscription first, or disable `prevent_duplicates` in config
+- **Configuration**: `PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES=false`
+
+**Idempotency key conflicts:**
+- **Cause**: Reusing same idempotency key for different operations
+- **Solution**: Generate unique keys per operation (include user ID, plan code, timestamp)
+- **Best Practice**: Use `->idempotency()` for automatic UUID generation
+
+**Event listeners not firing:**
+- **Cause**: Events not registered in `EventServiceProvider`, or webhook not configured
+- **Solution**: Register events in `EventServiceProvider::$listen`, verify webhook URL in provider dashboard
+- **Check**: Ensure queue workers are running for webhook processing
+
+**Transaction logging not working:**
+- **Cause**: Logging disabled in config, or table doesn't exist
+- **Solution**: Enable `PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED=true`, run migrations
+- **Verify**: Check `subscription_transactions` table exists
+
+**State transition errors:**
+- **Cause**: Attempting invalid state transition (e.g., cancelling already cancelled subscription)
+- **Solution**: Check current status before operations, use `SubscriptionStatus::canTransitionTo()` to validate
+- **Example**: Use `SubscriptionStatus::fromString($status)->canBeCancelled()` before cancelling
+
+**Email token missing for cancel/enable:**
+- **Cause**: Email token not saved after subscription creation
+- **Solution**: Always save `$subscription->emailToken` immediately after creation
+- **Critical**: Token is required for cancel/enable operations and cannot be retrieved later
 
 **Need help?** [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues)
 

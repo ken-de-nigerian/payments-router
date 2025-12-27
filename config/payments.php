@@ -187,6 +187,48 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Subscription Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure subscription-specific settings including logging, webhooks,
+    | and business logic rules.
+    |
+    */
+    'subscriptions' => [
+        'prevent_duplicates' => env('PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES', false),
+        'validation' => [
+            'enabled' => env('PAYMENTS_SUBSCRIPTIONS_VALIDATION_ENABLED', true),
+        ],
+        'logging' => [
+            'enabled' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED', true),
+            'table' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE', 'subscription_transactions'),
+        ],
+        'webhook_events' => [
+            'subscription.create',
+            'subscription.disable',
+            'subscription.enable',
+            'subscription.not_renew',
+            'invoice.payment_failed',
+        ],
+        'retry' => [
+            'enabled' => env('PAYMENTS_SUBSCRIPTIONS_RETRY_ENABLED', false),
+            'max_attempts' => env('PAYMENTS_SUBSCRIPTIONS_RETRY_MAX_ATTEMPTS', 3),
+            'delay_hours' => env('PAYMENTS_SUBSCRIPTIONS_RETRY_DELAY_HOURS', 24),
+        ],
+        'grace_period' => env('PAYMENTS_SUBSCRIPTIONS_GRACE_PERIOD', 7),
+        'notifications' => [
+            'enabled' => env('PAYMENTS_SUBSCRIPTIONS_NOTIFICATIONS_ENABLED', false),
+            'events' => [
+                'created',
+                'cancelled',
+                'renewed',
+                'payment_failed',
+            ],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache Configuration
     |--------------------------------------------------------------------------
     |

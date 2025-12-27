@@ -206,4 +206,12 @@ final class Payment
 
         return $subscription;
     }
+
+    /**
+     * Create a subscription query builder for advanced filtering and retrieval.
+     */
+    public function subscriptions(): SubscriptionQuery
+    {
+        return new SubscriptionQuery($this->manager);
+    }
 }

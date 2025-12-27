@@ -14,6 +14,7 @@ use Tests\Helpers\SubscriptionTestHelper;
 
 test('subscription prevents SQL injection in customer field', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Invalid customer',
@@ -27,6 +28,7 @@ test('subscription prevents SQL injection in customer field', function () {
 
 test('subscription prevents XSS in metadata', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -54,7 +56,7 @@ test('subscription prevents XSS in metadata', function () {
 
 test('subscription prevents path traversal in plan code', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
-        new Response(400, [], json_encode([
+        new Response(404, [], json_encode([
             'status' => false,
             'message' => 'Invalid plan',
         ])),
@@ -74,11 +76,12 @@ test('subscription prevents command injection in subscription code', function ()
     ]);
 
     $subscription->code('SUB_123; rm -rf /')
-        ->get();
+        ->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription validates email format in customer field', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Invalid email format',
@@ -113,7 +116,7 @@ test('subscription prevents unauthorized plan access', function () {
         ])),
     ]);
 
-    $subscription->plan('PLN_123')->getPlan();
+    $subscription->plan('PLN_123')->fetchPlan();
 })->throws(PlanException::class);
 
 test('subscription prevents unauthorized subscription access', function () {
@@ -124,7 +127,7 @@ test('subscription prevents unauthorized subscription access', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription validates token ownership before cancel', function () {
@@ -160,7 +163,7 @@ test('subscription prevents token reuse after cancellation', function () {
         ])),
     ]);
 
-    $subscription1->code('SUB_123')->cancel('token_123');
+    $subscription1->code('SUB_123')->cancel('token_12345');
 
     // Second attempt with same token should fail
     $subscription2 = SubscriptionTestHelper::createWithMock([
@@ -170,13 +173,14 @@ test('subscription prevents token reuse after cancellation', function () {
         ])),
     ]);
 
-    $subscription2->code('SUB_123')->cancel('token_123');
+    $subscription2->code('SUB_123')->cancel('token_12345');
 })->throws(SubscriptionException::class);
 
 // ==================== Rate Limiting Security Tests ====================
 
 test('subscription handles rate limiting on create', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(429, [], json_encode([
             'status' => false,
             'message' => 'Too many requests',
@@ -219,7 +223,7 @@ test('subscription prevents amount tampering', function () {
     ]);
 
     // Amount should match what was in the plan, not what's in response
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     // The response amount is what the provider returns, but we validate it
     expect($result->amount)->toBe(1000.0);
@@ -283,6 +287,7 @@ test('subscription prevents token brute force', function () {
 
 test('subscription prevents sensitive data in metadata', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -316,6 +321,7 @@ test('subscription limits metadata size', function () {
     }
 
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Metadata too large',
@@ -379,7 +385,7 @@ test('subscription validates response signature', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     // Should handle missing fields gracefully
     expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO::class);
@@ -402,7 +408,7 @@ test('subscription prevents response manipulation', function () {
 
     // The response is what the provider returns - we trust the provider
     // But we should validate the subscription code matches
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->subscriptionCode)->toBe('SUB_123');
 });
@@ -419,7 +425,7 @@ test('subscription does not expose sensitive info in error messages', function (
     ]);
 
     try {
-        $subscription->code('SUB_123')->get();
+        $subscription->code('SUB_123')->fetch();
     } catch (SubscriptionException $e) {
         // Error message should not contain sensitive debug info
         expect($e->getMessage())->not->toContain('password')
@@ -429,6 +435,7 @@ test('subscription does not expose sensitive info in error messages', function (
 
 test('subscription sanitizes error context', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Invalid request',
@@ -507,7 +514,7 @@ test('subscription operations require proper authentication', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription cancel requires valid token (CSRF protection)', function () {

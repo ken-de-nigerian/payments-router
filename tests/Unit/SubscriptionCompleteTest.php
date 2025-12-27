@@ -64,7 +64,7 @@ test('subscription fluent api methods can be chained', function () {
     $result = $subscription
         ->code('SUB_123')
         ->with('paystack')
-        ->get();
+        ->fetch();
 
     expect($result)->toBeInstanceOf(SubscriptionResponseDTO::class);
 });
@@ -145,7 +145,7 @@ test('subscription createPlan handles missing data in response', function () {
 
     $result = $subscription->planData($planDTO)->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });
 
 // ==================== Plan Retrieval Tests ====================
@@ -153,7 +153,7 @@ test('subscription createPlan handles missing data in response', function () {
 test('subscription getPlan requires plan code', function () {
     $subscription = SubscriptionTestHelper::createWithMock([]);
 
-    $subscription->getPlan();
+    $subscription->fetchPlan();
 })->throws(PaymentException::class, 'Plan code is required');
 
 test('subscription getPlan handles plan not found', function () {
@@ -164,7 +164,7 @@ test('subscription getPlan handles plan not found', function () {
         ])),
     ]);
 
-    $subscription->plan('PLN_nonexistent')->getPlan();
+    $subscription->plan('PLN_nonexistent')->fetchPlan();
 })->throws(PlanException::class);
 
 test('subscription getPlan handles unauthorized access', function () {
@@ -175,7 +175,7 @@ test('subscription getPlan handles unauthorized access', function () {
         ])),
     ]);
 
-    $subscription->plan('PLN_123')->getPlan();
+    $subscription->plan('PLN_123')->fetchPlan();
 })->throws(PlanException::class);
 
 // ==================== Plan Update Tests ====================
@@ -276,6 +276,7 @@ test('subscription create validates plan is set', function () {
 
 test('subscription create handles invalid customer email', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Invalid customer email',
@@ -289,7 +290,7 @@ test('subscription create handles invalid customer email', function () {
 
 test('subscription create handles invalid plan code', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
-        new Response(400, [], json_encode([
+        new Response(404, [], json_encode([
             'status' => false,
             'message' => 'Plan not found',
         ])),
@@ -302,6 +303,7 @@ test('subscription create handles invalid plan code', function () {
 
 test('subscription create handles missing authorization code when required', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(400, [], json_encode([
             'status' => false,
             'message' => 'Authorization code required',
@@ -315,6 +317,7 @@ test('subscription create handles missing authorization code when required', fun
 
 test('subscription create handles duplicate subscription attempt', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(409, [], json_encode([
             'status' => false,
             'message' => 'Subscription already exists',
@@ -328,6 +331,7 @@ test('subscription create handles duplicate subscription attempt', function () {
 
 test('subscription create handles rate limiting', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(429, [], json_encode([
             'status' => false,
             'message' => 'Too many requests',
@@ -344,7 +348,7 @@ test('subscription create handles rate limiting', function () {
 test('subscription get requires subscription code', function () {
     $subscription = SubscriptionTestHelper::createWithMock([]);
 
-    $subscription->get();
+    $subscription->fetch();
 })->throws(PaymentException::class, 'Subscription code is required');
 
 test('subscription get handles subscription not found', function () {
@@ -355,7 +359,7 @@ test('subscription get handles subscription not found', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_nonexistent')->get();
+    $subscription->code('SUB_nonexistent')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription get handles unauthorized access', function () {
@@ -366,7 +370,7 @@ test('subscription get handles unauthorized access', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription get handles malformed response', function () {
@@ -374,7 +378,7 @@ test('subscription get handles malformed response', function () {
         new Response(200, [], 'invalid json'),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 // ==================== Subscription Cancellation Tests ====================
@@ -392,11 +396,12 @@ test('subscription cancel requires email token', function () {
 })->throws(PaymentException::class, 'Email token is required');
 
 test('subscription cancel accepts token as parameter', function () {
+    // Disable validation to avoid extra HTTP calls
+    config(['payments.subscriptions.validation.enabled' => false]);
+    app()->forgetInstance('payments.config');
+
     $subscription = SubscriptionTestHelper::createWithMock([
-        new Response(200, [], json_encode([
-            'status' => true,
-            'data' => ['subscription_code' => 'SUB_123'],
-        ])),
+        SubscriptionTestHelper::subscriptionMock('SUB_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -410,18 +415,19 @@ test('subscription cancel accepts token as parameter', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->cancel('token_123');
+    $result = $subscription->code('SUB_123')->cancel('token_12345');
 
     expect($result)->toBeInstanceOf(SubscriptionResponseDTO::class)
         ->and($result->status)->toBe('cancelled');
 });
 
 test('subscription cancel uses fluent token method', function () {
+    // Disable validation to avoid extra HTTP calls
+    config(['payments.subscriptions.validation.enabled' => false]);
+    app()->forgetInstance('payments.config');
+
     $subscription = SubscriptionTestHelper::createWithMock([
-        new Response(200, [], json_encode([
-            'status' => true,
-            'data' => ['subscription_code' => 'SUB_123'],
-        ])),
+        SubscriptionTestHelper::subscriptionMock('SUB_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -436,7 +442,7 @@ test('subscription cancel uses fluent token method', function () {
     ]);
 
     $result = $subscription->code('SUB_123')
-        ->token('token_123')
+        ->token('token_12345')
         ->cancel();
 
     expect($result)->toBeInstanceOf(SubscriptionResponseDTO::class);
@@ -461,7 +467,7 @@ test('subscription cancel handles already cancelled subscription', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->cancel('token_123');
+    $subscription->code('SUB_123')->cancel('token_12345');
 })->throws(SubscriptionException::class);
 
 // ==================== Subscription Enable Tests ====================
@@ -497,7 +503,7 @@ test('subscription enable handles already active subscription', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->enable('token_123');
+    $subscription->code('SUB_123')->enable('token_12345');
 })->throws(SubscriptionException::class);
 
 // ==================== Subscription Listing Tests ====================
@@ -567,7 +573,7 @@ test('subscription prevents unauthorized plan access', function () {
         ])),
     ]);
 
-    $subscription->plan('PLN_123')->getPlan();
+    $subscription->plan('PLN_123')->fetchPlan();
 })->throws(PlanException::class);
 
 test('subscription prevents unauthorized subscription access', function () {
@@ -578,7 +584,7 @@ test('subscription prevents unauthorized subscription access', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription validates token before cancel operation', function () {
@@ -612,7 +618,7 @@ test('subscription prevents token reuse attacks', function () {
         ])),
     ]);
 
-    $subscription1->code('SUB_123')->cancel('token_123');
+    $subscription1->code('SUB_123')->cancel('token_12345');
 
     // Second cancel with same token should fail
     $subscription2 = SubscriptionTestHelper::createWithMock([
@@ -622,11 +628,12 @@ test('subscription prevents token reuse attacks', function () {
         ])),
     ]);
 
-    $subscription2->code('SUB_123')->cancel('token_123');
+    $subscription2->code('SUB_123')->cancel('token_12345');
 })->throws(SubscriptionException::class);
 
 test('subscription sanitizes metadata before sending', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -671,7 +678,7 @@ test('subscription handles very large amounts', function () {
 
     $result = $subscription->planData($planDTO)->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });
 
 test('subscription handles very long plan names', function () {
@@ -691,11 +698,12 @@ test('subscription handles very long plan names', function () {
 
     $result = $subscription->planData($planDTO)->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });
 
 test('subscription handles special characters in metadata', function () {
     $subscription = SubscriptionTestHelper::createWithMock([
+        SubscriptionTestHelper::planMock('PLN_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -738,7 +746,7 @@ test('subscription handles null values in response', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result)->toBeInstanceOf(SubscriptionResponseDTO::class);
 });
@@ -755,7 +763,7 @@ test('subscription handles missing optional fields gracefully', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result)->toBeInstanceOf(SubscriptionResponseDTO::class)
         ->and($result->customer)->toBe('')
@@ -792,7 +800,7 @@ test('subscription response isActive returns true for active status', function (
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->isActive())->toBeTrue()
         ->and($result->isCancelled())->toBeFalse()
@@ -814,7 +822,7 @@ test('subscription response isCancelled returns true for cancelled status', func
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->isCancelled())->toBeTrue()
         ->and($result->isActive())->toBeFalse();
@@ -835,7 +843,7 @@ test('subscription response isCompleted returns true for completed status', func
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->isCompleted())->toBeTrue()
         ->and($result->isActive())->toBeFalse();
@@ -856,7 +864,7 @@ test('subscription response handles non-renewing status', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->isActive())->toBeTrue(); // non-renewing is considered active
 });
@@ -936,6 +944,10 @@ test('subscription request DTO validates negative trial days', function () {
 // ==================== Integration Tests ====================
 
 test('subscription complete workflow: create plan, create subscription, cancel', function () {
+    // Disable validation to avoid extra HTTP calls
+    config(['payments.subscriptions.validation.enabled' => false]);
+    app()->forgetInstance('payments.config');
+
     // Step 1: Create plan
     $subscription1 = SubscriptionTestHelper::createWithMock([
         new Response(200, [], json_encode([
@@ -950,36 +962,43 @@ test('subscription complete workflow: create plan, create subscription, cancel',
 
     $planDTO = new SubscriptionPlanDTO('Test Plan', 5000.00, 'monthly');
     $plan = $subscription1->planData($planDTO)->createPlan();
-    expect($plan['plan_code'])->toBe('PLN_123');
+    expect($plan->planCode)->toBe('PLN_123');
 
     // Step 2: Create subscription
+    // Disable duplicate prevention and validation to avoid extra HTTP calls
+    config(['payments.subscriptions.prevent_duplicates' => false]);
+    config(['payments.subscriptions.validation.enabled' => false]);
+
     $subscription2 = SubscriptionTestHelper::createWithMock([
+        // No planMock needed since validation is disabled
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
                 'subscription_code' => 'SUB_123',
+                'code' => 'SUB_123', // Also include 'code' as fallback
                 'status' => 'active',
                 'customer' => ['email' => 'test@example.com'],
-                'plan' => ['name' => 'Test Plan'],
+                'plan' => [
+                    'name' => 'Test Plan',
+                    'plan_code' => 'PLN_123',
+                    'code' => 'PLN_123',
+                ],
                 'amount' => 500000,
                 'currency' => 'NGN',
-                'email_token' => 'token_123',
+                'email_token' => 'token_12345',
             ],
-        ])),
+        ])), // For subscription creation (POST /subscription)
     ]);
 
     $sub = $subscription2->customer('test@example.com')
         ->plan('PLN_123')
         ->create();
     expect($sub->subscriptionCode)->toBe('SUB_123')
-        ->and($sub->emailToken)->toBe('token_123');
+        ->and($sub->emailToken)->toBe('token_12345');
 
     // Step 3: Cancel subscription
     $subscription3 = SubscriptionTestHelper::createWithMock([
-        new Response(200, [], json_encode([
-            'status' => true,
-            'data' => ['subscription_code' => 'SUB_123'],
-        ])),
+        SubscriptionTestHelper::subscriptionMock('SUB_123'),
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -994,7 +1013,7 @@ test('subscription complete workflow: create plan, create subscription, cancel',
     ]);
 
     $cancelled = $subscription3->code('SUB_123')
-        ->token('token_123')
+        ->token('token_12345')
         ->cancel();
     expect($cancelled->status)->toBe('cancelled');
 });
@@ -1021,7 +1040,7 @@ test('subscription handles provider fallback scenario', function () {
 
     $result = $subscription->planData($planDTO)->with('paystack')->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });
 
 // ==================== Error Recovery Tests ====================
@@ -1056,7 +1075,7 @@ test('subscription handles malformed JSON response', function () {
         new Response(200, [], 'not json {invalid}'),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription handles empty response body', function () {
@@ -1064,7 +1083,7 @@ test('subscription handles empty response body', function () {
         new Response(200, [], ''),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription handles HTTP 500 errors', function () {
@@ -1075,7 +1094,7 @@ test('subscription handles HTTP 500 errors', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription handles HTTP 502 Bad Gateway', function () {
@@ -1086,7 +1105,7 @@ test('subscription handles HTTP 502 Bad Gateway', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 test('subscription handles HTTP 503 Service Unavailable', function () {
@@ -1097,7 +1116,7 @@ test('subscription handles HTTP 503 Service Unavailable', function () {
         ])),
     ]);
 
-    $subscription->code('SUB_123')->get();
+    $subscription->code('SUB_123')->fetch();
 })->throws(SubscriptionException::class);
 
 // ==================== Amount Conversion Tests ====================
@@ -1117,7 +1136,7 @@ test('subscription correctly converts amount from kobo to naira', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->amount)->toBe(50505.0);
 });
@@ -1147,7 +1166,7 @@ test('subscription handles zero amount in response', function () {
         ])),
     ]);
 
-    $result = $subscription->code('SUB_123')->get();
+    $result = $subscription->code('SUB_123')->fetch();
 
     expect($result->amount)->toBe(0.0);
 });
@@ -1176,7 +1195,7 @@ test('subscription uses default provider when not specified', function () {
 
     $result = $subscription->planData($planDTO)->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });
 
 test('subscription uses first provider from array', function () {
@@ -1203,5 +1222,5 @@ test('subscription uses first provider from array', function () {
         ->with(['paystack', 'stripe'])
         ->createPlan();
 
-    expect($result)->toBeArray();
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class);
 });

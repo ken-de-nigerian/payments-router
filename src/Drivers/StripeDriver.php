@@ -319,7 +319,12 @@ final class StripeDriver extends AbstractDriver
         } catch (ApiErrorException $e) {
             $this->log('error', 'Health check failed', ['error' => $e->getMessage()]);
 
-            return ! HttpStatusCodes::isServerError($e->getHttpStatus());
+            $statusCode = $e->getHttpStatus();
+            if ($statusCode === null) {
+                return false;
+            }
+
+            return ! HttpStatusCodes::isServerError($statusCode);
         }
     }
 

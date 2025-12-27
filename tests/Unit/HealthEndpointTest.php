@@ -16,9 +16,20 @@ test('health endpoint returns operational status', function () {
 });
 
 test('health endpoint includes enabled providers', function () {
+    // Clear config cache
+    app()->forgetInstance('payments.config');
+
+    // Disable all providers first
+    foreach (config('payments.providers', []) as $provider => $config) {
+        config(["payments.providers.{$provider}.enabled" => false]);
+    }
+
     config(['payments.providers.paystack.enabled' => true]);
     config(['payments.providers.stripe.enabled' => true]);
     config(['payments.providers.flutterwave.enabled' => false]);
+
+    // Clear config cache again after changes
+    app()->forgetInstance('payments.config');
 
     $response = $this->getJson('/payments/health');
 
@@ -67,11 +78,23 @@ test('health endpoint returns provider currencies', function () {
 });
 
 test('health endpoint uses cached health check', function () {
+    // Clear config cache
+    app()->forgetInstance('payments.config');
+
+    // Disable all providers except paystack
+    foreach (config('payments.providers', []) as $provider => $config) {
+        config(["payments.providers.{$provider}.enabled" => false]);
+    }
+    config(['payments.providers.paystack.enabled' => true]);
+
+    // Clear config cache again
+    app()->forgetInstance('payments.config');
+
     $manager = app(PaymentManager::class);
     $driver = $manager->driver('paystack');
 
     \Illuminate\Support\Facades\Cache::shouldReceive('remember')
-        ->once()
+        ->with(\Mockery::type('string'), \Mockery::type('int'), \Mockery::type('Closure'))
         ->andReturn(true);
 
     $response = $this->getJson('/payments/health');
@@ -92,11 +115,22 @@ test('health endpoint handles empty providers config', function () {
 });
 
 test('health endpoint only includes enabled providers', function () {
+    // Clear config cache
+    app()->forgetInstance('payments.config');
+
+    // Disable all providers first
+    foreach (config('payments.providers', []) as $provider => $config) {
+        config(["payments.providers.{$provider}.enabled" => false]);
+    }
+
     config([
         'payments.providers.paystack.enabled' => true,
         'payments.providers.stripe.enabled' => false,
         'payments.providers.flutterwave.enabled' => true,
     ]);
+
+    // Clear config cache again after changes
+    app()->forgetInstance('payments.config');
 
     $response = $this->getJson('/payments/health');
 

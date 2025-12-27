@@ -35,9 +35,9 @@ test('paystack createPlan succeeds with valid response', function () {
 
     $result = $driver->createPlan($plan);
 
-    expect($result['plan_code'])->toBe('PLN_test123')
-        ->and($result['name'])->toBe('Monthly Plan')
-        ->and($result['amount'])->toBe(500000);
+    expect($result->planCode)->toBe('PLN_test123')
+        ->and($result->name)->toBe('Monthly Plan')
+        ->and($result->amount)->toBe(5000.0); // Converted from 500000 kobo to 5000.0 naira
 });
 
 test('paystack createPlan throws exception on api error', function () {
@@ -88,8 +88,8 @@ test('paystack updatePlan succeeds', function () {
 
     $result = $driver->updatePlan('PLN_test123', ['name' => 'Updated Plan']);
 
-    expect($result['plan_code'])->toBe('PLN_test123')
-        ->and($result['name'])->toBe('Updated Plan');
+    expect($result->planCode)->toBe('PLN_test123')
+        ->and($result->name)->toBe('Updated Plan');
 });
 
 test('paystack updatePlan throws exception on error', function () {
@@ -117,11 +117,11 @@ test('paystack getPlan succeeds', function () {
         ])),
     ]);
 
-    $result = $driver->getPlan('PLN_test123');
+    $result = $driver->fetchPlan('PLN_test123');
 
-    expect($result['plan_code'])->toBe('PLN_test123')
-        ->and($result['name'])->toBe('Monthly Plan')
-        ->and($result['interval'])->toBe('monthly');
+    expect($result->planCode)->toBe('PLN_test123')
+        ->and($result->name)->toBe('Monthly Plan')
+        ->and($result->interval)->toBe('monthly');
 });
 
 test('paystack getPlan throws exception when plan not found', function () {
@@ -132,7 +132,7 @@ test('paystack getPlan throws exception when plan not found', function () {
         ])),
     ]);
 
-    $driver->getPlan('PLN_nonexistent');
+    $driver->fetchPlan('PLN_nonexistent');
 })->throws(PlanException::class);
 
 test('paystack listPlans succeeds', function () {
@@ -272,7 +272,7 @@ test('paystack createSubscription throws exception on api error', function () {
     $driver->createSubscription($request);
 })->throws(SubscriptionException::class, 'Invalid customer or plan');
 
-test('paystack getSubscription succeeds', function () {
+test('paystack fetchSubscription succeeds', function () {
     $driver = PaystackDriverTestHelper::createWithMock([
         new Response(200, [], json_encode([
             'status' => true,
@@ -294,7 +294,7 @@ test('paystack getSubscription succeeds', function () {
         ])),
     ]);
 
-    $result = $driver->getSubscription('SUB_test123');
+    $result = $driver->fetchSubscription('SUB_test123');
 
     expect($result->subscriptionCode)->toBe('SUB_test123')
         ->and($result->status)->toBe('active')
@@ -303,7 +303,7 @@ test('paystack getSubscription succeeds', function () {
         ->and($result->isActive())->toBeTrue();
 });
 
-test('paystack getSubscription handles cancelled status', function () {
+test('paystack fetchSubscription handles cancelled status', function () {
     $driver = PaystackDriverTestHelper::createWithMock([
         new Response(200, [], json_encode([
             'status' => true,
@@ -318,14 +318,14 @@ test('paystack getSubscription handles cancelled status', function () {
         ])),
     ]);
 
-    $result = $driver->getSubscription('SUB_test123');
+    $result = $driver->fetchSubscription('SUB_test123');
 
     expect($result->status)->toBe('cancelled')
         ->and($result->isCancelled())->toBeTrue()
         ->and($result->isActive())->toBeFalse();
 });
 
-test('paystack getSubscription throws exception when not found', function () {
+test('paystack fetchSubscription throws exception when not found', function () {
     $driver = PaystackDriverTestHelper::createWithMock([
         new Response(404, [], json_encode([
             'status' => false,
@@ -333,7 +333,7 @@ test('paystack getSubscription throws exception when not found', function () {
         ])),
     ]);
 
-    $driver->getSubscription('SUB_nonexistent');
+    $driver->fetchSubscription('SUB_nonexistent');
 })->throws(SubscriptionException::class);
 
 test('paystack cancelSubscription succeeds', function () {
@@ -345,7 +345,7 @@ test('paystack cancelSubscription succeeds', function () {
                 'subscription_code' => 'SUB_test123',
             ],
         ])),
-        // Response from getSubscription call
+        // Response from fetchSubscription call
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -386,7 +386,7 @@ test('paystack enableSubscription succeeds', function () {
                 'subscription_code' => 'SUB_test123',
             ],
         ])),
-        // Response from getSubscription call
+        // Response from fetchSubscription call
         new Response(200, [], json_encode([
             'status' => true,
             'data' => [
@@ -510,8 +510,8 @@ test('paystack createPlan handles missing plan_code in response', function () {
 
     $result = $driver->createPlan($plan);
 
-    expect($result)->toBeArray()
-        ->and($result['name'])->toBe('Test Plan');
+    expect($result)->toBeInstanceOf(\KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO::class)
+        ->and($result->name)->toBe('Test Plan');
 });
 
 test('paystack createSubscription handles missing customer email in response', function () {
@@ -540,7 +540,7 @@ test('paystack createSubscription handles missing customer email in response', f
     expect($result->customer)->toBe('customer@example.com');
 });
 
-test('paystack getSubscription handles missing optional fields', function () {
+test('paystack fetchSubscription handles missing optional fields', function () {
     $driver = PaystackDriverTestHelper::createWithMock([
         new Response(200, [], json_encode([
             'status' => true,
@@ -555,7 +555,7 @@ test('paystack getSubscription handles missing optional fields', function () {
         ])),
     ]);
 
-    $result = $driver->getSubscription('SUB_test123');
+    $result = $driver->fetchSubscription('SUB_test123');
 
     expect($result->nextPaymentDate)->toBeNull()
         ->and($result->emailToken)->toBeNull()

@@ -139,9 +139,18 @@ final class PaymentServiceProvider extends ServiceProvider
         $normalizer->registerProviderMappings('paypal', [
             'success' => ['PAYMENT.CAPTURE.COMPLETED', 'COMPLETED'],
             'failed' => ['PAYMENT.CAPTURE.DENIED'],
+            'pending' => ['APPROVED', 'PENDING', 'CREATED'],
+        ]);
+        $normalizer->registerProviderMappings('square', [
+            'success' => ['COMPLETED', 'APPROVED'],
+            'failed' => ['FAILED', 'CANCELED'],
+        ]);
+        $normalizer->registerProviderMappings('stripe', [
+            'success' => ['SUCCEEDED', 'PAID', 'COMPLETE'],
+            'failed' => ['PAYMENT_FAILED', 'CANCELED', 'REQUIRES_ACTION'],
         ]);
         $normalizer->registerProviderMappings('mollie', [
-            'success' => ['PAID', 'AUTHORIZED'],
+            'success' => ['PAID', 'AUTHORIZED', 'PAIDOUT'],
             'failed' => ['FAILED', 'CANCELED', 'EXPIRED'],
             'pending' => ['OPEN', 'PENDING'],
         ]);

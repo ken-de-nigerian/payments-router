@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\Contracts;
 
+use KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO;
 use KenDeNigerian\PayZephyr\DataObjects\SubscriptionPlanDTO;
 use KenDeNigerian\PayZephyr\DataObjects\SubscriptionRequestDTO;
 use KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO;
@@ -18,30 +19,25 @@ interface SupportsSubscriptionsInterface
 {
     /**
      * Create a subscription plan
-     *
-     * @return array<string, mixed>
      */
-    public function createPlan(SubscriptionPlanDTO $plan): array;
+    public function createPlan(SubscriptionPlanDTO $plan): PlanResponseDTO;
 
     /**
      * Update a subscription plan
      *
      * @param  array<string, mixed>  $updates
-     * @return array<string, mixed>
      */
-    public function updatePlan(string $planCode, array $updates): array;
+    public function updatePlan(string $planCode, array $updates): PlanResponseDTO;
 
     /**
-     * Get a subscription plan
-     *
-     * @return array<string, mixed>
+     * Fetch a subscription plan
      */
-    public function getPlan(string $planCode): array;
+    public function fetchPlan(string $planCode): PlanResponseDTO;
 
     /**
      * List all subscription plans
      *
-     * @return array<string, mixed>
+     * @return array<string, mixed> Array with 'data' key containing array of PlanResponseDTO or arrays
      */
     public function listPlans(?int $perPage = 50, ?int $page = 1): array;
 
@@ -51,9 +47,9 @@ interface SupportsSubscriptionsInterface
     public function createSubscription(SubscriptionRequestDTO $request): SubscriptionResponseDTO;
 
     /**
-     * Get subscription details
+     * Fetch subscription details
      */
-    public function getSubscription(string $subscriptionCode): SubscriptionResponseDTO;
+    public function fetchSubscription(string $subscriptionCode): SubscriptionResponseDTO;
 
     /**
      * Cancel a subscription

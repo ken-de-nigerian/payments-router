@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 final readonly class SubscriptionRequestDTO
@@ -19,6 +20,7 @@ final readonly class SubscriptionRequestDTO
         public ?int $trialDays = null,
         public array $metadata = [],
         public ?string $authorization = null,
+        public ?string $idempotencyKey = null,
     ) {
         $this->validate();
     }
@@ -55,6 +57,7 @@ final readonly class SubscriptionRequestDTO
             trialDays: $data['trial_days'] ?? null,
             metadata: $data['metadata'] ?? [],
             authorization: $data['authorization'] ?? null,
+            idempotencyKey: $data['idempotency_key'] ?? self::generateIdempotencyKey(),
         );
     }
 
@@ -72,5 +75,15 @@ final readonly class SubscriptionRequestDTO
             'metadata' => $this->metadata,
             'authorization' => $this->authorization,
         ], fn ($value) => $value !== null);
+    }
+
+    /**
+     * Generate a new idempotency key (UUID).
+     *
+     * @return string A UUID v4 string
+     */
+    public static function generateIdempotencyKey(): string
+    {
+        return Str::uuid()->toString();
     }
 }

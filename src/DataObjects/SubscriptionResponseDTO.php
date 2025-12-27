@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace KenDeNigerian\PayZephyr\DataObjects;
 
+use KenDeNigerian\PayZephyr\Enums\SubscriptionStatus;
+
 final readonly class SubscriptionResponseDTO
 {
     /**
@@ -60,18 +62,44 @@ final readonly class SubscriptionResponseDTO
         ];
     }
 
+    /**
+     * Get subscription status as enum.
+     */
+    public function getStatus(): SubscriptionStatus
+    {
+        return SubscriptionStatus::tryFromString($this->status) ?? SubscriptionStatus::EXPIRED;
+    }
+
     public function isActive(): bool
     {
-        return in_array($this->status, ['active', 'non-renewing']);
+        $status = $this->getStatus();
+
+        return $status->isBilling();
     }
 
     public function isCancelled(): bool
     {
-        return $this->status === 'cancelled';
+        return $this->getStatus() === SubscriptionStatus::CANCELLED;
     }
 
     public function isCompleted(): bool
     {
-        return $this->status === 'completed';
+        return $this->getStatus() === SubscriptionStatus::COMPLETED;
+    }
+
+    /**
+     * Check if subscription can be cancelled.
+     */
+    public function canBeCancelled(): bool
+    {
+        return $this->getStatus()->canBeCancelled();
+    }
+
+    /**
+     * Check if subscription can be resumed.
+     */
+    public function canBeResumed(): bool
+    {
+        return $this->getStatus()->canBeResumed();
     }
 }

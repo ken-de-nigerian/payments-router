@@ -730,6 +730,227 @@ public function handle(array $payload): void
 
 ---
 
+## Subscription Webhooks
+
+PayZephyr automatically handles subscription-related webhooks and dispatches Laravel events for subscription lifecycle changes.
+
+### Subscription Webhook Events
+
+#### Paystack Subscription Events
+
+Paystack sends the following subscription events:
+
+- `subscription.create` - New subscription created
+- `subscription.disable` - Subscription cancelled
+- `subscription.enable` - Cancelled subscription reactivated
+- `subscription.not_renew` - Subscription set to non-renewing
+- `invoice.payment_failed` - Subscription payment failed
+- `invoice.payment_failed` - Subscription payment succeeded (renewal)
+
+### Handling Subscription Webhooks
+
+#### Using Event Listeners
+
+```php
+// app/Providers/EventServiceProvider.php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+use KenDeNigerian\PayZephyr\Events\SubscriptionRenewed;
+use KenDeNigerian\PayZephyr\Events\SubscriptionCancelled;
+use KenDeNigerian\PayZephyr\Events\SubscriptionPaymentFailed;
+
+protected $listen = [
+    'payments.webhook.paystack' => [
+        \App\Listeners\HandlePaystackWebhook::class,
+    ],
+    SubscriptionCreated::class => [
+        \App\Listeners\HandleSubscriptionCreated::class,
+    ],
+    SubscriptionRenewed::class => [
+        \App\Listeners\HandleSubscriptionRenewed::class,
+    ],
+    SubscriptionCancelled::class => [
+        \App\Listeners\HandleSubscriptionCancelled::class,
+    ],
+    SubscriptionPaymentFailed::class => [
+        \App\Listeners\HandleSubscriptionPaymentFailed::class,
+    ],
+];
+```
+
+#### Complete Webhook Handler Example
+
+```php
+// app/Listeners/HandlePaystackWebhook.php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+use KenDeNigerian\PayZephyr\Events\SubscriptionRenewed;
+use KenDeNigerian\PayZephyr\Events\SubscriptionCancelled;
+use KenDeNigerian\PayZephyr\Events\SubscriptionPaymentFailed;
+use KenDeNigerian\PayZephyr\Models\SubscriptionTransaction;
+
+class HandlePaystackWebhook
+{
+    public function handle(array $payload): void
+    {
+        $event = $payload['event'] ?? null;
+        
+        match($event) {
+            // Payment events
+            'charge.success' => $this->handlePaymentSuccess($payload['data']),
+            'charge.failed' => $this->handlePaymentFailure($payload['data']),
+            
+            // Subscription events
+            'subscription.create' => $this->handleSubscriptionCreated($payload['data']),
+            'subscription.disable' => $this->handleSubscriptionCancelled($payload['data']),
+            'subscription.enable' => $this->handleSubscriptionEnabled($payload['data']),
+            'subscription.not_renew' => $this->handleSubscriptionNotRenew($payload['data']),
+            'invoice.payment_failed' => $this->handleSubscriptionPaymentFailed($payload['data']),
+            'invoice.payment_success' => $this->handleSubscriptionRenewed($payload['data']),
+            
+            default => logger()->info("Unhandled event: {$event}"),
+        };
+    }
+    
+    private function handleSubscriptionCreated(array $data): void
+    {
+        // Dispatch Laravel event
+        SubscriptionCreated::dispatch(
+            $data['subscription_code'],
+            'paystack',
+            $data
+        );
+        
+        // Update subscription transaction (if logging enabled)
+        SubscriptionTransaction::updateOrCreate(
+            ['subscription_code' => $data['subscription_code']],
+            [
+                'provider' => 'paystack',
+                'status' => $data['status'] ?? 'active',
+                'plan_code' => $data['plan']['plan_code'] ?? $data['plan']['code'] ?? null,
+                'customer_email' => $data['customer']['email'] ?? null,
+                'amount' => ($data['amount'] ?? 0) / 100,
+                'currency' => $data['currency'] ?? 'NGN',
+                'next_payment_date' => $data['next_payment_date'] ?? null,
+                'metadata' => $data['metadata'] ?? [],
+            ]
+        );
+    }
+    
+    private function handleSubscriptionRenewed(array $data): void
+    {
+        $subscriptionCode = $data['subscription']['subscription_code'] ?? null;
+        
+        if ($subscriptionCode) {
+            SubscriptionRenewed::dispatch(
+                $subscriptionCode,
+                'paystack',
+                $data['reference'] ?? null,
+                $data
+            );
+            
+            // Update subscription transaction
+            SubscriptionTransaction::where('subscription_code', $subscriptionCode)
+                ->update([
+                    'status' => 'active',
+                    'next_payment_date' => $data['subscription']['next_payment_date'] ?? null,
+                ]);
+        }
+    }
+    
+    private function handleSubscriptionCancelled(array $data): void
+    {
+        SubscriptionCancelled::dispatch(
+            $data['subscription_code'],
+            'paystack',
+            $data
+        );
+        
+        // Update subscription transaction
+        SubscriptionTransaction::where('subscription_code', $data['subscription_code'])
+            ->update(['status' => 'cancelled']);
+    }
+    
+    private function handleSubscriptionPaymentFailed(array $data): void
+    {
+        $subscriptionCode = $data['subscription']['subscription_code'] ?? null;
+        
+        if ($subscriptionCode) {
+            SubscriptionPaymentFailed::dispatch(
+                $subscriptionCode,
+                'paystack',
+                $data['gateway_response'] ?? 'Payment failed',
+                $data
+            );
+            
+            // Update subscription transaction
+            SubscriptionTransaction::where('subscription_code', $subscriptionCode)
+                ->update(['status' => 'attention']);
+        }
+    }
+    
+    // ... other handlers
+}
+```
+
+### Subscription Webhook Configuration
+
+Configure which subscription events to handle in `config/payments.php`:
+
+```php
+'subscriptions' => [
+    'webhook_events' => [
+        'subscription.create',
+        'subscription.disable',
+        'subscription.enable',
+        'subscription.not_renew',
+        'invoice.payment_failed',
+        'invoice.payment_success',
+    ],
+],
+```
+
+### Testing Subscription Webhooks
+
+#### Using ngrok
+
+```bash
+# Start ngrok
+ngrok http 8000
+
+# Use the ngrok URL in Paystack dashboard
+# https://your-ngrok-url.ngrok.io/payments/webhook/paystack
+```
+
+#### Manual Testing with curl
+
+```bash
+# Test subscription.create event
+curl -X POST http://localhost:8000/payments/webhook/paystack \
+  -H "Content-Type: application/json" \
+  -H "x-paystack-signature: your-signature" \
+  -d '{
+    "event": "subscription.create",
+    "data": {
+      "subscription_code": "SUB_test123",
+      "status": "active",
+      "customer": {"email": "test@example.com"},
+      "plan": {"plan_code": "PLN_test", "name": "Test Plan"},
+      "amount": 500000,
+      "currency": "NGN"
+    }
+  }'
+```
+
+### Subscription Event Reference
+
+| Event | When It Fires | Event Class | Properties |
+|-------|---------------|-------------|------------|
+| `subscription.create` | New subscription created | `SubscriptionCreated` | `subscriptionCode`, `provider`, `data` |
+| `invoice.payment_success` | Subscription renewed | `SubscriptionRenewed` | `subscriptionCode`, `provider`, `invoiceReference`, `data` |
+| `subscription.disable` | Subscription cancelled | `SubscriptionCancelled` | `subscriptionCode`, `provider`, `data` |
+| `invoice.payment_failed` | Payment failed | `SubscriptionPaymentFailed` | `subscriptionCode`, `provider`, `reason`, `data` |
+
+---
+
 ## Webhook Events Reference
 
 Different providers send different event types. Here's what to expect:
@@ -739,6 +960,12 @@ Different providers send different event types. Here's what to expect:
 - `charge.failed` - Payment failed
 - `transfer.success` - Transfer succeeded
 - `transfer.failed` - Transfer failed
+- `subscription.create` - Subscription created
+- `subscription.disable` - Subscription cancelled
+- `subscription.enable` - Subscription reactivated
+- `subscription.not_renew` - Subscription set to non-renewing
+- `invoice.payment_failed` - Subscription payment failed
+- `invoice.payment_success` - Subscription payment succeeded (renewal)
 
 ### Flutterwave Events
 - `charge.completed` - Payment completed

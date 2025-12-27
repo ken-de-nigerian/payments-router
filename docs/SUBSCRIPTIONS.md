@@ -2,6 +2,31 @@
 
 Complete guide to using subscription functionality in PayZephyr. Subscriptions follow the same unified fluent builder pattern as payments for consistency.
 
+PayZephyr provides enterprise-grade subscription management with automatic transaction logging, idempotency support, lifecycle events, business validation, and comprehensive state management. All subscription operations are automatically logged to the database, and you can query subscriptions using a powerful query builder interface.
+
+## What's New in Subscription Management
+
+The subscription system has been enhanced with several enterprise-grade features:
+
+- **Transaction Logging** - All subscription operations (create, cancel, status changes) automatically logged to `subscription_transactions` table
+- **Idempotency Support** - Prevent duplicate subscriptions with automatic UUID generation or custom keys
+- **Lifecycle Events** - Comprehensive webhook events (SubscriptionCreated, SubscriptionRenewed, SubscriptionCancelled, SubscriptionPaymentFailed)
+- **Query Builder** - Advanced subscription querying with fluent interface: `Payment::subscriptions()->forCustomer()->active()->get()`
+- **State Machine** - Subscription status enum (ACTIVE, CANCELLED, etc.) with state transition validation and helper methods
+- **Business Validation** - Built-in validation prevents duplicate subscriptions and validates plan eligibility before API calls
+
+## Enhanced Subscription Features
+
+The subscription system includes several enterprise-grade features:
+
+- **Transaction Logging** - All subscriptions automatically logged to `subscription_transactions` table with full audit trail
+- **Idempotency Support** - Prevent duplicate subscriptions with automatic UUID generation or custom keys
+- **Lifecycle Events** - Comprehensive webhook events (SubscriptionCreated, SubscriptionRenewed, SubscriptionCancelled, SubscriptionPaymentFailed)
+- **Query Builder** - Advanced subscription querying with fluent interface (`Payment::subscriptions()`)
+- **State Machine** - Subscription status enum with state transition validation and helper methods
+- **Business Validation** - Built-in validation prevents duplicate subscriptions and validates plan eligibility
+- **Lifecycle Hooks** - Optional interface for custom drivers to hook into subscription lifecycle events
+
 ## ⚠️ Important: Current Provider Support
 
 **Currently, only PaystackDriver supports subscriptions.** Support for other providers (Stripe, PayPal, etc.) will be added in future releases.
@@ -14,15 +39,22 @@ If you're a developer and want to add subscription support for a new driver, see
 
 1. [Getting Started](#getting-started)
 2. [Provider Support](#provider-support)
-3. [Creating Subscription Plans](#creating-subscription-plans)
-4. [Creating Subscriptions](#creating-subscriptions)
-5. [Managing Subscriptions](#managing-subscriptions)
-6. [Plan Management](#plan-management)
-7. [Complete Workflow Examples](#complete-workflow-examples)
-8. [Error Handling](#error-handling)
-9. [Best Practices](#best-practices)
-10. [Security Considerations](#security-considerations)
-11. [Developer Guide: Adding Subscription Support to a Driver](#developer-guide-adding-subscription-support-to-a-driver)
+3. [Transaction Logging](#transaction-logging)
+4. [Idempotency](#idempotency)
+5. [Lifecycle Events](#lifecycle-events)
+6. [Validation](#validation)
+7. [Subscription States](#subscription-states)
+8. [Querying Subscriptions](#querying-subscriptions)
+9. [Configuration](#configuration)
+10. [Creating Subscription Plans](#creating-subscription-plans)
+11. [Creating Subscriptions](#creating-subscriptions)
+12. [Managing Subscriptions](#managing-subscriptions)
+13. [Plan Management](#plan-management)
+14. [Complete Workflow Examples](#complete-workflow-examples)
+15. [Error Handling](#error-handling)
+16. [Best Practices](#best-practices)
+17. [Security Considerations](#security-considerations)
+18. [Developer Guide: Adding Subscription Support to a Driver](#developer-guide-adding-subscription-support-to-a-driver)
 
 ---
 
@@ -65,14 +97,14 @@ Both approaches work identically - use whichever you prefer!
 
 ### Current Status
 
-| Provider | Subscription Support | Status |
-|----------|---------------------|--------|
-| Paystack | ✅ Full Support | Available Now |
-| Stripe | ❌ Not Yet | Coming Soon |
-| PayPal | ❌ Not Yet | Coming Soon |
-| Flutterwave | ❌ Not Yet | Coming Soon |
-| Monnify | ❌ Not Yet | Coming Soon |
-| Other Providers | ❌ Not Yet | Coming Soon |
+| Provider        | Subscription Support | Status        |
+|-----------------|----------------------|---------------|
+| Paystack        | ✅ Full Support       | Available Now |
+| Stripe          | ❌ Not Yet            | Coming Soon   |
+| PayPal          | ❌ Not Yet            | Coming Soon   |
+| Flutterwave     | ❌ Not Yet            | Coming Soon   |
+| Monnify         | ❌ Not Yet            | Coming Soon   |
+| Other Providers | ❌ Not Yet            | Coming Soon   |
 
 ### Why Only Paystack?
 
@@ -89,6 +121,968 @@ We're actively working on adding subscription support for other providers. If yo
 1. Check our [GitHub Issues](https://github.com/ken-de-nigerian/payzephyr/issues) for planned support
 2. Open a feature request if not already planned
 3. Consider contributing (see [Developer Guide](#developer-guide-adding-subscription-support-to-a-driver))
+
+---
+
+## Transaction Logging
+
+All subscription operations are automatically logged to the `subscription_transactions` table, providing a complete audit trail of subscription lifecycle events. This happens automatically - no additional code required.
+
+### What Gets Logged
+
+The following operations are automatically logged:
+
+- **Subscription Creation** - When a subscription is created via `->subscribe()`
+- **Subscription Updates** - When subscription status changes (via webhooks or API calls)
+- **Cancellations** - When a subscription is cancelled
+- **Status Changes** - Any status transitions (active → cancelled, etc.)
+
+### Logged Data
+
+Each subscription transaction record contains:
+
+- `subscription_code` - Unique subscription identifier
+- `provider` - Payment provider name (e.g., 'paystack')
+- `status` - Current subscription status
+- `plan_code` - Associated plan code
+- `customer_email` - Customer email address
+- `amount` - Subscription amount
+- `currency` - Currency code
+- `next_payment_date` - Next billing date
+- `metadata` - Custom metadata (JSON)
+- `created_at` / `updated_at` - Timestamps
+
+### Querying Subscription Transactions
+
+Use the `SubscriptionTransaction` model to query logged subscriptions:
+
+```php
+use KenDeNigerian\PayZephyr\Models\SubscriptionTransaction;
+
+// Get subscription by code
+$subscription = SubscriptionTransaction::where('subscription_code', 'SUB_xyz123')->first();
+
+// Get all active subscriptions
+$active = SubscriptionTransaction::active()->get();
+
+// Get all cancelled subscriptions
+$cancelled = SubscriptionTransaction::cancelled()->get();
+
+// Get subscriptions for a specific customer
+$customerSubs = SubscriptionTransaction::forCustomer('user@example.com')->get();
+
+// Get subscriptions for a specific plan
+$planSubs = SubscriptionTransaction::forPlan('PLN_abc123')->get();
+
+// Complex queries
+$recentActive = SubscriptionTransaction::active()
+    ->where('created_at', '>=', now()->subDays(30))
+    ->orderBy('created_at', 'desc')
+    ->get();
+
+// Count active subscriptions
+$count = SubscriptionTransaction::active()->count();
+```
+
+### Configuration
+
+Enable or disable subscription transaction logging in `config/payments.php`:
+
+```php
+'subscriptions' => [
+    'logging' => [
+        'enabled' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED', true),
+        'table' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE', 'subscription_transactions'),
+    ],
+],
+```
+
+**Environment Variables:**
+- `PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED` - Enable/disable logging (default: `true`)
+- `PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE` - Custom table name (default: `subscription_transactions`)
+
+### Relationship with Payment Transactions
+
+Subscription transactions are separate from payment transactions:
+
+- **Payment Transactions** (`payment_transactions`) - Log one-time payments
+- **Subscription Transactions** (`subscription_transactions`) - Log recurring subscription lifecycle
+
+Both tables work together to provide complete financial tracking.
+
+---
+
+## Idempotency
+
+Idempotency ensures that retrying a subscription operation doesn't create duplicates. This is critical for handling network failures, user double-clicks, and race conditions.
+
+### What Idempotency Prevents
+
+- **Duplicate Subscriptions** - Network retries won't create multiple subscriptions
+- **Double Charges** - Page refreshes won't trigger duplicate subscription creation
+- **Race Conditions** - Concurrent requests won't create duplicate subscriptions
+
+### How It Works
+
+PayZephyr supports idempotency through unique keys. When you provide an idempotency key, the provider (Paystack) ensures that the same key won't process the same operation twice within a time window.
+
+### Using Idempotency
+
+#### Automatic UUID Generation
+
+The simplest approach - PayZephyr automatically generates a UUID:
+
+```php
+$subscription = Payment::subscription()
+    ->customer('customer@example.com')
+    ->plan('PLN_abc123')
+    ->idempotency()  // Auto-generates UUID
+    ->with('paystack')
+    ->subscribe();
+```
+
+#### Custom Idempotency Key
+
+Provide your own unique key (must be unique per operation):
+
+```php
+$subscription = Payment::subscription()
+    ->customer('customer@example.com')
+    ->plan('PLN_abc123')
+    ->idempotency('user-123-plan-abc-' . time())  // Custom key
+    ->with('paystack')
+    ->subscribe();
+```
+
+#### Best Practices for Keys
+
+- **Make keys unique** - Include user ID, plan code, and timestamp
+- **Use consistent format** - `{user_id}-{plan_code}-{timestamp}` or similar
+- **Store keys** - Save keys to database to track retries
+- **Key lifetime** - Provider-specific (typically 24 hours for Paystack)
+
+### Idempotent Retries
+
+When retrying a failed operation, use the same idempotency key:
+
+```php
+$idempotencyKey = 'user-123-plan-abc-' . now()->timestamp;
+
+try {
+    $subscription = Payment::subscription()
+        ->customer('customer@example.com')
+        ->plan('PLN_abc123')
+        ->idempotency($idempotencyKey)
+        ->with('paystack')
+        ->subscribe();
+} catch (SubscriptionException $e) {
+    // Network error - retry with same key
+    sleep(2);
+    $subscription = Payment::subscription()
+        ->customer('customer@example.com')
+        ->plan('PLN_abc123')
+        ->idempotency($idempotencyKey)  // Same key!
+        ->with('paystack')
+        ->subscribe();
+}
+```
+
+### When to Use Idempotency
+
+**Always use idempotency for:**
+- Subscription creation
+- Critical operations that must not be duplicated
+- Operations triggered by user actions (button clicks)
+
+**Optional for:**
+- Read-only operations (fetch, list)
+- Operations that are naturally idempotent (cancellation with same token)
+
+### Key Format Requirements
+
+- **Minimum length**: 10 characters (Paystack requirement)
+- **Maximum length**: 255 characters
+- **Characters**: Alphanumeric, hyphens, underscores
+- **Uniqueness**: Must be unique per operation type
+
+---
+
+## Lifecycle Events
+
+PayZephyr dispatches Laravel events for all subscription lifecycle changes, allowing you to react to subscription events in your application.
+
+### Available Events
+
+#### SubscriptionCreated
+
+Fired when a new subscription is successfully created.
+
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+
+Event::listen(SubscriptionCreated::class, function (SubscriptionCreated $event) {
+    // $event->subscriptionCode - Subscription code
+    // $event->provider - Provider name
+    // $event->data - Full subscription data
+    
+    // Example: Send welcome email
+    Mail::to($event->data['customer']['email'] ?? '')
+        ->send(new SubscriptionWelcomeMail($event->subscriptionCode));
+    
+    // Example: Update user subscription status
+    User::where('email', $event->data['customer']['email'] ?? '')
+        ->update(['has_active_subscription' => true]);
+});
+```
+
+#### SubscriptionRenewed
+
+Fired when a subscription is successfully renewed (payment processed).
+
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionRenewed;
+
+Event::listen(SubscriptionRenewed::class, function (SubscriptionRenewed $event) {
+    // $event->subscriptionCode - Subscription code
+    // $event->provider - Provider name
+    // $event->invoiceReference - Invoice reference
+    // $event->data - Full renewal data
+    
+    // Example: Extend user access
+    $subscription = SubscriptionTransaction::where('subscription_code', $event->subscriptionCode)->first();
+    if ($subscription) {
+        User::where('email', $subscription->customer_email)
+            ->update(['subscription_expires_at' => $subscription->next_payment_date]);
+    }
+    
+    // Example: Send renewal confirmation
+    Mail::to($subscription->customer_email ?? '')
+        ->send(new SubscriptionRenewedMail($event->subscriptionCode));
+});
+```
+
+#### SubscriptionCancelled
+
+Fired when a subscription is cancelled.
+
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCancelled;
+
+Event::listen(SubscriptionCancelled::class, function (SubscriptionCancelled $event) {
+    // $event->subscriptionCode - Subscription code
+    // $event->provider - Provider name
+    // $event->data - Full cancellation data
+    
+    // Example: Revoke user access
+    $subscription = SubscriptionTransaction::where('subscription_code', $event->subscriptionCode)->first();
+    if ($subscription) {
+        User::where('email', $subscription->customer_email)
+            ->update(['has_active_subscription' => false]);
+    }
+    
+    // Example: Send cancellation confirmation
+    Mail::to($subscription->customer_email ?? '')
+        ->send(new SubscriptionCancelledMail($event->subscriptionCode));
+});
+```
+
+#### SubscriptionPaymentFailed
+
+Fired when a subscription payment fails.
+
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionPaymentFailed;
+
+Event::listen(SubscriptionPaymentFailed::class, function (SubscriptionPaymentFailed $event) {
+    // $event->subscriptionCode - Subscription code
+    // $event->provider - Provider name
+    // $event->reason - Failure reason
+    // $event->data - Full failure data
+    
+    // Example: Notify user of payment failure
+    $subscription = SubscriptionTransaction::where('subscription_code', $event->subscriptionCode)->first();
+    if ($subscription) {
+        Mail::to($subscription->customer_email)
+            ->send(new PaymentFailedMail($event->subscriptionCode, $event->reason));
+    }
+    
+    // Example: Mark subscription for attention
+    SubscriptionTransaction::where('subscription_code', $event->subscriptionCode)
+        ->update(['status' => 'attention']);
+});
+```
+
+### Registering Event Listeners
+
+#### In EventServiceProvider
+
+```php
+// app/Providers/EventServiceProvider.php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+use KenDeNigerian\PayZephyr\Events\SubscriptionRenewed;
+use KenDeNigerian\PayZephyr\Events\SubscriptionCancelled;
+use KenDeNigerian\PayZephyr\Events\SubscriptionPaymentFailed;
+
+protected $listen = [
+    SubscriptionCreated::class => [
+        \App\Listeners\HandleSubscriptionCreated::class,
+    ],
+    SubscriptionRenewed::class => [
+        \App\Listeners\HandleSubscriptionRenewed::class,
+    ],
+    SubscriptionCancelled::class => [
+        \App\Listeners\HandleSubscriptionCancelled::class,
+    ],
+    SubscriptionPaymentFailed::class => [
+        \App\Listeners\HandleSubscriptionPaymentFailed::class,
+    ],
+];
+```
+
+#### Using Event Facade
+
+```php
+use Illuminate\Support\Facades\Event;
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+
+Event::listen(SubscriptionCreated::class, function (SubscriptionCreated $event) {
+    // Handle event
+});
+```
+
+### Webhook Integration
+
+Events are automatically dispatched when webhooks are received. Configure webhook URLs in your provider dashboard:
+
+- **Paystack**: `https://yourdomain.com/payments/webhook/paystack`
+
+See [Webhooks Guide](webhooks.md) for complete webhook setup.
+
+### Complete Webhook Handler Example
+
+```php
+// app/Http/Controllers/SubscriptionWebhookController.php
+use Illuminate\Http\Request;
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+use KenDeNigerian\PayZephyr\Events\SubscriptionRenewed;
+use KenDeNigerian\PayZephyr\Events\SubscriptionCancelled;
+use KenDeNigerian\PayZephyr\Events\SubscriptionPaymentFailed;
+
+class SubscriptionWebhookController extends Controller
+{
+    public function handle(Request $request)
+    {
+        $payload = $request->all();
+        $event = $payload['event'] ?? null;
+        
+        switch ($event) {
+            case 'subscription.create':
+                SubscriptionCreated::dispatch(
+                    $payload['data']['subscription_code'],
+                    'paystack',
+                    $payload['data']
+                );
+                break;
+                
+            case 'invoice.payment_failed':
+                SubscriptionPaymentFailed::dispatch(
+                    $payload['data']['subscription']['subscription_code'],
+                    'paystack',
+                    $payload['data']['gateway_response'] ?? 'Payment failed',
+                    $payload['data']
+                );
+                break;
+                
+            // Handle other events...
+        }
+        
+        return response()->json(['status' => 'success']);
+    }
+}
+```
+
+---
+
+## Validation
+
+PayZephyr includes built-in business logic validation to prevent common subscription errors before making API calls.
+
+### What Gets Validated
+
+#### Plan Validation
+
+- **Plan Existence** - Plan code must exist in provider
+- **Plan Active Status** - Plan must be active (not disabled)
+- **Currency Compatibility** - Plan currency must match subscription currency
+
+#### Subscription Validation
+
+- **Customer Required** - Customer email must be provided
+- **Plan Required** - Plan code must be provided
+- **Duplicate Prevention** - If enabled, prevents duplicate active subscriptions
+- **Authorization Code Format** - Authorization codes must be valid format (min 10 characters)
+
+#### Cancellation Validation
+
+- **Subscription Exists** - Subscription must exist
+- **Not in Terminal State** - Cannot cancel already cancelled/completed/expired subscriptions
+- **Token Format** - Email token must be valid format (min 10 characters)
+
+### Configuration
+
+Enable or disable validation in `config/payments.php`:
+
+```php
+'subscriptions' => [
+    'prevent_duplicates' => env('PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES', false),
+    'validation' => [
+        'enabled' => env('PAYMENTS_SUBSCRIPTIONS_VALIDATION_ENABLED', true),
+    ],
+],
+```
+
+**Environment Variables:**
+- `PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES` - Prevent duplicate subscriptions (default: `false`)
+- `PAYMENTS_SUBSCRIPTIONS_VALIDATION_ENABLED` - Enable/disable validation (default: `true`)
+
+### Validation Errors
+
+When validation fails, a `SubscriptionException` is thrown with a descriptive message:
+
+```php
+try {
+    $subscription = Payment::subscription()
+        ->customer('customer@example.com')
+        ->plan('INVALID_PLAN')
+        ->with('paystack')
+        ->subscribe();
+} catch (SubscriptionException $e) {
+    // Handle validation error
+    if (str_contains($e->getMessage(), 'not active')) {
+        return response()->json(['error' => 'Selected plan is not available'], 400);
+    }
+    
+    if (str_contains($e->getMessage(), 'already has an active subscription')) {
+        return response()->json(['error' => 'You already have an active subscription'], 400);
+    }
+    
+    // Other validation errors
+    logger()->error('Subscription validation failed', [
+        'error' => $e->getMessage(),
+    ]);
+    
+    return response()->json(['error' => 'Subscription validation failed'], 400);
+}
+```
+
+### Common Validation Errors
+
+| Error Message | Cause | Solution |
+|--------------|-------|----------|
+| `Plan PLN_xxx is not active` | Plan is disabled or doesn't exist | Verify plan code and status |
+| `Customer already has an active subscription` | Duplicate prevention enabled | Cancel existing subscription first |
+| `Invalid authorization code format` | Authorization code too short | Use valid authorization code from payment |
+| `Cannot cancel subscription: subscription is already in terminal state` | Trying to cancel already cancelled subscription | Check subscription status first |
+| `Invalid email token format` | Email token too short or invalid | Use token from subscription email |
+
+### Customizing Validation
+
+Validation occurs in the `SubscriptionValidator` service. To customize:
+
+1. Create a custom validator service
+2. Extend `SubscriptionValidator`
+3. Override validation methods
+4. Register in service provider
+
+---
+
+## Subscription States
+
+PayZephyr uses a comprehensive subscription status enum with state machine logic to manage subscription lifecycle.
+
+### Available States
+
+#### ACTIVE
+
+Subscription is active and billing normally.
+
+- **Meaning**: Customer has access, payments are processing
+- **Entry**: Created with valid authorization, payment succeeded
+- **Allowed Operations**: Cancel, set to non-renewing
+- **Transitions To**: NON_RENEWING, CANCELLED, ATTENTION
+
+```php
+use KenDeNigerian\PayZephyr\Enums\SubscriptionStatus;
+
+$status = SubscriptionStatus::ACTIVE;
+$status->label(); // "Active"
+$status->isBilling(); // true
+$status->canBeCancelled(); // true
+```
+
+#### NON_RENEWING
+
+Subscription is active but won't renew after current period.
+
+- **Meaning**: Customer has access until period ends, then subscription ends
+- **Entry**: Customer cancelled but period hasn't ended
+- **Allowed Operations**: Resume (reactivate), cancel immediately
+- **Transitions To**: ACTIVE, CANCELLED, COMPLETED
+
+```php
+$status = SubscriptionStatus::NON_RENEWING;
+$status->isBilling(); // true
+$status->canBeResumed(); // true
+```
+
+#### CANCELLED
+
+Subscription has been cancelled.
+
+- **Meaning**: No access, no future billing
+- **Entry**: Customer cancelled, period ended, or payment failed
+- **Allowed Operations**: Resume (reactivate)
+- **Transitions To**: ACTIVE
+
+```php
+$status = SubscriptionStatus::CANCELLED;
+$status->canBeResumed(); // true
+$status->canBeCancelled(); // false
+```
+
+#### COMPLETED
+
+Subscription has completed its full lifecycle.
+
+- **Meaning**: All invoices paid, subscription naturally ended
+- **Entry**: Invoice limit reached, subscription period completed
+- **Allowed Operations**: None (terminal state)
+- **Transitions To**: None
+
+```php
+$status = SubscriptionStatus::COMPLETED;
+$status->allowedTransitions(); // []
+```
+
+#### ATTENTION
+
+Subscription requires attention (payment failed, etc.).
+
+- **Meaning**: Customer action required, access may be limited
+- **Entry**: Payment failed, authorization expired
+- **Allowed Operations**: Resolve issue, cancel
+- **Transitions To**: ACTIVE, CANCELLED, EXPIRED
+
+```php
+$status = SubscriptionStatus::ATTENTION;
+$status->canBeCancelled(); // true
+```
+
+#### EXPIRED
+
+Subscription has expired due to payment failure.
+
+- **Meaning**: No access, payment failed and grace period expired
+- **Entry**: Payment failed multiple times, grace period ended
+- **Allowed Operations**: None (terminal state)
+- **Transitions To**: None
+
+```php
+$status = SubscriptionStatus::EXPIRED;
+$status->allowedTransitions(); // []
+```
+
+### State Machine Methods
+
+#### Check Capabilities
+
+```php
+use KenDeNigerian\PayZephyr\Enums\SubscriptionStatus;
+
+$status = SubscriptionStatus::ACTIVE;
+
+// Check if can be cancelled
+$status->canBeCancelled(); // true
+
+// Check if can be resumed
+$status->canBeResumed(); // false
+
+// Check if actively billing
+$status->isBilling(); // true
+```
+
+#### Get Valid Transitions
+
+```php
+$status = SubscriptionStatus::ACTIVE;
+$transitions = $status->allowedTransitions();
+// Returns: [NON_RENEWING, CANCELLED, ATTENTION]
+
+// Check if transition is allowed
+$status->canTransitionTo(SubscriptionStatus::CANCELLED); // true
+$status->canTransitionTo(SubscriptionStatus::COMPLETED); // false
+```
+
+#### Create from Provider Status
+
+```php
+// Normalize provider status to enum
+$status = SubscriptionStatus::fromString('active'); // ACTIVE
+$status = SubscriptionStatus::fromString('cancelled'); // CANCELLED
+$status = SubscriptionStatus::fromString('non-renewing'); // NON_RENEWING
+
+// Safe conversion (returns null if invalid)
+$status = SubscriptionStatus::tryFromString('unknown'); // null
+```
+
+### State Transition Diagram
+
+```
+ACTIVE
+  ├──> NON_RENEWING (customer cancels)
+  ├──> CANCELLED (immediate cancellation)
+  └──> ATTENTION (payment issue)
+
+NON_RENEWING
+  ├──> ACTIVE (resumed)
+  ├──> CANCELLED (immediate cancellation)
+  └──> COMPLETED (period ends)
+
+ATTENTION
+  ├──> ACTIVE (issue resolved)
+  ├──> CANCELLED (customer cancels)
+  └──> EXPIRED (grace period ends)
+
+CANCELLED
+  └──> ACTIVE (resumed)
+
+COMPLETED (terminal)
+EXPIRED (terminal)
+```
+
+### Using States in Your Code
+
+```php
+use KenDeNigerian\PayZephyr\Enums\SubscriptionStatus;
+
+$subscription = Payment::subscription($subscriptionCode)
+    ->with('paystack')
+    ->get();
+
+// Convert provider status to enum
+$status = SubscriptionStatus::fromString($subscription->status);
+
+// Check capabilities
+if ($status->canBeCancelled()) {
+    // Show cancel button
+}
+
+if ($status->isBilling()) {
+    // Grant access
+}
+
+// Validate state transitions
+if ($status->canTransitionTo(SubscriptionStatus::CANCELLED)) {
+    // Allow cancellation
+}
+```
+
+---
+
+## Querying Subscriptions
+
+PayZephyr provides a powerful query builder for advanced subscription filtering and retrieval, similar to Laravel's query builder.
+
+### Basic Usage
+
+```php
+use KenDeNigerian\PayZephyr\Facades\Payment;
+
+// Get all subscriptions
+$subscriptions = Payment::subscriptions()
+    ->get();
+
+// Get first subscription
+$first = Payment::subscriptions()
+    ->first();
+
+// Count subscriptions
+$count = Payment::subscriptions()
+    ->count();
+```
+
+### Filtering Methods
+
+#### Filter by Customer
+
+```php
+$subscriptions = Payment::subscriptions()
+    ->forCustomer('user@example.com')
+    ->get();
+```
+
+#### Filter by Plan
+
+```php
+$subscriptions = Payment::subscriptions()
+    ->forPlan('PLN_abc123')
+    ->get();
+```
+
+#### Filter by Status
+
+```php
+// Using whereStatus
+$subscriptions = Payment::subscriptions()
+    ->whereStatus('active')
+    ->get();
+
+// Using shorthand methods
+$active = Payment::subscriptions()
+    ->active()
+    ->get();
+
+$cancelled = Payment::subscriptions()
+    ->cancelled()
+    ->get();
+```
+
+#### Filter by Date Range
+
+```php
+$subscriptions = Payment::subscriptions()
+    ->createdAfter('2024-01-01')
+    ->createdBefore('2024-12-31')
+    ->get();
+```
+
+#### Filter by Provider
+
+```php
+$subscriptions = Payment::subscriptions()
+    ->from('paystack')
+    ->get();
+```
+
+### Pagination
+
+```php
+// Set items per page
+$subscriptions = Payment::subscriptions()
+    ->take(20)
+    ->page(1)
+    ->get();
+
+// Get page 2
+$page2 = Payment::subscriptions()
+    ->take(20)
+    ->page(2)
+    ->get();
+```
+
+### Complex Queries
+
+```php
+// Find all active subscriptions for a customer
+$activeSubs = Payment::subscriptions()
+    ->forCustomer('user@example.com')
+    ->active()
+    ->from('paystack')
+    ->get();
+
+// Find subscriptions created in last 30 days
+$recent = Payment::subscriptions()
+    ->createdAfter(now()->subDays(30)->toDateString())
+    ->active()
+    ->get();
+
+// Find subscriptions for specific plan, paginated
+$planSubs = Payment::subscriptions()
+    ->forPlan('PLN_premium')
+    ->take(50)
+    ->page(1)
+    ->get();
+```
+
+### Execution Methods
+
+#### get()
+
+Returns array of subscription data:
+
+```php
+$results = Payment::subscriptions()
+    ->active()
+    ->get();
+
+// Structure: ['data' => [...], 'meta' => [...]]
+$subscriptions = $results['data'] ?? $results;
+```
+
+#### first()
+
+Returns first matching subscription as `SubscriptionResponseDTO` or `null`:
+
+```php
+$subscription = Payment::subscriptions()
+    ->forCustomer('user@example.com')
+    ->active()
+    ->first();
+
+if ($subscription) {
+    echo $subscription->subscriptionCode;
+    echo $subscription->status;
+}
+```
+
+#### count()
+
+Returns count of matching subscriptions:
+
+```php
+$count = Payment::subscriptions()
+    ->active()
+    ->count();
+```
+
+#### exists()
+
+Checks if any subscriptions match the query:
+
+```php
+$hasActive = Payment::subscriptions()
+    ->forCustomer('user@example.com')
+    ->active()
+    ->exists();
+```
+
+### Real-World Examples
+
+#### Find All Active Subscriptions for Billing
+
+```php
+$activeSubscriptions = Payment::subscriptions()
+    ->active()
+    ->from('paystack')
+    ->get();
+
+foreach ($activeSubscriptions['data'] ?? [] as $sub) {
+    // Process billing for each subscription
+    processBilling($sub['subscription_code']);
+}
+```
+
+#### Identify Subscriptions Needing Renewal
+
+```php
+$expiringSoon = Payment::subscriptions()
+    ->active()
+    ->createdBefore(now()->subMonths(1)->toDateString())
+    ->get();
+
+// Subscriptions created over a month ago that are still active
+// May need renewal attention
+```
+
+#### Audit Subscription History
+
+```php
+$history = Payment::subscriptions()
+    ->forCustomer('user@example.com')
+    ->createdAfter('2024-01-01')
+    ->get();
+
+// Complete subscription history for customer
+```
+
+---
+
+## Configuration
+
+PayZephyr provides comprehensive configuration options for subscription management.
+
+### Subscription Configuration
+
+All subscription settings are in `config/payments.php` under the `subscriptions` key:
+
+```php
+'subscriptions' => [
+    // Prevent duplicate subscriptions
+    'prevent_duplicates' => env('PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES', false),
+    
+    // Validation settings
+    'validation' => [
+        'enabled' => env('PAYMENTS_SUBSCRIPTIONS_VALIDATION_ENABLED', true),
+    ],
+    
+    // Transaction logging
+    'logging' => [
+        'enabled' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED', true),
+        'table' => env('PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE', 'subscription_transactions'),
+    ],
+    
+    // Webhook events to handle
+    'webhook_events' => [
+        'subscription.create',
+        'subscription.disable',
+        'subscription.enable',
+        'subscription.not_renew',
+        'invoice.payment_failed',
+    ],
+    
+    // Retry configuration
+    'retry' => [
+        'enabled' => env('PAYMENTS_SUBSCRIPTIONS_RETRY_ENABLED', false),
+        'max_attempts' => env('PAYMENTS_SUBSCRIPTIONS_RETRY_MAX_ATTEMPTS', 3),
+        'delay_hours' => env('PAYMENTS_SUBSCRIPTIONS_RETRY_DELAY_HOURS', 24),
+    ],
+    
+    // Grace period for failed payments (days)
+    'grace_period' => env('PAYMENTS_SUBSCRIPTIONS_GRACE_PERIOD', 7),
+    
+    // Notifications
+    'notifications' => [
+        'enabled' => env('PAYMENTS_SUBSCRIPTIONS_NOTIFICATIONS_ENABLED', false),
+        'events' => [
+            'created',
+            'cancelled',
+            'renewed',
+            'payment_failed',
+        ],
+    ],
+],
+```
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES` | `false` | Prevent duplicate active subscriptions |
+| `PAYMENTS_SUBSCRIPTIONS_VALIDATION_ENABLED` | `true` | Enable business logic validation |
+| `PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED` | `true` | Enable transaction logging |
+| `PAYMENTS_SUBSCRIPTIONS_LOGGING_TABLE` | `subscription_transactions` | Custom table name for logging |
+| `PAYMENTS_SUBSCRIPTIONS_RETRY_ENABLED` | `false` | Enable automatic retry for failed payments |
+| `PAYMENTS_SUBSCRIPTIONS_RETRY_MAX_ATTEMPTS` | `3` | Maximum retry attempts |
+| `PAYMENTS_SUBSCRIPTIONS_RETRY_DELAY_HOURS` | `24` | Hours between retry attempts |
+| `PAYMENTS_SUBSCRIPTIONS_GRACE_PERIOD` | `7` | Grace period in days for failed payments |
+| `PAYMENTS_SUBSCRIPTIONS_NOTIFICATIONS_ENABLED` | `false` | Enable email notifications |
+
+### Configuration Precedence
+
+1. **Environment Variables** - Highest priority (`.env` file)
+2. **Config File** - `config/payments.php`
+3. **Defaults** - Package defaults
+
+### Example Configuration
+
+```env
+# .env
+PAYMENTS_SUBSCRIPTIONS_PREVENT_DUPLICATES=true
+PAYMENTS_SUBSCRIPTIONS_LOGGING_ENABLED=true
+PAYMENTS_SUBSCRIPTIONS_RETRY_ENABLED=true
+PAYMENTS_SUBSCRIPTIONS_RETRY_MAX_ATTEMPTS=3
+PAYMENTS_SUBSCRIPTIONS_GRACE_PERIOD=7
+```
 
 ---
 
@@ -128,7 +1122,12 @@ $plan = payment()->subscription()
     ->createPlan();
 
 // Save the plan code to your database
-$planCode = $plan['plan_code']; // e.g., 'PLN_abc123xyz'
+$planCode = $plan->planCode; // e.g., 'PLN_abc123xyz'
+
+// Return as JSON response in your controller
+use KenDeNigerian\PayZephyr\Http\Resources\PlanResource;
+
+return new PlanResource($plan);
 ```
 
 ### Plan with Invoice Limit
@@ -1108,11 +2107,11 @@ trait YourProviderSubscriptionMethods
     /**
      * Create a subscription plan
      *
-     * @return array<string, mixed>
+     * @return PlanResponseDTO
      *
      * @throws PlanException If the plan creation fails
      */
-    public function createPlan(SubscriptionPlanDTO $plan): array
+    public function createPlan(SubscriptionPlanDTO $plan): PlanResponseDTO
     {
         try {
             // Convert plan DTO to provider-specific format
@@ -1241,7 +2240,7 @@ trait YourProviderSubscriptionMethods
     // - updatePlan()
     // - getPlan()
     // - listPlans()
-    // - getSubscription()
+    // - fetchSubscription()
     // - cancelSubscription()
     // - enableSubscription()
     // - listSubscriptions()
@@ -1315,12 +2314,12 @@ final class YourDriver extends AbstractDriver implements SupportsSubscriptionsIn
 
 The `SupportsSubscriptionsInterface` requires these methods:
 
-1. **`createPlan(SubscriptionPlanDTO $plan): array`** - Create a subscription plan
-2. **`updatePlan(string $planCode, array $updates): array`** - Update a plan
-3. **`getPlan(string $planCode): array`** - Get plan details
+1. **`createPlan(SubscriptionPlanDTO $plan): PlanResponseDTO`** - Create a subscription plan
+2. **`updatePlan(string $planCode, array $updates): PlanResponseDTO`** - Update a plan
+3. **`fetchPlan(string $planCode): PlanResponseDTO`** - Get plan details
 4. **`listPlans(?int $perPage = 50, ?int $page = 1): array`** - List all plans
 5. **`createSubscription(SubscriptionRequestDTO $request): SubscriptionResponseDTO`** - Create a subscription
-6. **`getSubscription(string $subscriptionCode): SubscriptionResponseDTO`** - Get subscription details
+6. **`fetchSubscription(string $subscriptionCode): SubscriptionResponseDTO`** - Fetch subscription details
 7. **`cancelSubscription(string $subscriptionCode, string $token): SubscriptionResponseDTO`** - Cancel a subscription
 8. **`enableSubscription(string $subscriptionCode, string $token): SubscriptionResponseDTO`** - Enable a cancelled subscription
 9. **`listSubscriptions(?int $perPage = 50, ?int $page = 1, ?string $customer = null): array`** - List subscriptions
@@ -1372,7 +2371,7 @@ test('your driver creates plan successfully', function () {
 // - getPlan()
 // - listPlans()
 // - createSubscription()
-// - getSubscription()
+// - fetchSubscription()
 // - cancelSubscription()
 // - enableSubscription()
 // - listSubscriptions()

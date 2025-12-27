@@ -14,14 +14,15 @@ final class StatusNormalizer implements StatusNormalizerInterface
     /** @var array<string, array<int, string>> */
     protected array $defaultMappings = [
         'success' => [
-            'SUCCESS', 'SUCCEEDED', 'COMPLETED', 'SUCCESSFUL', 'PAID', 'OVERPAID', 'CAPTURED',
+            'SUCCESS', 'SUCCEEDED', 'COMPLETED', 'COMPLETE', 'SUCCESSFUL', 'PAID', 'PAIDOUT', 'OVERPAID', 'CAPTURED',
         ],
         'failed' => [
             'FAILED', 'FAILURE', 'REJECTED', 'CANCELLED', 'CANCELED', 'DECLINED', 'DENIED', 'VOIDED', 'EXPIRED',
+            'PAYMENT_FAILED',
         ],
         'pending' => [
             'PENDING', 'PROCESSING', 'PARTIALLY_PAID', 'CREATED', 'SAVED', 'APPROVED',
-            'PAYER_ACTION_REQUIRED', 'REQUIRES_ACTION', 'REQUIRES_PAYMENT_METHOD', 'REQUIRES_CONFIRMATION',
+            'PAYER_ACTION_REQUIRED', 'REQUIRES_PAYMENT_METHOD', 'REQUIRES_CONFIRMATION',
         ],
     ];
 

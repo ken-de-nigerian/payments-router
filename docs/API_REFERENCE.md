@@ -187,6 +187,70 @@ if ($verification->isSuccessful()) {
 **Throws:**
 - `ProviderException` - If payment not found in any provider
 
+### Subscription Methods
+
+#### `subscription(?string $code = null): Subscription`
+Get a subscription builder instance. Returns a `Subscription` instance for managing subscriptions.
+
+```php
+// Create a new subscription
+$subscription = Payment::subscription()
+    ->customer('user@example.com')
+    ->plan('PLN_abc123')
+    ->with('paystack')
+    ->subscribe();
+
+// Get existing subscription
+$subscription = Payment::subscription('SUB_xyz123')
+    ->with('paystack')
+    ->get();
+```
+
+**Returns:** `Subscription` instance
+
+#### `subscriptions(): SubscriptionQuery`
+Get a subscription query builder for advanced filtering and retrieval.
+
+```php
+// Query subscriptions
+$activeSubs = Payment::subscriptions()
+    ->forCustomer('user@example.com')
+    ->active()
+    ->from('paystack')
+    ->get();
+
+// Get first match
+$subscription = Payment::subscriptions()
+    ->forPlan('PLN_abc123')
+    ->active()
+    ->first();
+
+// Count subscriptions
+$count = Payment::subscriptions()
+    ->active()
+    ->count();
+```
+
+**Returns:** `SubscriptionQuery` instance
+
+**Available Query Methods:**
+- `forCustomer(string $email)` - Filter by customer email
+- `forPlan(string $planCode)` - Filter by plan code
+- `whereStatus(string $status)` - Filter by status
+- `active()` - Filter for active subscriptions (shorthand)
+- `cancelled()` - Filter for cancelled subscriptions (shorthand)
+- `createdAfter(string $date)` - Filter by creation date (after)
+- `createdBefore(string $date)` - Filter by creation date (before)
+- `from(string $provider)` - Filter by provider
+- `take(int $perPage)` - Set pagination limit
+- `page(int $page)` - Set page number
+- `get()` - Execute query and return results
+- `first()` - Get first matching subscription
+- `count()` - Count matching subscriptions
+- `exists()` - Check if any subscriptions match
+
+See [Subscriptions Guide](SUBSCRIPTIONS.md#querying-subscriptions) for complete documentation.
+
 ---
 
 ## PaymentManager
@@ -552,6 +616,109 @@ Convert to array.
 
 ##### `fromArray(array $data): VerificationResponseDTO`
 Create instance from array.
+
+### PlanResponseDTO
+
+Type-safe data transfer object for subscription plan responses.
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\DataObjects\PlanResponseDTO;
+```
+
+#### Properties
+
+```php
+public readonly string $planCode;           // Plan code (e.g., 'PLN_abc123')
+public readonly string $name;               // Plan name
+public readonly float $amount;               // Amount in major currency units
+public readonly string $interval;            // Interval (daily, weekly, monthly, annually)
+public readonly string $currency;            // Currency code
+public readonly ?string $description;        // Plan description
+public readonly ?int $invoiceLimit;          // Invoice limit (null = unlimited)
+public readonly ?array $metadata;            // Custom metadata
+public readonly ?string $provider;           // Provider name
+```
+
+#### Methods
+
+##### `toArray(): array`
+Convert to array.
+
+```php
+$planArray = $plan->toArray();
+```
+
+##### `jsonSerialize(): array`
+Implement `JsonSerializable` for automatic Laravel response serialization.
+
+```php
+// Automatically called when returned from controller
+return $plan; // Laravel automatically serializes to JSON
+```
+
+##### `isActive(): bool`
+Check if plan is active.
+
+```php
+if ($plan->isActive()) {
+    // Plan is active
+}
+```
+
+##### `fromArray(array $data): PlanResponseDTO`
+Create instance from array.
+
+```php
+$plan = PlanResponseDTO::fromArray([
+    'plan_code' => 'PLN_abc123',
+    'name' => 'Monthly Plan',
+    'amount' => 5000.0,
+    'interval' => 'monthly',
+    'currency' => 'NGN',
+]);
+```
+
+### SubscriptionResponseDTO
+
+Type-safe data transfer object for subscription responses.
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\DataObjects\SubscriptionResponseDTO;
+```
+
+#### Properties
+
+```php
+public readonly string $subscriptionCode;    // Subscription code (e.g., 'SUB_xyz123')
+public readonly string $status;              // Status (active, cancelled, etc.)
+public readonly array $customer;             // Customer information
+public readonly array $plan;                  // Plan information
+public readonly float $amount;               // Amount in major currency units
+public readonly string $currency;            // Currency code
+public readonly ?string $nextPaymentDate;    // Next payment date (Y-m-d format)
+public readonly ?string $emailToken;         // Email token (required for cancel/enable)
+public readonly ?array $metadata;            // Custom metadata
+public readonly ?string $provider;           // Provider name
+```
+
+#### Methods
+
+##### `toArray(): array`
+Convert to array.
+
+##### `fromArray(array $data): SubscriptionResponseDTO`
+Create instance from array.
+
+##### `isActive(): bool`
+Check if subscription is active.
+
+```php
+if ($subscription->isActive()) {
+    // Subscription is active
+}
+```
 
 ---
 
@@ -1096,6 +1263,86 @@ Event::listen(WebhookReceived::class, function (WebhookReceived $event) {
 });
 ```
 
+### SubscriptionCreated
+
+Event dispatched when a subscription is created.
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCreated;
+```
+
+#### Properties
+
+```php
+$event->subscriptionCode  // Subscription code
+$event->provider         // Provider name
+$event->data            // Full subscription data array
+```
+
+#### Usage
+
+```php
+Event::listen(SubscriptionCreated::class, function (SubscriptionCreated $event) {
+    // Send welcome email
+    Mail::to($event->data['customer']['email'] ?? '')
+        ->send(new SubscriptionWelcomeMail($event->subscriptionCode));
+});
+```
+
+### SubscriptionRenewed
+
+Event dispatched when a subscription is renewed (payment succeeded).
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionRenewed;
+```
+
+#### Properties
+
+```php
+$event->subscriptionCode  // Subscription code
+$event->provider         // Provider name
+$event->invoiceReference // Invoice reference
+$event->data            // Full renewal data array
+```
+
+### SubscriptionCancelled
+
+Event dispatched when a subscription is cancelled.
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionCancelled;
+```
+
+#### Properties
+
+```php
+$event->subscriptionCode  // Subscription code
+$event->provider         // Provider name
+$event->data            // Full cancellation data array
+```
+
+### SubscriptionPaymentFailed
+
+Event dispatched when a subscription payment fails.
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\Events\SubscriptionPaymentFailed;
+```
+
+#### Properties
+
+```php
+$event->subscriptionCode  // Subscription code
+$event->provider         // Provider name
+$event->reason          // Failure reason
+$event->data            // Full failure data array
+```
+
 ---
 
 ## HTTP Resources
@@ -1169,6 +1416,45 @@ return new VerificationResource($verification);
     "paid_at": "2024-01-01T00:00:00Z",
     "metadata": { },
     "verified_at": "2024-01-01T00:00:00Z"
+}
+```
+
+### PlanResource
+
+Transforms `PlanResponseDTO` to JSON response format.
+
+#### Namespace
+```php
+use KenDeNigerian\PayZephyr\Http\Resources\PlanResource;
+```
+
+#### Usage
+
+```php
+$plan = Payment::subscription()
+    ->planData($planDTO)
+    ->with('paystack')
+    ->createPlan();
+
+return new PlanResource($plan);
+```
+
+#### Response Format
+
+```json
+{
+    "plan_code": "PLN_abc123xyz",
+    "name": "Monthly Premium",
+    "amount": {
+        "value": 5000.0,
+        "currency": "NGN"
+    },
+    "interval": "monthly",
+    "description": "Premium monthly subscription",
+    "invoice_limit": 12,
+    "metadata": { },
+    "provider": "paystack",
+    "created_at": "2024-01-01T00:00:00Z"
 }
 ```
 
