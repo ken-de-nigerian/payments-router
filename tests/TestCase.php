@@ -28,6 +28,7 @@ abstract class TestCase extends Orchestra
         // Enable all providers for comprehensive testing
         $app['config']->set('payments.providers.paystack', [
             'driver' => 'paystack',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\PaystackDriver::class,
             'secret_key' => 'sk_test_xxx',
             'public_key' => 'pk_test_xxx',
             'enabled' => true,
@@ -36,6 +37,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.stripe', [
             'driver' => 'stripe',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\StripeDriver::class,
             'secret_key' => 'sk_test_xxx',
             'public_key' => 'pk_test_xxx',
             'enabled' => true,
@@ -44,6 +46,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.flutterwave', [
             'driver' => 'flutterwave',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver::class,
             'reference_prefix' => 'FLW',
             'secret_key' => 'FLWSECK_TEST_xxx',
             'public_key' => 'FLWPUBK_TEST_xxx',
@@ -53,6 +56,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.monnify', [
             'driver' => 'monnify',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\MonnifyDriver::class,
             'api_key' => 'test_api_key',
             'secret_key' => 'test_secret_key',
             'contract_code' => 'test_contract',
@@ -62,6 +66,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.paypal', [
             'driver' => 'paypal',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\PayPalDriver::class,
             'client_id' => 'test_client_id',
             'client_secret' => 'test_client_secret',
             'enabled' => true,
@@ -70,6 +75,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.square', [
             'driver' => 'square',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\SquareDriver::class,
             'access_token' => 'test_token',
             'location_id' => 'test_location',
             'enabled' => true,
@@ -78,6 +84,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.opay', [
             'driver' => 'opay',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\OPayDriver::class,
             'merchant_id' => 'test_merchant',
             'public_key' => 'test_public_key',
             'enabled' => true,
@@ -86,6 +93,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.mollie', [
             'driver' => 'mollie',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\MollieDriver::class,
             'api_key' => 'test_api_key',
             'enabled' => true,
             'currencies' => ['EUR', 'USD'],
@@ -93,6 +101,7 @@ abstract class TestCase extends Orchestra
 
         $app['config']->set('payments.providers.nowpayments', [
             'driver' => 'nowpayments',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\NowPaymentsDriver::class,
             'api_key' => 'test_api_key',
             'enabled' => true,
             'currencies' => ['USD'],
