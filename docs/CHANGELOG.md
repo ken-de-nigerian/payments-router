@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
+## [Unreleased]
+
+### Changed
+
+- **DriverFactory - OCP Compliance Improvement**
+  - Removed hardcoded special cases for driver class resolution (opay, nowpayments, paypal)
+  - All providers now explicitly define `driver_class` in config for consistency
+  - Maintains OCP (Open/Closed Principle) - new providers require only config changes
+  - Convention-based resolution remains as fallback for custom drivers
+  - Improves maintainability and clarity - no more guessing which drivers need special handling
+
+### Benefits
+
+- **Consistency**: All providers follow the same explicit configuration pattern
+- **OCP Compliance**: No code changes needed when adding new providers
+- **Clarity**: Explicit `driver_class` makes driver resolution clear and self-documenting
+- **Extensibility**: New providers can be added via config only
+
+---
 ## [1.8.0] - 2025-12-27
 
 ### Added

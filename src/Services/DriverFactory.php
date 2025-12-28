@@ -51,10 +51,6 @@ final class DriverFactory
             return $fqcn;
         }
 
-        if (strtolower($name) === 'paypal' && class_exists('KenDeNigerian\PayZephyr\Drivers\PayPalDriver')) {
-            return 'KenDeNigerian\PayZephyr\Drivers\PayPalDriver';
-        }
-
         return $name;
     }
 

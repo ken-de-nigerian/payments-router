@@ -36,6 +36,7 @@ return [
     'providers' => [
         'paystack' => [
             'driver' => 'paystack',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\PaystackDriver::class,
             'secret_key' => env('PAYSTACK_SECRET_KEY'),
             'public_key' => env('PAYSTACK_PUBLIC_KEY'),
             'base_url' => env('PAYSTACK_BASE_URL', 'https://api.paystack.co'),
@@ -45,10 +46,11 @@ return [
 
         'flutterwave' => [
             'driver' => 'flutterwave',
-            'reference_prefix' => 'FLW', // Flutterwave uses 'FLW' prefix, not 'FLUTTERWAVE'
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\FlutterwaveDriver::class,
+            'reference_prefix' => 'FLW',
             'secret_key' => env('FLUTTERWAVE_SECRET_KEY'),
             'public_key' => env('FLUTTERWAVE_PUBLIC_KEY'),
-            'webhook_secret' => env('FLUTTERWAVE_ENCRYPTION_KEY'), // Secret Hash from Flutterwave Dashboard
+            'webhook_secret' => env('FLUTTERWAVE_ENCRYPTION_KEY'),
             'base_url' => env('FLUTTERWAVE_BASE_URL', 'https://api.flutterwave.com/v3/'),
             'currencies' => ['NGN', 'USD', 'EUR', 'GBP', 'KES', 'UGX', 'TZS'],
             'enabled' => env('FLUTTERWAVE_ENABLED', false),
@@ -56,7 +58,8 @@ return [
 
         'monnify' => [
             'driver' => 'monnify',
-            'reference_prefix' => 'MON', // Monnify uses 'MON' prefix, not 'MONNIFY'
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\MonnifyDriver::class,
+            'reference_prefix' => 'MON',
             'api_key' => env('MONNIFY_API_KEY'),
             'secret_key' => env('MONNIFY_SECRET_KEY'),
             'contract_code' => env('MONNIFY_CONTRACT_CODE'),
@@ -67,6 +70,7 @@ return [
 
         'stripe' => [
             'driver' => 'stripe',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\StripeDriver::class,
             'secret_key' => env('STRIPE_SECRET_KEY'),
             'public_key' => env('STRIPE_PUBLIC_KEY'),
             'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
@@ -77,6 +81,7 @@ return [
 
         'paypal' => [
             'driver' => 'paypal',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\PayPalDriver::class,
             'client_id' => env('PAYPAL_CLIENT_ID'),
             'client_secret' => env('PAYPAL_CLIENT_SECRET'),
             'webhook_id' => env('PAYPAL_WEBHOOK_ID'), // Required for webhook validation
@@ -88,6 +93,7 @@ return [
 
         'square' => [
             'driver' => 'square',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\SquareDriver::class,
             'access_token' => env('SQUARE_ACCESS_TOKEN'),
             'location_id' => env('SQUARE_LOCATION_ID'),
             'webhook_signature_key' => env('SQUARE_WEBHOOK_SIGNATURE_KEY'),
@@ -98,6 +104,7 @@ return [
 
         'opay' => [
             'driver' => 'opay',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\OPayDriver::class,
             'merchant_id' => env('OPAY_MERCHANT_ID'),
             'public_key' => env('OPAY_PUBLIC_KEY'),
             'secret_key' => env('OPAY_SECRET_KEY'), // Required for webhook validation
@@ -108,6 +115,7 @@ return [
 
         'mollie' => [
             'driver' => 'mollie',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\MollieDriver::class,
             'reference_prefix' => 'MOLLIE',
             'api_key' => env('MOLLIE_API_KEY'),
             'webhook_secret' => env('MOLLIE_WEBHOOK_SECRET'),
@@ -118,6 +126,7 @@ return [
 
         'nowpayments' => [
             'driver' => 'nowpayments',
+            'driver_class' => \KenDeNigerian\PayZephyr\Drivers\NowPaymentsDriver::class,
             'api_key' => env('NOWPAYMENTS_API_KEY'),
             'ipn_secret' => env('NOWPAYMENTS_IPN_SECRET'),
             'base_url' => env('NOWPAYMENTS_BASE_URL', 'https://api.nowpayments.io'),

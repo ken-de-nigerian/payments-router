@@ -175,9 +175,10 @@ class ChannelMappingConsistencyTest extends TestCase
     #[DataProvider('providers')]
     public function test_channel_specification_works_across_providers(string $provider): void
     {
-        // Ensure provider is enabled
+        // Ensure provider is enabled and configured
         config(["payments.providers.{$provider}.enabled" => true]);
         $this->app->forgetInstance('payments.config');
+        $this->app->forgetInstance(\KenDeNigerian\PayZephyr\PaymentManager::class);
 
         if (! $this->isProviderEnabled($provider)) {
             $this->markTestSkipped("Provider {$provider} is not enabled");
@@ -276,6 +277,14 @@ class ChannelMappingConsistencyTest extends TestCase
     #[DataProvider('providers')]
     public function test_webhook_channel_extraction_normalizes(string $provider): void
     {
+        // Ensure provider is enabled and configured
+        config(["payments.providers.{$provider}.enabled" => true]);
+        $this->app->forgetInstance('payments.config');
+        $this->app->forgetInstance(\KenDeNigerian\PayZephyr\PaymentManager::class);
+
+        if (! $this->isProviderEnabled($provider)) {
+            $this->markTestSkipped("Provider {$provider} is not enabled");
+        }
 
         $driver = app(\KenDeNigerian\PayZephyr\PaymentManager::class)->driver($provider);
 

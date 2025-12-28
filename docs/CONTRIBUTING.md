@@ -615,6 +615,7 @@ In `config/payments.php`:
     
     'newprovider' => [
         'driver' => 'newprovider',
+        'driver_class' => \KenDeNigerian\PayZephyr\Drivers\NewProviderDriver::class,
         'api_key' => env('NEWPROVIDER_API_KEY'),
         'secret_key' => env('NEWPROVIDER_SECRET_KEY'),
         'base_url' => env('NEWPROVIDER_BASE_URL', 'https://api.newprovider.com'),
@@ -623,6 +624,8 @@ In `config/payments.php`:
     ],
 ],
 ```
+
+**Note:** All providers explicitly define `driver_class` for consistency. While the factory supports convention-based resolution as a fallback, explicit `driver_class` ensures clarity and consistency across all providers.
 
 ### Step 3: Register in PaymentManager
 

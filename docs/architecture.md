@@ -335,7 +335,7 @@ final class ProviderDetector implements ProviderDetectorInterface
 - **Maintainable**: Adding new providers requires no code changes
 
 #### DriverFactory
-Creates driver instances following the Factory pattern. Uses Convention over Configuration to automatically resolve driver classes:
+Creates driver instances following the Factory pattern. All default providers explicitly define `driver_class` in config for consistency. Supports convention-based resolution as a fallback:
 
 ```php
 final class DriverFactory
@@ -358,26 +358,29 @@ final class DriverFactory
 
 **Resolution Priority:**
 1. **Registered drivers** (custom drivers registered at runtime via `register()`)
-2. **Config drivers** (from `config['providers'][$name]['driver_class']`)
-3. **Convention-based** (automatically resolves `{Provider}Driver` class)
+2. **Config drivers** (from `config['providers'][$name]['driver_class']`) - **All default providers use this**
+3. **Convention-based** (fallback that automatically resolves `{Provider}Driver` class)
    - Converts provider name to PascalCase: `'paystack'` → `'Paystack'` → `'PaystackDriver'`
-   - Handles special cases (e.g., `'paypal'` → `'PayPalDriver'`)
+   - Used as fallback when `driver_class` is not explicitly defined
 4. **Direct class name** (assumes fully qualified class name if convention fails)
 
-**Convention Examples:**
-- `'paystack'` → `PaystackDriver`
-- `'flutterwave'` → `FlutterwaveDriver`
-- `'monnify'` → `MonnifyDriver`
-- `'stripe'` → `StripeDriver`
-- `'paypal'` → `PayPalDriver` (special case)
-- `'square'` → `SquareDriver`
-- `'opay'` → `OpayDriver`
+**Configuration Pattern:**
+All default providers explicitly define `driver_class` in their configuration for consistency:
+
+```php
+'paystack' => [
+    'driver' => 'paystack',
+    'driver_class' => \KenDeNigerian\PayZephyr\Drivers\PaystackDriver::class,
+    // ... other config
+],
+```
 
 **Benefits:**
-- **OCP Compliance**: Add drivers without modifying core code
-- **Convention over Configuration**: No hardcoded provider lists
-- **Flexibility**: Supports custom drivers via registration or config
-- **Extensibility**: New providers automatically work if they follow naming convention
+- **OCP Compliance**: Add drivers without modifying core code - only config changes needed
+- **Consistency**: All providers follow the same explicit configuration pattern
+- **Clarity**: No guessing which drivers need special handling
+- **Flexibility**: Supports custom drivers via registration, explicit config, or convention fallback
+- **Extensibility**: New providers can be added via config only
 - **Testability**: Easy to mock and test
 
 ### 4. Drivers
